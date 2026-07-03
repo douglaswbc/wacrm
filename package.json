@@ -28,21 +28,15 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "next build",
     "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "cf:build": "opennextjs-cloudflare build && node scripts/cf-pages-build.js",
-    "cf:clean": "node -e \"require('fs').rmSync('.open-next', { recursive: true, force: true })\"",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -50,7 +44,6 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@opennextjs/cloudflare": "^1.20.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.107.0",
     "@xyflow/react": "^12.11.0",
@@ -79,8 +72,7 @@
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
     "typescript": "^6",
-    "vitest": "^4.1.9",
-    "wrangler": "^4.107.0"
+    "vitest": "^4.1.9"
   },
   "overrides": {
     "postcss": "^8.5.10",
