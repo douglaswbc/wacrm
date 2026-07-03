@@ -1,3 +1,7 @@
-pages_build_output_dir = ".open-next"
+main = ".open-next/worker.js"
+name = "wacrm"
 compatibility_date = "2026-07-03"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+# Used by Cloudflare Pages CI
+pages_build_output_dir = ".open-next"
