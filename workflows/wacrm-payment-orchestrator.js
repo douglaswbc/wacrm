@@ -66,20 +66,20 @@ const fetchConversation = node({
     parameters: {
       method: "GET",
       url: expr(
-        '{{ $("Webhook wacrm").item.json.body.conversation_id }}',
+        'https://wacrm.autofunil.com.br/api/v1/conversations/{{ $("Webhook wacrm").item.json.body.conversation_id }}',
       ),
       sendHeaders: true,
       headerParameters: {
         parameters: [{ name: "Content-Type", value: "application/json" }],
       },
       authentication: "genericCredentialType",
-      genericAuthType: "httpHeaderAuth",
+      genericAuthType: "httpBearerAuth",
       options: {
         timeout: 10000,
         response: { response: { responseFormat: "json" } },
       },
     },
-    credentials: { httpHeaderAuth: newCredential("WACRM API") },
+    credentials: { httpBearerAuth: newCredential("WACRM API") },
     executeOnce: true,
     position: [540, 300],
   },
@@ -98,20 +98,20 @@ const fetchContact = node({
     parameters: {
       method: "GET",
       url: expr(
-        '{{ $("Buscar Conversa (API)").item.json.data.contact_id }}',
+        'https://wacrm.autofunil.com.br/api/v1/contacts/{{ $("Buscar Conversa (API)").item.json.data.contact_id }}',
       ),
       sendHeaders: true,
       headerParameters: {
         parameters: [{ name: "Content-Type", value: "application/json" }],
       },
       authentication: "genericCredentialType",
-      genericAuthType: "httpHeaderAuth",
+      genericAuthType: "httpBearerAuth",
       options: {
         timeout: 10000,
         response: { response: { responseFormat: "json" } },
       },
     },
-    credentials: { httpHeaderAuth: newCredential("WACRM API") },
+    credentials: { httpBearerAuth: newCredential("WACRM API") },
     executeOnce: true,
     position: [840, 300],
   },
@@ -244,10 +244,10 @@ const chargeApi = node({
   type: "n8n-nodes-base.httpRequest",
   version: 4.4,
   config: {
-    name: "Criar Cobranca",
+    name: "Criar Cobranca (MP)",
     parameters: {
       method: "POST",
-      url: placeholder("https://api.asaas.com/v3/payments"),
+      url: placeholder("https://api.mercadopago.com/checkout/preferences"),
       authentication: "genericCredentialType",
       genericAuthType: "httpBearerAuth",
       sendHeaders: true,
@@ -257,18 +257,25 @@ const chargeApi = node({
       specifyBody: "json",
       jsonBody: expr(
         '{\n' +
-        '  "customer": "{{ $("Normalizar Dados").item.json.contact_name }}",\n' +
-        '  "value": {{ $("Normalizar Dados").item.json.custom_data.amount }},\n' +
-        '  "description": "{{ $("Normalizar Dados").item.json.custom_data.description }}"\n' +
+        '  "items": [{\n' +
+        '    "title": "{{ $("Normalizar Dados").item.json.custom_data.description }}",\n' +
+        '    "quantity": 1,\n' +
+        '    "unit_price": {{ $("Normalizar Dados").item.json.custom_data.amount }},\n' +
+        '    "currency_id": "BRL"\n' +
+        '  }],\n' +
+        '  "payer": { "name": "{{ $("Normalizar Dados").item.json.contact_name }}" },\n' +
+        '  "back_urls": { "success": "https://wacrm.autofunil.com.br/", "failure": "https://wacrm.autofunil.com.br/", "pending": "https://wacrm.autofunil.com.br/" },\n' +
+        '  "auto_return": "approved",\n' +
+        '  "external_reference": "{{ $("Normalizar Dados").item.json.conversation_id }}"\n' +
         '}',
       ),
       options: { timeout: 15000, response: { response: { responseFormat: "json" } } },
     },
-    credentials: { httpBearerAuth: newCredential("Gateway Pagamento") },
+    credentials: { httpBearerAuth: newCredential("Mercado Pago") },
     executeOnce: true,
     position: [1740, 50],
   },
-  output: [{ id: "", invoiceUrl: "", status: "" }],
+  output: [{ id: "", init_point: "", sandbox_init_point: "" }],
 });
 
 const sendLink = node({
@@ -280,7 +287,7 @@ const sendLink = node({
       method: "POST",
       url: placeholder("https://wacrm.autofunil.com.br/api/v1/messages"),
       authentication: "genericCredentialType",
-      genericAuthType: "httpHeaderAuth",
+      genericAuthType: "httpBearerAuth",
       sendHeaders: true,
       headerParameters: { parameters: [{ name: "Content-Type", value: "application/json" }] },
       sendBody: true,
@@ -289,12 +296,12 @@ const sendLink = node({
       jsonBody: expr(
         '{\n' +
         '  "to": "{{ $("Normalizar Dados").item.json.contact_phone }}",\n' +
-        '  "text": "Segue seu link de pagamento:\n{{ $("Criar Cobranca").item.json.invoiceUrl }}"\n' +
+        '  "text": "Segue seu link de pagamento:\n{{ $("Criar Cobranca (MP)").item.json.init_point }}"\n' +
         '}',
       ),
       options: { timeout: 10000, response: { response: { responseFormat: "json" } } },
     },
-    credentials: { httpHeaderAuth: newCredential("WACRM API") },
+    credentials: { httpBearerAuth: newCredential("WACRM API") },
     executeOnce: true,
     position: [2040, 50],
   },
@@ -309,21 +316,21 @@ const checkStatus = node({
   type: "n8n-nodes-base.httpRequest",
   version: 4.4,
   config: {
-    name: "Consultar Status",
+    name: "Consultar Status (MP)",
     parameters: {
       method: "GET",
-      url: placeholder("https://api.asaas.com/v3/payments/{payment_id}"),
+      url: expr('https://api.mercadopago.com/v1/payments/search?external_reference={{ $("Normalizar Dados").item.json.conversation_id }}'),
       authentication: "genericCredentialType",
       genericAuthType: "httpBearerAuth",
       sendHeaders: true,
       headerParameters: { parameters: [{ name: "Content-Type", value: "application/json" }] },
       options: { timeout: 10000, response: { response: { responseFormat: "json" } } },
     },
-    credentials: { httpBearerAuth: newCredential("Gateway Pagamento") },
+    credentials: { httpBearerAuth: newCredential("Mercado Pago") },
     executeOnce: true,
     position: [1740, 200],
   },
-  output: [{ id: "", status: "", paidDate: "" }],
+  output: [{ results: [{ id: "", status: "", date_approved: "" }] }],
 });
 
 const notifyPaid = node({
@@ -335,7 +342,7 @@ const notifyPaid = node({
       method: "POST",
       url: placeholder("https://wacrm.autofunil.com.br/api/v1/messages"),
       authentication: "genericCredentialType",
-      genericAuthType: "httpHeaderAuth",
+      genericAuthType: "httpBearerAuth",
       sendHeaders: true,
       headerParameters: { parameters: [{ name: "Content-Type", value: "application/json" }] },
       sendBody: true,
@@ -349,7 +356,7 @@ const notifyPaid = node({
       ),
       options: { timeout: 10000, response: { response: { responseFormat: "json" } } },
     },
-    credentials: { httpHeaderAuth: newCredential("WACRM API") },
+    credentials: { httpBearerAuth: newCredential("WACRM API") },
     executeOnce: true,
     position: [2040, 200],
   },
@@ -369,7 +376,7 @@ const sendMedia = node({
       method: "POST",
       url: placeholder("https://wacrm.autofunil.com.br/api/v1/messages"),
       authentication: "genericCredentialType",
-      genericAuthType: "httpHeaderAuth",
+      genericAuthType: "httpBearerAuth",
       sendHeaders: true,
       headerParameters: { parameters: [{ name: "Content-Type", value: "application/json" }] },
       sendBody: true,
@@ -385,7 +392,7 @@ const sendMedia = node({
       ),
       options: { timeout: 15000, response: { response: { responseFormat: "json" } } },
     },
-    credentials: { httpHeaderAuth: newCredential("WACRM API") },
+    credentials: { httpBearerAuth: newCredential("WACRM API") },
     executeOnce: true,
     position: [1740, 350],
   },
@@ -397,7 +404,7 @@ const sendMedia = node({
 // ============================================================
 
 export default workflow("wacrm-payment-orchestrator", "WACRM - Orquestrador de Pagamentos")
-  .add(sticky("## WACRM - Orquestrador de Pagamentos\n\n### Fluxo\n1. Recebe webhook do wacrm (message_text + conversation_id)\n2. Busca conversa na API do wacrm\n3. Busca contato na API do wacrm\n4. Roteia pela action na query string\n\n### Config na automacao do wacrm\n- **URL:** `https://editor.autofunil.com.br/webhook/wacrm-payment?action=generate_charge`\n- **body_template:** deixe vazio\n\nTroque `generate_charge` por `check_payment` ou `send_media` conforme o cenario.\n\n### Credenciais necessarias\n- WACRM API (Header Auth)\n- Gateway Pagamento (Bearer Auth)"))
+  .add(sticky("## WACRM - Orquestrador de Pagamentos\n\n### Fluxo\n1. Recebe webhook do wacrm (message_text + conversation_id)\n2. Busca conversa na API do wacrm\n3. Busca contato na API do wacrm\n4. Roteia pela action na query string\n\n### Config na automacao do wacrm\n- **URL:** `https://editor.autofunil.com.br/webhook/wacrm-payment?action=generate_charge`\n- **body_template:** deixe vazio\n\nTroque `generate_charge` por `check_payment` ou `send_media` conforme o cenario.\n\n### Credenciais necessarias\n- WACRM API (Header Auth)\n- Mercado Pago (Bearer Auth)"))
   .add(webhook)
   .to(fetchConversation)
   .to(fetchContact)
