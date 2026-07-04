@@ -168,6 +168,18 @@ const normalize = node({
             value: expr("{{ $('Webhook wacrm').item.json.body.message_text }}"),
             type: "string",
           },
+          {
+            id: "g",
+            name: "amount",
+            value: expr("{{ $('Webhook wacrm').item.json.query.amount }}"),
+            type: "number",
+          },
+          {
+            id: "h",
+            name: "description",
+            value: expr("{{ $('Webhook wacrm').item.json.query.description }}"),
+            type: "string",
+          },
         ],
       },
     },
@@ -258,9 +270,9 @@ const chargeApi = node({
       jsonBody: expr(
         '{\n' +
         '  "items": [{\n' +
-        '    "title": "{{ $("Normalizar Dados").item.json.custom_data.description }}",\n' +
+        '    "title": "{{ $("Normalizar Dados").item.json.description }}",\n' +
         '    "quantity": 1,\n' +
-        '    "unit_price": {{ $("Normalizar Dados").item.json.custom_data.amount }},\n' +
+        '    "unit_price": {{ $("Normalizar Dados").item.json.amount }},\n' +
         '    "currency_id": "BRL"\n' +
         '  }],\n' +
         '  "payer": { "name": "{{ $("Normalizar Dados").item.json.contact_name }}" },\n' +
@@ -296,7 +308,7 @@ const sendLink = node({
       jsonBody: expr(
         '{\n' +
         '  "to": "{{ $("Normalizar Dados").item.json.contact_phone }}",\n' +
-        '  "text": "Segue seu link de pagamento:\n{{ $("Criar Cobranca (MP)").item.json.init_point }}"\n' +
+        '  "text": "Segue o link de pagamento para {{ $("Normalizar Dados").item.json.description }} (R$ {{ $("Normalizar Dados").item.json.amount }}):\n{{ $("Criar Cobranca (MP)").item.json.init_point }}"\n' +
         '}',
       ),
       options: { timeout: 10000, response: { response: { responseFormat: "json" } } },
