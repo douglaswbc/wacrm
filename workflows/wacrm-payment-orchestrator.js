@@ -66,7 +66,7 @@ const fetchConversation = node({
     parameters: {
       method: "GET",
       url: expr(
-        '{{ $("Webhook wacrm").item.json.body.conversation_id }}/',
+        '{{ $("Webhook wacrm").item.json.body.conversation_id }}',
       ),
       sendHeaders: true,
       headerParameters: {
@@ -98,7 +98,7 @@ const fetchContact = node({
     parameters: {
       method: "GET",
       url: expr(
-        '{{ $("Buscar Conversa (API)").item.json.data.contact_id }}/',
+        '{{ $("Buscar Conversa (API)").item.json.data.contact_id }}',
       ),
       sendHeaders: true,
       headerParameters: {
@@ -378,8 +378,9 @@ const sendMedia = node({
       jsonBody: expr(
         '{\n' +
         '  "to": "{{ $("Normalizar Dados").item.json.contact_phone }}",\n' +
-        '  "media_type": "{{ $("Normalizar Dados").item.json.custom_data.media_type }}",\n' +
-        '  "media_url": "{{ $("Normalizar Dados").item.json.custom_data.media_url }}"\n' +
+        '  "type": "image",\n' +
+        '  "media_url": "{{ $("Normalizar Dados").item.json.custom_data.media_url }}",\n' +
+        '  "text": ""\n' +
         '}',
       ),
       options: { timeout: 15000, response: { response: { responseFormat: "json" } } },
