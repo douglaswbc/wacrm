@@ -1,0 +1,325 @@
+{
+  "name": "Tool Action generate_charge",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "action"
+            },
+            {
+              "name": "conversation_id"
+            },
+            {
+              "name": "url_wacrm"
+            },
+            {
+              "name": "amount"
+            },
+            {
+              "name": "description"
+            }
+          ]
+        }
+      },
+      "id": "6f7b41ff-a9be-471c-8263-3a945a93103b",
+      "name": "Workflow IA Agente",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agente\").item.json.url_wacrm }}/api/v1/conversations/{{ $(\"Workflow IA Agente\").item.json.conversation_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "217d3037-ccab-4131-91be-6bbd3619a245",
+      "name": "Buscar Conversa (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agente\").item.json.url_wacrm }}/api/v1/contacts/{{ $(\"Buscar Conversa (API)\").item.json.data.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "088a54cf-5989-4c92-b637-2bc28f34ed89",
+      "name": "Buscar Contato (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a",
+              "name": "contact_name",
+              "value": "={{ $('Buscar Contato (API)').item.json.data.name }}",
+              "type": "string"
+            },
+            {
+              "id": "b",
+              "name": "contact_phone",
+              "value": "={{ $('Buscar Contato (API)').item.json.data.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "c",
+              "name": "amount",
+              "value": "={{ $('Workflow IA Agente').item.json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "d",
+              "name": "description",
+              "value": "={{ $('Workflow IA Agente').item.json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "e",
+              "name": "conversation_id",
+              "value": "={{ $('Workflow IA Agente').item.json.conversation_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f",
+              "name": "url_wacrm",
+              "value": "={{ $('Workflow IA Agente').item.json.url_wacrm }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ede94ab4-1a57-4e79-909f-d15db02cfec1",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mercadopago.com/checkout/preferences",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"items\": [{ \"title\": \"{{ $(\"Normalizar Dados\").item.json.description }}\", \"quantity\": 1, \"unit_price\": {{ $(\"Normalizar Dados\").item.json.amount }}, \"currency_id\": \"BRL\" }], \"payer\": { \"name\": \"{{ $(\"Normalizar Dados\").item.json.contact_name }}\" }, \"back_urls\": { \"success\": \"https://wacrm.autofunil.com.br/\", \"failure\": \"https://wacrm.autofunil.com.br/\", \"pending\": \"https://wacrm.autofunil.com.br/\" }, \"auto_return\": \"approved\", \"external_reference\": \"{{ $(\"Normalizar Dados\").item.json.conversation_id }}\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "b0e3ff5f-57e6-41ed-81e2-b00fef8dfe31",
+      "name": "Criar Cobranca (MP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "f45rgrnZ4ZxH5oU4",
+          "name": "Bearer Auth Mercado Pago"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \n  \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\",\n  \"text\": \"Segue o link de pagamento para  (R$ {{ $(\"Normalizar Dados\").item.json.amount }}): {{ $(\"Criar Cobranca (MP)\").item.json.init_point }}\\n\\n{{ $('Normalizar Dados').item.json.description }}\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "88307d51-5c36-4990-b541-3bda59c295d5",
+      "name": "Enviar Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Workflow IA Agente": [
+      {
+        "json": {
+          "action": "generate_charge",
+          "conversation_id": "0835e7d7-8845-4835-a962-135fb5fde49f",
+          "url_wacrm": "https://wacrm.autofunil.com.br",
+          "amount": "0.01",
+          "description": "Limpeza de pele para Douglas Cuimar - R$ 200"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Workflow IA Agente": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conversa (API)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Contato (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Contato (API)": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Dados": {
+      "main": [
+        [
+          {
+            "node": "Criar Cobranca (MP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Cobranca (MP)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "b20a2118-23e6-4f43-ab86-59b17a429d7f",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "19779e7dd7b4c0d2c94560b4f5a2a5da0360275eeb4cfbb9eebed8cbc5a28cb0"
+  },
+  "id": "xpvZCJj2jKGn3y2B",
+  "tags": []
+}

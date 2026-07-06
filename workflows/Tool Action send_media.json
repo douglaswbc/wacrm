@@ -1,0 +1,259 @@
+{
+  "name": "Tool Action send_media",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "action"
+            },
+            {
+              "name": "conversation_id"
+            },
+            {
+              "name": "url_wacrm"
+            },
+            {
+              "name": "media_url"
+            },
+            {
+              "name": "media_type"
+            },
+            {
+              "name": "media_caption"
+            }
+          ]
+        }
+      },
+      "id": "0e07f783-c557-44ab-883f-595cad2410fc",
+      "name": "Workflow IA Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/conversations/{{ $(\"Workflow IA Agent\").item.json.conversation_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "196ed411-5cec-4103-bfb5-8049ca16185a",
+      "name": "Buscar Conversa (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/contacts/{{ $(\"Buscar Conversa (API)\").item.json.data.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "ecb2f9e0-2237-4fc0-825a-c06ef0ea10c0",
+      "name": "Buscar Contato (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a",
+              "name": "contact_name",
+              "value": "={{ $('Buscar Contato (API)').item.json.data.name }}",
+              "type": "string"
+            },
+            {
+              "id": "b",
+              "name": "contact_phone",
+              "value": "={{ $('Buscar Contato (API)').item.json.data.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "c",
+              "name": "media_url",
+              "value": "={{ $('Workflow IA Agent').item.json.media_url }}",
+              "type": "string"
+            },
+            {
+              "id": "d",
+              "name": "media_type",
+              "value": "={{ $('Workflow IA Agent').item.json.media_type }}",
+              "type": "string"
+            },
+            {
+              "id": "e",
+              "name": "media_caption",
+              "value": "={{ $('Workflow IA Agent').item.json.media_caption }}",
+              "type": "string"
+            },
+            {
+              "id": "f",
+              "name": "url_wacrm",
+              "value": "={{ $('Workflow IA Agent').item.json.url_wacrm }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "884d9be3-f7b4-405c-9867-f42112fabed6",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"type\": \"{{ $(\"Normalizar Dados\").item.json.media_type }}\", \"media_url\": \"{{ $(\"Normalizar Dados\").item.json.media_url }}\", \"text\": \"{{ $(\"Normalizar Dados\").item.json.media_caption }}\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "9ae6d259-af3a-4bcc-ad7e-690190614664",
+      "name": "Enviar Midia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Workflow IA Agent": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conversa (API)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Contato (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Contato (API)": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Dados": {
+      "main": [
+        [
+          {
+            "node": "Enviar Midia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "2c965007-b017-4b99-8ffa-6f2bb5ff2274",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "19779e7dd7b4c0d2c94560b4f5a2a5da0360275eeb4cfbb9eebed8cbc5a28cb0"
+  },
+  "id": "wvGlnilMg0jVkrrK",
+  "tags": []
+}

@@ -1,0 +1,1961 @@
+{
+  "name": "WACRM Agent  IA",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WACRM - AI Atendente\n\nRecebe mensagens, enriquece dados, AI Agent responde com ferramentas:\n- Enviar WhatsApp\n- Criar Cobranca MP\n- Verificar Pagamento\n- Mover Pipeline\n- Adicionar Tag\n- Buscar Contato API",
+        "height": 1792,
+        "width": 6528
+      },
+      "id": "7ca3ae9a-0a01-42e0-ba3b-58840e6bb06b",
+      "name": "Sticky Note 2e4d197b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -1408
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wacrm-ai-agent",
+        "options": {
+          "responseCode": {
+            "values": {}
+          }
+        }
+      },
+      "id": "7e78e9d2-7184-4b64-a0c8-205f81e94ed7",
+      "name": "Webhook wacrm",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -512
+      ],
+      "webhookId": "88b9ceb2-d6b8-4c84-af2a-2fdb6de3e538"
+    },
+    {
+      "parameters": {
+        "url": "=https://wacrm.autofunil.com.br/api/v1/conversations/{{ $(\"Webhook wacrm\").item.json.body.conversation_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "945e81d4-c6bb-44a8-808c-b6ee8bd2ec28",
+      "name": "Buscar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        -512
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://wacrm.autofunil.com.br/api/v1/contacts/{{ $(\"Buscar Conversa\").item.json.data.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "98fb2909-d8ca-4d1e-9aad-983706e0e13d",
+      "name": "Buscar Contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        -512
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://wacrm.autofunil.com.br/api/v1/conversations/{{ $(\"Webhook wacrm\").item.json.body.conversation_id }}/messages?limit=20",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "7470e78e-a0ef-47e3-bea9-f23f2668ae63",
+      "name": "Buscar Historico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        -512
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Nome: {{ $('normalize').item.json.contact_name }}\n\nContato ID: {{ $('normalize').item.json.contact_id }}\n\nConversation ID: {{ $('normalize').item.json.conversation_id }}\n\nEstágio Atual:  {{ $('normalize').item.json.deals.stage }}\n\nMensagem: {{ $('mensagem_formatada').item.json.mensagem }}",
+        "options": {
+          "systemMessage": "=# IDENTIDADE\n\nVocê é a assistente virtual da Clínica Ana Rosa, especializada em procedimentos estéticos.\n\nSeu objetivo é atender clientes, entender suas necessidades, apresentar os procedimentos disponíveis e conduzi-los até o agendamento.\n\nData e hora atual:\n{{ $now.setLocale('pt-BR').toFormat(\"cccc, dd 'de' LLLL 'de' yyyy 'às' HH:mm:ss\") }}.\n\n---\n\n# PERSONALIDADE\n\n- Profissional.\n- Acolhedora.\n- Simpática.\n- Objetiva.\n- Natural.\n- Entusiasmada sem ser insistente.\n\nSempre responda em português do Brasil.\n\nUtilize frases curtas e de fácil leitura para WhatsApp.\n\nFaça apenas uma pergunta por vez.\n\nTrate o cliente por \"você\".\n\nApresente-se apenas na primeira mensagem da conversa.\n\n---\n\n# SERVIÇOS DISPONÍVEIS\n\n- Botox (toxina botulínica) — R$ 990\n- Limpeza de pele — R$ 200\n\nNunca mencione serviços que não estejam nesta lista.\n\nNunca invente preços.\n\n---\n\n# ESTÁGIOS DA PIPELINE:\n\n{{ $('normalize').item.json.deals.pipeline }}\n\n---\n\n# FLUXO DE ATENDIMENTO\n\n## 1. Primeiro contato\n\nCumprimente o cliente.\n\nApresente-se.\n\nPergunte qual procedimento ele procura ou qual objetivo deseja alcançar.\n\nAo iniciar um novo atendimento, mova o lead para:\n\n{{ $('normalize').item.json.deals.pipeline.split('\\n') [0]}}\n\nUtilize a ferramenta e envie somente o ID:\nmove_stage\n\n---\n\n## 2. Qualificação\n\nDescubra a necessidade do cliente antes de recomendar qualquer procedimento.\n\nExemplos:\n\n- O que você gostaria de melhorar?\n- É a primeira vez que realiza esse procedimento?\n- O que você espera como resultado?\n\nApós entender a necessidade, mova o lead para:\n\n{{ $('normalize').item.json.deals.pipeline.split('\\n') [1]}}\n\nUtilize a ferramenta e envie somente o ID:\nmove_stage\n\n---\n\n## 3. Recomendação\n\nIndique apenas procedimentos disponíveis.\n\nExplique de forma simples os benefícios.\n\nNunca faça promessas de resultados.\n\nNunca forneça informações médicas além do básico.\n\n---\n\n## 4. Apresentação do valor\n\nInforme o preço somente do procedimento recomendado.\n\nApós apresentar a proposta, mova o lead para:\n\n{{ $('normalize').item.json.deals.pipeline.split('\\n') [2]}}\n\nUtilize a ferramenta e envie somente o ID:\nmove_stage\n\n---\n\n## 5. Negociação\n\nCaso o cliente demonstre interesse, faça perguntas para conduzir ao fechamento.\n\nExemplos:\n\n\"Gostaria de agendar?\"\n\n\"Posso preparar seu atendimento?\"\n\nEnquanto estiver negociando, utilize:\n\n{{ $('normalize').item.json.deals.pipeline.split('\\n') [3]}}\n\nUtilize a ferramenta e envie somente o ID:\nmove_stage\n\n---\n\n## 6. Fechamento\n\nQuando o cliente confirmar o interesse no agendamento:\n\n- gere a cobrança utilizando:\ngenerate_charge\n\n- acompanhe o pagamento utilizando:\ncheck_payment\n\nApós a confirmação do pagamento, mova o lead para:\n\n{{ $('normalize').item.json.deals.pipeline.split('\\n') [4]}}\n\nUtilize a ferramenta e envie somente o ID:\nmove_stage\n\n---\n\n# ENVIO DE MÍDIAS\n\nSempre que houver imagens relevantes para ajudar o cliente a entender um procedimento ou visualizar resultados, utilize:\n\nsend_media\n\nNunca diga ao cliente que está chamando uma ferramenta.\n\n---\n\n# HANDOFF\n\nUtilize [[HANDOFF]] imediatamente quando:\n\n- o cliente solicitar atendimento humano;\n- houver reclamações;\n- o cliente estiver irritado ou agressivo;\n- houver dúvidas médicas específicas;\n- houver perguntas sobre contraindicações;\n- houver perguntas sobre horários, endereço ou informações administrativas que você não possua.\n\nNão tente responder esses assuntos.\n\n---\n\n# REGRAS IMPORTANTES\n\nNunca invente informações.\n\nNunca invente preços.\n\nNunca invente procedimentos.\n\nNunca prometa resultados.\n\nNunca recomende um procedimento antes de entender o objetivo do cliente.\n\nNunca exponha IDs internos ou nomes de ferramentas ao cliente.\n\nSempre que ocorrer uma mudança de etapa do atendimento, utilize a ferramenta move_stage com o ID correspondente.\n\nAs ferramentas disponíveis são:\n\n- move_stage\n- generate_charge\n- check_payment\n- send_media",
+          "maxIterations": 15
+        }
+      },
+      "id": "1b1694fa-13b0-4c11-a11b-a78170b3f836",
+      "name": "AI Atendente",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        4672,
+        -608
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "27c8eb77-4e9d-490f-8398-97059336f736",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4480,
+        -384
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "uSXPtfqxgwNl6ihV",
+          "name": "OpenAI WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('normalize').item.json.conversation_id }}",
+        "contextWindowLength": 10
+      },
+      "id": "fda08d54-8e3b-46be-84a4-18a83231606c",
+      "name": "Memoria",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        4608,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 8
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3136,
+        -608
+      ],
+      "id": "747d40c9-7da9-439c-964a-1c2e292bac64",
+      "name": "Wait",
+      "webhookId": "262938d5-7d34-4374-851f-732bb7e32533"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3808,
+        -608
+      ],
+      "id": "3b97663d-2a99-42e1-a297-2c2ea615a984",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "511bce28-7ad8-49ba-b207-37f564fe3267",
+              "name": "mensagem",
+              "value": "={{ $('Merge Final').item.json.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2688,
+        -608
+      ],
+      "id": "44904f95-06b1-4dfa-b10a-074f2485e4f9",
+      "name": "mensagem"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5185b6e9-392b-4733-a6c1-94f4185707fe",
+              "name": "mensagem",
+              "value": "={{(() => {\n  let data = $json.concatenated_Message;\n\n  // 1️⃣ Tenta converter caso seja string JSON\n  try {\n    if (typeof data === 'string' && data.trim().startsWith('[')) {\n      data = JSON.parse(data);\n    }\n  } catch (error) {\n    // ignora erro de parse e segue com valor original\n  }\n\n  // 2️⃣ Se for array, junta tudo em uma frase\n  if (Array.isArray(data)) {\n    const text = data.join(' ').replace(/\\\\n/g, '\\n').trim();\n    return text.length ? text : 'Mensagem vazia';\n  }\n\n  // 3️⃣ Se for objeto (raro, mas possível), transforma em string JSON\n  if (typeof data === 'object' && data !== null) {\n    return JSON.stringify(data);\n  }\n\n  // 4️⃣ Se for string simples, limpa quebras de linha literais\n  if (typeof data === 'string') {\n    return data.replace(/\\\\n/g, '\\n').trim();\n  }\n\n  // 5️⃣ Caso não se encaixe em nada (null, undefined etc.)\n  return 'Sem mensagens válidas';\n})()}}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4256,
+        -608
+      ],
+      "id": "d7b6c1fa-9492-4c96-8029-27153a0d0dab",
+      "name": "mensagem_formatada"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// SPLIT DE MENSAGENS WHATSAPP\n// Máximo: 2 mensagens\n// ============================================\n\nconst mensagemOriginal = $input.first().json.output || \"\";\n\nconst LIMITE_UNICO = 500;\nconst PONTO_DIVISAO = 700;\n\n// --------------------------------------------\n// Funções auxiliares\n// --------------------------------------------\n\nfunction limparFormatacao(texto) {\n  return texto.replace(/\\*\\*/g, \"*\").trim();\n}\n\nfunction extrairLinks(texto) {\n  return texto.match(/https?:\\/\\/\\S+|www\\.\\S+/gi) || [];\n}\n\nfunction removerLinks(texto) {\n  return texto.replace(/https?:\\/\\/\\S+|www\\.\\S+/gi, \"\").trim();\n}\n\nfunction encontrarQuebra(texto, ideal) {\n  const pontos = [\n    \"\\n\\n\",\n    \"\\n\",\n    \". \",\n    \"! \",\n    \"? \",\n    \"; \",\n    \", \",\n    \" \"\n  ];\n\n  for (const p of pontos) {\n    const pos = texto.lastIndexOf(p, ideal);\n    if (pos > texto.length * 0.35) {\n      return pos + p.length;\n    }\n  }\n\n  return ideal;\n}\n\n// --------------------------------------------\n// Início\n// --------------------------------------------\n\nif (!mensagemOriginal.trim()) {\n  return [];\n}\n\nconst texto = limparFormatacao(mensagemOriginal);\n\n// Se houver exatamente dois blocos separados por linha em branco,\n// envia cada bloco como uma mensagem.\nconst partesParagrafo = texto.split(/\\n\\s*\\n/).filter(p => p.trim());\n\nif (partesParagrafo.length === 2) {\n  return partesParagrafo.map(parte => ({\n    json: {\n      message: parte.trim()\n    }\n  }));\n}\n\n// Links em mensagem própria\nconst links = extrairLinks(texto);\n\nif (links.length) {\n  const textoSemLinks = removerLinks(texto);\n\n  const items = [];\n\n  if (textoSemLinks) {\n    if (textoSemLinks.length <= LIMITE_UNICO) {\n      items.push({\n        json: {\n          message: textoSemLinks\n        }\n      });\n    } else {\n      const quebra = encontrarQuebra(textoSemLinks, PONTO_DIVISAO);\n\n      items.push({\n        json: {\n          message: textoSemLinks.substring(0, quebra).trim()\n        }\n      });\n\n      const restante = textoSemLinks.substring(quebra).trim();\n\n      if (restante) {\n        items.push({\n          json: {\n            message: restante\n          }\n        });\n      }\n    }\n  }\n\n  links.forEach(link => {\n    items.push({\n      json: {\n        message: link\n      }\n    });\n  });\n\n  return items;\n}\n\n// Cabe em uma única mensagem\nif (texto.length <= LIMITE_UNICO) {\n  return [\n    {\n      json: {\n        message: texto\n      }\n    }\n  ];\n}\n\n// Divide em no máximo 2 mensagens\nconst quebra = encontrarQuebra(texto, PONTO_DIVISAO);\n\nconst primeira = texto.substring(0, quebra).trim();\nconst segunda = texto.substring(quebra).trim();\n\nreturn [\n  {\n    json: {\n      message: primeira\n    }\n  },\n  ...(segunda\n    ? [\n        {\n          json: {\n            message: segunda\n          }\n        }\n      ]\n    : [])\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5200,
+        -608
+      ],
+      "id": "7448adf6-5396-4b83-bf1f-92299140ef09",
+      "name": "quebra_menssages"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "Message",
+        "key": "={{ $('normalize').item.json.conversation_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        3360,
+        -608
+      ],
+      "id": "67714e5a-bc11-4bc6-9b2b-13e452bd405d",
+      "name": "Get Messages",
+      "credentials": {
+        "redis": {
+          "id": "OUH79xRwxkNvxrFa",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0d66b907-539f-4584-93a8-910a045cc6ce",
+              "leftValue": "={{ $json.Message.last() }}",
+              "rightValue": "={{ $('Wait').first().json.mensagem }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3584,
+        -608
+      ],
+      "id": "a4c5530d-1dbc-4836-9308-3d3e6ea96abe",
+      "name": "Ultima Mensagem"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3808,
+        -416
+      ],
+      "id": "9a26fca2-6116-42cf-9cdb-e6e8a5b3a215",
+      "name": "No Operation"
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "Message",
+              "separateBy": ", "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "53bce02b-96d8-4658-a345-eb6e9409a1dc",
+      "name": "Summarize",
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1,
+      "position": [
+        4032,
+        -608
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "530c0651-b52a-4eb2-a67c-77072b4339c4",
+      "name": "Calculator",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        4720,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "message",
+        "options": {
+          "destinationFieldName": "output"
+        }
+      },
+      "id": "8081c00f-e04f-487d-bf5b-16327fc04bc7",
+      "name": "Split Message",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        5424,
+        -608
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        5648,
+        -608
+      ],
+      "id": "3b5c6a6a-02a9-44cb-85e3-4db840085e0e",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('normalize').item.json.conversation_id }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        6096,
+        -800
+      ],
+      "id": "d90aae30-d3d2-4484-914b-8fc0bf7c87ac",
+      "name": "Delete Buffer Message",
+      "credentials": {
+        "redis": {
+          "id": "OUH79xRwxkNvxrFa",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "={{ $('normalize').item.json.conversation_id }}",
+        "messageData": "={{ $json.mensagem }}",
+        "tail": true
+      },
+      "id": "7fdb2668-578e-45ec-851d-98e6e0f77e2a",
+      "name": "Push Buffer Message",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        -608
+      ],
+      "credentials": {
+        "redis": {
+          "id": "OUH79xRwxkNvxrFa",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        5872,
+        -800
+      ],
+      "id": "4218f16f-3f0b-4edd-9bd9-45ecee5ecc24",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2464,
+        -624
+      ],
+      "id": "b3d55247-291f-4d3d-adba-83a367ec1a7d",
+      "name": "Merge Final"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "092a6282-ee15-420b-88e2-44d81c8a75da",
+                    "leftValue": "={{ $('normalize').item.json.content_type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "check-imagem",
+                    "leftValue": "={{ $('normalize').item.json.content_type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "imagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "check-audio",
+                    "leftValue": "={{ $('normalize').item.json.content_type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c89a1203-057a-421d-b745-abcc76a0a57d",
+                    "leftValue": "={{ $('normalize').item.json.content_type }}",
+                    "rightValue": "reacao",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reacao"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "5de9af26-bf5f-4448-92b3-f269a960a338",
+                    "leftValue": "={{ $('normalize').item.json.content_type }}",
+                    "rightValue": "documento",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "documento"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "799c4a95-c9cc-4183-8273-6b6e4521192f",
+      "name": "Rotas por Tipo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1792,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2c72b9a7-2607-4f34-bd7d-037a57b6b4c8",
+              "leftValue": "={{ $('normalize').item.json.content_type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -512
+      ],
+      "id": "9bd91e01-943c-4e2f-b89f-06653c045918",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a",
+              "name": "conversation_id",
+              "value": "={{ $('Webhook wacrm').item.json.body.conversation_id }}",
+              "type": "string"
+            },
+            {
+              "id": "b",
+              "name": "message_text",
+              "value": "={{ $('Webhook wacrm').item.json.body.message_text }}",
+              "type": "string"
+            },
+            {
+              "id": "c",
+              "name": "contact_name",
+              "value": "={{ $('Buscar Contato').item.json.data.name }}",
+              "type": "string"
+            },
+            {
+              "id": "d",
+              "name": "contact_phone",
+              "value": "={{ $('Buscar Contato').item.json.data.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "e",
+              "name": "contact_id",
+              "value": "={{ $('Buscar Contato').item.json.data.id }}",
+              "type": "string"
+            },
+            {
+              "id": "213c10f8-cbea-41f8-bc34-b903bd76752f",
+              "name": "media_url_id",
+              "value": "={{ $('Buscar Historico').item.json.data[0].media_url }}",
+              "type": "string"
+            },
+            {
+              "id": "61a64f96-21af-43ad-b0a1-d9bf43e4bbbf",
+              "name": "content_type",
+              "value": "={{ $('Buscar Historico').item.json.data[0].content_type }}",
+              "type": "string"
+            },
+            {
+              "id": "a594d5f9-30a8-4e8f-bfcf-8f2850c8f65b",
+              "name": "url_wacrm",
+              "value": "https://wacrm.autofunil.com.br",
+              "type": "string"
+            },
+            {
+              "id": "d0c41d3d-d321-43df-a002-fc9c5b0298b9",
+              "name": "deals.stage",
+              "value": "={{\n`${$json.data[0].stage.name}: ${$json.data[0].stage.id}`\n}}",
+              "type": "string"
+            },
+            {
+              "id": "c7f522f6-b0d2-40fa-afd0-253c8290c04b",
+              "name": "deals.pipeline",
+              "value": "={{\n$('Get Pipelines').item.json.data[0].stages\n  .map(s => `${s.name}: ${s.id}`)\n  .join('\\n')\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5eecc0c4-44bb-4d1f-ae20-df59a364d511",
+      "name": "normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "pt",
+          "temperature": 0
+        }
+      },
+      "id": "979484ea-8d74-46cb-92fb-14cbe6ff2aa1",
+      "name": "Transcrever Audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        -416
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "uSXPtfqxgwNl6ihV",
+          "name": "OpenAI WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "17694db0-6248-444f-afb9-ff7ed13996ef",
+              "name": "message",
+              "value": "={{ $('Transcrever Audio').item.json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1ae48ad4-bace-4348-9744-8f9edeb9944e",
+      "name": "Mensagem Audio",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        2240,
+        -416
+      ],
+      "notesInFlow": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v25.0/{{ $('normalize').item.json.data[0].media_url.split('/') [4] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        -656
+      ],
+      "id": "54a4712c-a0b2-4425-9e9a-04945117681a",
+      "name": "download-media-id",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "BHXwR1UlbMWHFtUh",
+          "name": "Bearer Meta"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('download-media-id').item.json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1568,
+        -656
+      ],
+      "id": "1cd0aff1-d6a1-4ee0-a1e3-18e05e1d9288",
+      "name": "download-media-url",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "BHXwR1UlbMWHFtUh",
+          "name": "Bearer Meta"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "=analise esta imagem",
+        "inputType": "base64",
+        "options": {}
+      },
+      "id": "ea9c4822-f7c0-449b-a92f-a947bab2f029",
+      "name": "Analisar Imagem",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        -608
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "uSXPtfqxgwNl6ihV",
+          "name": "OpenAI WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dc861327-c240-45bb-8c2a-c2991ef786d5",
+              "name": "message",
+              "value": "=[descrição de uma imagem que foi enviada]\n{{ $json.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b70b02c0-ce31-4f8b-a615-bbb089426df0",
+      "name": "Mensagem Image",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        2240,
+        -608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('normalize').item.json.url_wacrm }}/api/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"{{ $('normalize').item.json.contact_phone }}\",\n  \"text\": {{ JSON.stringify($('Loop Over Items').item.json.output) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "d4869381-1971-4093-a9d0-9d08bfa08575",
+      "name": "Notificar Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5872,
+        -608
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6096,
+        -544
+      ],
+      "id": "9a8e588a-1fca-4ba3-a4a2-23e36dbb74a8",
+      "name": "Wait1",
+      "webhookId": "8b5bde24-afe7-496c-914b-c300ed900e20"
+    },
+    {
+      "parameters": {
+        "content": "## Tratamento de áudio, imagem, texto, documentos.",
+        "height": 704,
+        "width": 1312,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1296,
+        -960
+      ],
+      "typeVersion": 1,
+      "id": "40f5b3e1-3a8a-470f-a82a-a59c71b359d8",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "17694db0-6248-444f-afb9-ff7ed13996ef",
+              "name": "message",
+              "value": "={{ $('normalize').item.json.message_text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a9c646f0-565c-4c1c-b441-3dbea4bb84b5",
+      "name": "Mensagem Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        2240,
+        -800
+      ],
+      "notesInFlow": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -800
+      ],
+      "id": "974635d8-fb6c-4157-a7f1-889307d9c7c1",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "mode": "delete",
+        "deleteMode": "all"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -96
+      ],
+      "id": "81e7f053-82d2-43b2-8634-63436735b9ce",
+      "name": "Chat Memory Manager"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=d89a9945-8039-4587-b585-9844a52b9bdd",
+        "contextWindowLength": 20
+      },
+      "id": "5565b9e9-fe10-46e2-8b64-863e6828db76",
+      "name": "Memoria1",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://wacrm.autofunil.com.br/api/v1/pipelines",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        112
+      ],
+      "id": "aab4f093-f707-4211-82bb-2834616c58f5",
+      "name": "Get Pipelines",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://wacrm.autofunil.com.br/api/v1/deals?contact_id={{ $('Buscar Contato').item.json.data.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1024,
+        128
+      ],
+      "id": "8075dd3f-044d-489a-892f-5f1493dc594a",
+      "name": "Get deals",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Chame essa tool para verificar se o pagamento foi confirmado ou está em processo.",
+        "workflowId": {
+          "__rl": true,
+          "value": "f0hGXf6d7keb29yJ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/f0hGXf6d7keb29yJ",
+          "cachedResultName": "Tool Action check_payment"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "check_payment",
+            "conversation_id": "={{ $('normalize').item.json.conversation_id }}",
+            "url_wacrm": "={{ $('normalize').item.json.url_wacrm }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "conversation_id",
+              "displayName": "conversation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "url_wacrm",
+              "displayName": "url_wacrm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5168,
+        -320
+      ],
+      "id": "72fe83ed-b6d4-4c03-a397-0d9a3b27f227",
+      "name": "check_payment"
+    },
+    {
+      "parameters": {
+        "description": "Chame essa tool quando o lead quiser ver  resultados dos serviços \"botox ou limpeza de pele\"",
+        "workflowId": {
+          "__rl": true,
+          "value": "wvGlnilMg0jVkrrK",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/wvGlnilMg0jVkrrK",
+          "cachedResultName": "Tool Action send_media"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "send_media",
+            "conversation_id": "={{ $('normalize').item.json.conversation_id }}",
+            "url_wacrm": "={{ $('normalize').item.json.url_wacrm }}",
+            "media_caption": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('media_caption', ``, 'string') }}",
+            "media_type": "image",
+            "media_url": "https://res.cloudinary.com/dvge9dx9p/image/upload/v1778674049/logotipo-dc_chrrhp.png"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "conversation_id",
+              "displayName": "conversation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "url_wacrm",
+              "displayName": "url_wacrm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "media_url",
+              "displayName": "media_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "media_type",
+              "displayName": "media_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "media_caption",
+              "displayName": "media_caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5376,
+        -304
+      ],
+      "id": "59aae5fb-5927-4513-b1f9-912c0d171da0",
+      "name": "send_media"
+    },
+    {
+      "parameters": {
+        "description": "Quando lead estiver no estagio \"Enviar Proposta\", deve chamar essa tool.",
+        "workflowId": {
+          "__rl": true,
+          "value": "xpvZCJj2jKGn3y2B",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/xpvZCJj2jKGn3y2B",
+          "cachedResultName": "Tool Action generate_charge"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "generate_charge",
+            "conversation_id": "={{ $('normalize').item.json.conversation_id }}",
+            "url_wacrm": "={{ $('normalize').item.json.url_wacrm }}",
+            "amount": "0.01",
+            "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('description', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "conversation_id",
+              "displayName": "conversation_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "url_wacrm",
+              "displayName": "url_wacrm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4880,
+        -320
+      ],
+      "id": "96440dc6-8c86-4ceb-9c4c-873a180279da",
+      "name": "generate_charge"
+    },
+    {
+      "parameters": {
+        "description": "Chame está tool quando for movimentar o lead nos estágios do pipeline.",
+        "workflowId": {
+          "__rl": true,
+          "value": "ASepwxo5et73aPNC",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ASepwxo5et73aPNC",
+          "cachedResultName": "Tool Action move_stage"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stage_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('stage_id', ``, 'string') }}",
+            "conversations_id": "={{ $('normalize').item.json.conversation_id }}",
+            "url_wacrm": "={{ $('normalize').item.json.url_wacrm }}",
+            "pipeline_id": "={{ $('Get Pipelines').item.json.data[0].id }}",
+            "contact_id": "={{ $('normalize').item.json.contact_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "stage_id",
+              "displayName": "stage_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "conversations_id",
+              "displayName": "conversations_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "pipeline_id",
+              "displayName": "pipeline_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "url_wacrm",
+              "displayName": "url_wacrm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5024,
+        -336
+      ],
+      "id": "59143747-7423-4f47-a937-03d4af76ae8f",
+      "name": "move_stage"
+    }
+  ],
+  "pinData": {
+    "Webhook wacrm": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.autofunil.com.br",
+            "user-agent": "node",
+            "content-length": "84",
+            "accept": "*/*",
+            "accept-encoding": "br, gzip, deflate",
+            "accept-language": "*",
+            "content-type": "application/json",
+            "sec-fetch-mode": "cors",
+            "x-forwarded-for": "172.18.0.1",
+            "x-forwarded-host": "webhook.autofunil.com.br",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "4a85b2975515",
+            "x-real-ip": "172.18.0.1"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "message_text": "Vcs tem?",
+            "conversation_id": "0835e7d7-8845-4835-a962-135fb5fde49f"
+          },
+          "webhookUrl": "https://webhook.autofunil.com.br/webhook/wacrm-ai-agent",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook wacrm": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Buscar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Contato": {
+      "main": [
+        [
+          {
+            "node": "Buscar Historico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Historico": {
+      "main": [
+        [
+          {
+            "node": "Get Pipelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mensagem": {
+      "main": [
+        [
+          {
+            "node": "Push Buffer Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mensagem_formatada": {
+      "main": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quebra_menssages": {
+      "main": [
+        [
+          {
+            "node": "Split Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Messages": {
+      "main": [
+        [
+          {
+            "node": "Ultima Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ultima Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "mensagem_formatada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push Buffer Message": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Delete Buffer Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Final": {
+      "main": [
+        [
+          {
+            "node": "mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Rotas por Tipo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "download-media-id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalize": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever Audio": {
+      "main": [
+        [
+          {
+            "node": "Mensagem Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotas por Tipo": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analisar Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Transcrever Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        []
+      ]
+    },
+    "download-media-id": {
+      "main": [
+        [
+          {
+            "node": "download-media-url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "download-media-url": {
+      "main": [
+        [
+          {
+            "node": "Rotas por Tipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem Audio": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Analisar Imagem": {
+      "main": [
+        [
+          {
+            "node": "Mensagem Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem Image": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AI Atendente": {
+      "main": [
+        [
+          {
+            "node": "quebra_menssages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar Cliente": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem Text": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Mensagem Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Chat Memory Manager",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pipelines": {
+      "main": [
+        [
+          {
+            "node": "Get deals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get deals": {
+      "main": [
+        [
+          {
+            "node": "normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_payment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_media": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_charge": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "move_stage": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "e7316687-ddc6-4b8c-9d00-2e465b017df1",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19779e7dd7b4c0d2c94560b4f5a2a5da0360275eeb4cfbb9eebed8cbc5a28cb0"
+  },
+  "id": "l2OuUzYiJL8s7ulu",
+  "tags": []
+}

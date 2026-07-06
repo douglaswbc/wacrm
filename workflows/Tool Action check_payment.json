@@ -1,0 +1,467 @@
+{
+  "name": "Tool Action check_payment",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "action"
+            },
+            {
+              "name": "conversation_id"
+            },
+            {
+              "name": "url_wacrm"
+            }
+          ]
+        }
+      },
+      "id": "710febf8-6e76-42a8-acc7-d0aa09bd90e9",
+      "name": "Workflow IA Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/conversations/{{ $(\"Workflow IA Agent\").item.json.conversation_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "f6fa909c-8485-4443-8707-7b87d668b476",
+      "name": "Buscar Conversa (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/contacts/{{ $(\"Buscar Conversa (API)\").item.json.data.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "5716494a-9dc1-4374-aef5-9607f9c286fe",
+      "name": "Buscar Contato (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a",
+              "name": "contact_name",
+              "value": "={{ $('Buscar Contato (API)').item.json.data.name }}",
+              "type": "string"
+            },
+            {
+              "id": "b",
+              "name": "contact_phone",
+              "value": "={{ $('Buscar Contato (API)').item.json.data.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "c",
+              "name": "conversation_id",
+              "value": "={{ $('Workflow IA Agent').item.json.conversation_id }}",
+              "type": "string"
+            },
+            {
+              "id": "d",
+              "name": "url_wacrm",
+              "value": "={{ $('Workflow IA Agent').item.json.url_wacrm }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "564a81e0-0a82-4d05-9f37-66e687ada2a8",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadopago.com/v1/payments/search?external_reference={{ $(\"Normalizar Dados\").item.json.conversation_id }}&sort=date_created&criteria=desc",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "1d716f01-1cbe-48fa-ac6e-48ae7a93bd28",
+      "name": "Consultar Status (MP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "f45rgrnZ4ZxH5oU4",
+          "name": "Bearer Auth Mercado Pago"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "exists",
+              "leftValue": "={{ $json.results[0] }}",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          }
+        },
+        "options": {}
+      },
+      "id": "96426801-fe34-47de-8871-c3a2602fae3d",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.results[0].status }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          }
+        },
+        "options": {}
+      },
+      "id": "8c873260-c387-4a55-8464-0f974bc4791b",
+      "name": "Aprovado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"text\": \"Pagamento confirmado! Obrigado pela compra 🎉\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "24166ab5-7359-4686-8738-030bd4be4189",
+      "name": "Notificar Aprovado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1568,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"text\": \"Seu pagamento esta {{ $json.results[0].status_detail }}. Assim que for confirmado, avisamos voce!\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "081c1692-7afc-45cd-89c3-e71d5825845d",
+      "name": "Notificar Pendente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1568,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"text\": \"{{ $(\"Consultar Status (MP)\").item.json.results[0].additional_info.payer.first_name.split(\" \")[0] }}, Nenhum pagamento encontrado para esta conversa.\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "f809f539-db01-4fa3-a960-259e2e4b6da8",
+      "name": "Notificar Nao Encontrado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        288
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Workflow IA Agent": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conversa (API)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Contato (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Contato (API)": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Dados": {
+      "main": [
+        [
+          {
+            "node": "Consultar Status (MP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Status (MP)": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Aprovado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Nao Encontrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aprovado?": {
+      "main": [
+        [
+          {
+            "node": "Notificar Aprovado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Pendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1f43d2fa-bee1-4abc-9340-fa9f95c9e4dd",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "19779e7dd7b4c0d2c94560b4f5a2a5da0360275eeb4cfbb9eebed8cbc5a28cb0"
+  },
+  "id": "f0hGXf6d7keb29yJ",
+  "tags": []
+}

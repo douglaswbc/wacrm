@@ -1,0 +1,320 @@
+{
+  "name": "Tool Action move_stage",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "stage_id"
+            },
+            {
+              "name": "conversations_id"
+            },
+            {
+              "name": "pipeline_id"
+            },
+            {
+              "name": "url_wacrm"
+            },
+            {
+              "name": "contact_id"
+            }
+          ]
+        }
+      },
+      "id": "02522199-26ca-4ee6-b862-e48c9a0ba4cf",
+      "name": "Workflow IA Agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/conversations/{{ $(\"Workflow IA Agent\").item.json.conversations_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "fac24b06-e754-4a3c-ad4f-19e44c5dec1a",
+      "name": "Buscar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/deals?contact_id={{ $(\"Buscar Conversa\").item.json.data.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "9cd8983f-3f0e-4584-8f47-57a1251a381a",
+      "name": "Buscar Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        0
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Workflow IA Agent\").item.json.url_wacrm }}/api/v1/deals/{{ $(\"Buscar Deal\").item.json.data[0].id }}/move",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"stage_id\": \"{{ $(\"Workflow IA Agent\").item.json.stage_id }}\" }",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "b012282e-b2f8-466c-9281-4883d65bf7bc",
+      "name": "Mover Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        992,
+        32
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a0e63c38-f746-45a5-8d6d-fa43415a3117",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        0
+      ],
+      "id": "dd4d2495-4748-44f5-8b5e-7309407b4775",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Workflow IA Agent').item.json.url_wacrm }}/api/v1/deals",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "pipeline_id",
+              "value": "={{ $('Workflow IA Agent').item.json.pipeline_id }}"
+            },
+            {
+              "name": "stage_id",
+              "value": "={{ $('Workflow IA Agent').item.json.stage_id }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Buscar Conversa').item.json.data.contact_id }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('Buscar Conversa').item.json.data.contact.name }}"
+            },
+            {
+              "name": "value",
+              "value": "0"
+            },
+            {
+              "name": "currency",
+              "value": "BRL"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "c7a58193-45fa-4ef4-ba52-66a72da55bd9",
+      "name": "New Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        992,
+        -144
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SeWp9X3mRnODjbKZ",
+          "name": "Bearer Auth WACRM"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Workflow IA Agent": [
+      {
+        "json": {
+          "stage_id": "3fdfea2a-2af4-451e-8683-1e5ca19ce38f",
+          "conversations_id": "0835e7d7-8845-4835-a962-135fb5fde49f",
+          "pipeline_id": "82296bab-2024-4f2c-8197-92d008fccf8c",
+          "url_wacrm": "https://wacrm.autofunil.com.br",
+          "contact_id": "2bac0ae2-4c97-461b-970f-387709ff51cd"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Workflow IA Agent": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Buscar Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Deal": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mover Deal": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "New Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mover Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "e5bcc7c8-9f43-49ab-8331-a46e394e2d72",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "19779e7dd7b4c0d2c94560b4f5a2a5da0360275eeb4cfbb9eebed8cbc5a28cb0"
+  },
+  "id": "ASepwxo5et73aPNC",
+  "tags": []
+}
