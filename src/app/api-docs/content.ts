@@ -1,0 +1,519 @@
+export interface EndpointDoc {
+  method: string;
+  path: string;
+  scopes: string[];
+  description: Record<string, string>;
+  curl?: string;
+  json?: string;
+  notes?: string[];
+  details?: string[];
+}
+
+export interface Section {
+  type: 'section';
+  title: Record<string, string>;
+  content: string[];
+}
+
+export interface TableSection {
+  type: 'table';
+  title: Record<string, string>;
+  headers: string[];
+  rows: string[][];
+}
+
+export interface TextSection {
+  type: 'text';
+  title?: Record<string, string>;
+  content: string[];
+}
+
+export type ContentBlock = Section | TableSection | TextSection;
+
+const me: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/me',
+  scopes: [],
+  description: {
+    pt: 'Retorna a conta à qual a chave está vinculada e os escopos que ela possui. Requer apenas uma chave válida (nenhum escopo). Use para verificar se a chave funciona e descobrir seus escopos.',
+    es: 'Devuelve la cuenta a la que está vinculada la clave y los alcances que posee. Solo requiere una clave válida (ningún alcance). Úselo para verificar que la clave funciona y descubrir sus alcances.',
+    en: 'Returns the account a key is bound to and the scopes it carries. Requires only a valid key (no scope). Use it to verify a key works and to discover its scopes.',
+  },
+  curl: `curl https://your-crm.example.com/api/v1/me \\
+  -H "Authorization: Bearer wacrm_live_xxx"`,
+  json: `{
+  "data": {
+    "account": { "id": "...", "name": "Acme Inc" },
+    "key": { "id": "...", "scopes": ["messages:send"] }
+  }
+}`,
+};
+
+const messages: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/messages',
+  scopes: ['messages:send'],
+  description: {
+    pt: 'Envia uma mensagem WhatsApp para um número de telefone. Você passa um número E.164, não um ID interno — o endpoint encontra-ou-cria o contato + conversa e depois envia.',
+    es: 'Envía un mensaje de WhatsApp a un número de teléfono. Pasa un número E.164, no un ID interno — el endpoint encuentra-o-crea el contacto + conversación y luego envía.',
+    en: 'Send a WhatsApp message to a phone number. You pass an E.164 number, not an internal id — the endpoint finds-or-creates the contact + conversation, then sends.',
+  },
+  details: [
+    'type is text (default), template, or a media kind (image / video / document / audio). Media needs media_url (and optional filename); text doubles as the caption. template needs a template object.',
+  ],
+  curl: `curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "to": "+14155550123", "type": "text", "text": "Hi 👋" }'`,
+  json: `{
+  "data": {
+    "message_id": "...",
+    "whatsapp_message_id": "wamid....",
+    "conversation_id": "...",
+    "contact_id": "...",
+    "contact_created": true
+  }
+}`,
+  notes: [
+    'Domain error codes: whatsapp_not_configured (400), meta_error (502), template_malformed (500)',
+  ],
+};
+
+const contactsList: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/contacts',
+  scopes: ['contacts:read'],
+  description: {
+    pt: 'Lista contatos, do mais recente primeiro. Paginado. Filtros opcionais: ?search= (nome ou telefone) e ?tag=<tagId>.',
+    es: 'Lista contactos, del más reciente primero. Paginado. Filtros opcionales: ?search= (nombre o teléfono) y ?tag=<tagId>.',
+    en: 'List contacts, newest first. Paginated. Optional filters: ?search= (matches name or phone) and ?tag=<tagId>.',
+  },
+  json: `{
+  "data": [
+    {
+      "id": "...", "phone": "+14155550123", "name": "Jane Doe",
+      "email": null, "company": "Acme", "avatar_url": null,
+      "tags": [{ "id": "...", "name": "vip", "color": "#3b82f6" }],
+      "created_at": "...", "updated_at": "..."
+    }
+  ],
+  "meta": { "next_cursor": "..." }
+}`,
+};
+
+const contactsCreate: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/contacts',
+  scopes: ['contacts:write'],
+  description: {
+    pt: 'Cria um contato. phone (E.164) é obrigatório; name, email, company e tags (array de nomes de tags) são opcionais. Find-or-create por telefone: uma correspondência existente retorna 200; um novo contato retorna 201.',
+    es: 'Crea un contacto. phone (E.164) es obligatorio; name, email, company y tags (array de nombres de etiquetas) son opcionales. Find-or-create por teléfono: una coincidencia existente devuelve 200; un nuevo contacto devuelve 201.',
+    en: 'Create a contact. phone (E.164) is required; name, email, company, and tags (an array of tag names) are optional. Find-or-create by phone: an existing match returns 200; a new contact returns 201.',
+  },
+};
+
+const contactsDetail: EndpointDoc = {
+  method: 'GET / PATCH',
+  path: '/api/v1/contacts/{id}',
+  scopes: ['contacts:read', 'contacts:write'],
+  description: {
+    pt: 'Ler ou atualizar um contato. PATCH atualiza apenas os campos enviados (name, email, company). Passe tags (array) para substituir as tags do contato. Um contato de outra conta retorna 404.',
+    es: 'Leer o actualizar un contacto. PATCH actualiza solo los campos enviados (name, email, company). Pase tags (array) para reemplazar las etiquetas del contacto. Un contacto de otra cuenta devuelve 404.',
+    en: 'Read or update one contact. PATCH updates only the fields you send (name, email, company). Pass tags (an array) to replace the contact\'s tags. A contact in another account returns 404.',
+  },
+};
+
+const conversationsList: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/conversations',
+  scopes: ['conversations:read'],
+  description: {
+    pt: 'Lista conversas, da mais recente primeiro. Paginado. Filtros opcionais: ?status= (open / pending / closed) e ?contact_id=. Cada conversa inclui seu contato + tags.',
+    es: 'Lista conversaciones, de la más reciente primero. Paginado. Filtros opcionales: ?status= (open / pending / closed) y ?contact_id=. Cada conversación incluye su contacto + etiquetas.',
+    en: 'List conversations, newest first. Paginated. Optional filters: ?status= (open / pending / closed) and ?contact_id=. Each conversation embeds its contact + tags.',
+  },
+};
+
+const conversationsDetail: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/conversations/{id}',
+  scopes: ['conversations:read'],
+  description: {
+    pt: 'Ler uma conversa. 404 se pertencer a outra conta.',
+    es: 'Leer una conversación. 404 si pertenece a otra cuenta.',
+    en: 'Read one conversation. 404 if it belongs to another account.',
+  },
+};
+
+const conversationsMessages: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/conversations/{id}/messages',
+  scopes: ['messages:read'],
+  description: {
+    pt: 'Lista as mensagens de uma conversa, da mais recente primeiro. Paginado. Cada mensagem inclui direction (inbound / outbound), status, whatsapp_message_id e content_*. A conversa é verificada como pertencente à sua conta primeiro (404 caso contrário).',
+    es: 'Lista los mensajes de una conversación, del más reciente primero. Paginado. Cada mensaje incluye direction (inbound / outbound), status, whatsapp_message_id y content_*. La conversación se verifica como perteneciente a su cuenta primero (404 en caso contrario).',
+    en: 'List a conversation\'s messages, newest first. Paginated. Each message includes its direction (inbound / outbound), status (delivery state), whatsapp_message_id, and content_*. The conversation is verified to belong to your account first (404 otherwise).',
+  },
+};
+
+const broadcastsCreate: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/broadcasts',
+  scopes: ['broadcasts:send'],
+  description: {
+    pt: 'Lança um broadcast de template para uma lista de destinatários. O broadcast + seus recipients são persistidos imediatamente e os envios são feitos em segundo plano, então a chamada retorna rápido — consulte GET /api/v1/broadcasts/{id} para progresso.',
+    es: 'Lanza un broadcast de plantilla a una lista de destinatarios. El broadcast + sus destinatarios se persisten inmediatamente y los envíos se realizan en segundo plano, por lo que la llamada regresa rápido — consulte GET /api/v1/broadcasts/{id} para progreso.',
+    en: 'Launch a template broadcast to a list of recipients. The broadcast + its recipient rows are persisted immediately and the sends fan out in the background, so the call returns fast — poll GET /api/v1/broadcasts/{id} for progress.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/broadcasts \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+        "name": "July promo",
+        "template_name": "promo_july",
+        "template_language": "en_US",
+        "recipients": [
+          { "to": "+14155550123", "params": ["Jane"] },
+          { "to": "+14155550124" }
+        ]
+      }'`,
+  json: `{
+  "data": {
+    "broadcast_id": "...",
+    "status": "sending",
+    "total_recipients": 2,
+    "accepted": 2,
+    "rejected": 0
+  }
+}`,
+  notes: ['Recipients are capped at 1000 per request — split larger sends. Invalid phone numbers are dropped and counted as rejected. Response (202).'],
+};
+
+const broadcastsDetail: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/broadcasts/{id}',
+  scopes: ['broadcasts:send'],
+  description: {
+    pt: 'Status do broadcast + contagens. status move de sending → sent; delivered_count / read_count sobem conforme os webhooks de entrega da Meta chegam. 404 para broadcast de outra conta.',
+    es: 'Estado del broadcast + contadores. status pasa de sending → sent; delivered_count / read_count suben a medida que llegan los webhooks de entrega de Meta. 404 para broadcast de otra cuenta.',
+    en: 'Broadcast status + counts. status moves sending → sent; delivered_count / read_count keep climbing as Meta delivery webhooks arrive. 404 for another account\'s broadcast.',
+  },
+};
+
+const pipelinesList: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/pipelines',
+  scopes: ['pipelines:read'],
+  description: {
+    pt: 'Lista todos os pipelines com seus estágios, ordenados por criação.',
+    es: 'Lista todos los pipelines con sus etapas, ordenados por creación.',
+    en: 'List all pipelines with their stages, ordered by creation.',
+  },
+  curl: `curl https://your-crm.example.com/api/v1/pipelines \\
+  -H "Authorization: Bearer wacrm_live_xxx"`,
+  json: `{
+  "data": [
+    {
+      "id": "...",
+      "name": "Sales Pipeline",
+      "stages": [
+        { "id": "...", "name": "Lead", "position": 0, "color": "#3b82f6", "created_at": "..." },
+        { "id": "...", "name": "Qualified", "position": 1, "color": "#8b5cf6", "created_at": "..." }
+      ],
+      "created_at": "..."
+    }
+  ],
+  "meta": { "next_cursor": null }
+}`,
+};
+
+const pipelinesCreate: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/pipelines',
+  scopes: ['pipelines:write'],
+  description: {
+    pt: 'Cria um novo pipeline. Opcionalmente inclua stages — um array de { name, position?, color? }.',
+    es: 'Crea un nuevo pipeline. Opcionalmente incluya stages — un array de { name, position?, color? }.',
+    en: 'Create a new pipeline. Optionally include stages — an array of { name, position?, color? }.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/pipelines \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+        "name": "Sales Pipeline",
+        "stages": [
+          { "name": "Lead", "color": "#3b82f6" },
+          { "name": "Qualified", "color": "#8b5cf6" }
+        ]
+      }'`,
+  json: `{
+  "data": {
+    "id": "...", "name": "Sales Pipeline",
+    "stages": [ { "id": "...", "name": "Lead" }, { "id": "...", "name": "Qualified" } ],
+    "created_at": "..."
+  }
+}`,
+};
+
+const pipelinesDetail: EndpointDoc = {
+  method: 'GET / PATCH / DELETE',
+  path: '/api/v1/pipelines/{id}',
+  scopes: ['pipelines:read', 'pipelines:write'],
+  description: {
+    pt: 'Ler, atualizar ou deletar um pipeline. PATCH aceita { "name": "..." }. DELETE propaga para estágios e deals (todos os deals no pipeline são removidos). Retorna 404 para pipelines de outra conta.',
+    es: 'Leer, actualizar o eliminar un pipeline. PATCH acepta { "name": "..." }. DELETE propaga a etapas y deals (todos los deals en el pipeline se eliminan). Devuelve 404 para pipelines de otra cuenta.',
+    en: 'Read, update, or delete a pipeline. PATCH accepts { "name": "..." }. DELETE cascades to stages and deals (all deals in the pipeline are removed). Returns 404 for pipelines in another account.',
+  },
+};
+
+const pipelinesStages: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/pipelines/{id}/stages',
+  scopes: ['pipelines:write'],
+  description: {
+    pt: 'Adiciona um estágio a um pipeline.',
+    es: 'Añade una etapa a un pipeline.',
+    en: 'Add a stage to a pipeline.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/pipelines/{id}/stages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "name": "Proposal", "color": "#10b981" }'`,
+  json: `{
+  "data": {
+    "id": "...", "name": "Proposal", "position": 2, "color": "#10b981", "created_at": "..."
+  }
+}`,
+};
+
+const stagesDetail: EndpointDoc = {
+  method: 'PATCH / DELETE',
+  path: '/api/v1/stages/{id}',
+  scopes: ['pipelines:write'],
+  description: {
+    pt: 'Atualizar ou deletar um estágio. PATCH aceita name, position, color. DELETE é recusado se o estágio ainda contiver deals — mova ou delete os deals primeiro. Retorna 404 para estágios de outra conta.',
+    es: 'Actualizar o eliminar una etapa. PATCH acepta name, position, color. DELETE es rechazado si la etapa aún contiene deals — mueva o elimine los deals primero. Devuelve 404 para etapas de otra cuenta.',
+    en: 'Update or delete a stage. PATCH accepts name, position, color. DELETE is refused if the stage still contains deals — move or delete them first. Returns 404 for stages in another account.',
+  },
+};
+
+const dealsList: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/deals',
+  scopes: ['deals:read'],
+  description: {
+    pt: 'Lista deals, do mais recente primeiro. Paginado. Filtros opcionais: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to=.',
+    es: 'Lista deals, del más reciente primero. Paginado. Filtros opcionales: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to=.',
+    en: 'List deals, newest first. Paginated. Optional filters: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to=.',
+  },
+  json: `{
+  "data": [
+    {
+      "id": "...", "pipeline_id": "...", "stage_id": "...",
+      "title": "ACME Project", "value": 15000.00, "currency": "BRL",
+      "status": "open",
+      "contact": { "id": "...", "phone": "+14155550123", "name": "Jane Doe", "avatar_url": null },
+      "stage": { "id": "...", "name": "Qualified", "color": "#8b5cf6" },
+      "assignee": { "id": "...", "full_name": "John", "email": "john@...", "avatar_url": null },
+      "notes": null, "expected_close_date": "2026-09-30",
+      "created_at": "...", "updated_at": "..."
+    }
+  ],
+  "meta": { "next_cursor": "..." }
+}`,
+};
+
+const dealsCreate: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/deals',
+  scopes: ['deals:write'],
+  description: {
+    pt: 'Cria um deal. pipeline_id, stage_id, contact_id e title são obrigatórios.',
+    es: 'Crea un deal. pipeline_id, stage_id, contact_id y title son obligatorios.',
+    en: 'Create a deal. pipeline_id, stage_id, contact_id, and title are required.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/deals \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+        "pipeline_id": "...",
+        "stage_id": "...",
+        "contact_id": "...",
+        "title": "ACME Project",
+        "value": 15000.00,
+        "currency": "BRL",
+        "notes": "Interested in the enterprise plan",
+        "expected_close_date": "2026-09-30",
+        "assigned_to": "..."
+      }'`,
+  notes: ['Response (201): the serialized deal (same shape as list rows above).'],
+};
+
+const dealsDetail: EndpointDoc = {
+  method: 'GET / PATCH / DELETE',
+  path: '/api/v1/deals/{id}',
+  scopes: ['deals:read', 'deals:write'],
+  description: {
+    pt: 'Ler, atualizar ou deletar um deal. PATCH aceita atualizações parciais em qualquer campo (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). DELETE remove o deal permanentemente.',
+    es: 'Leer, actualizar o eliminar un deal. PATCH acepta actualizaciones parciales en cualquier campo (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). DELETE elimina el deal permanentemente.',
+    en: 'Read, update, or delete a single deal. PATCH accepts partial updates on any deal field (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). DELETE removes the deal permanently.',
+  },
+};
+
+const dealsMove: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/deals/{id}/move',
+  scopes: ['deals:write'],
+  description: {
+    pt: 'Move um deal para um estágio diferente no mesmo pipeline.',
+    es: 'Mueve un deal a una etapa diferente en el mismo pipeline.',
+    en: 'Move a deal to a different stage in the same pipeline.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/deals/{id}/move \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "stage_id": "..." }'`,
+  json: `{
+  "data": {
+    "moved": true,
+    "deal": { "id": "...", "title": "...", "stage_id": "...", ... }
+  }
+}`,
+};
+
+const dealsStatus: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/deals/{id}/status',
+  scopes: ['deals:write'],
+  description: {
+    pt: 'Atualiza o status de um deal. status deve ser open, won ou lost.',
+    es: 'Actualiza el estado de un deal. status debe ser open, won o lost.',
+    en: 'Update a deal\'s status. status must be open, won, or lost.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/deals/{id}/status \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "status": "won" }'`,
+  json: `{
+  "data": { "id": "...", "title": "...", "status": "won", ... }
+}`,
+};
+
+const webhooksList: EndpointDoc = {
+  method: 'POST / GET',
+  path: '/api/v1/webhooks',
+  scopes: ['webhooks:manage'],
+  description: {
+    pt: 'Registrar ou listar endpoints de webhook. POST registra { "url": "https://...", "events": ["message.received"] }. A url deve ser https://. A resposta inclui secret exatamente uma vez. GET lista seus endpoints (nunca retorna o secret).',
+    es: 'Registrar o listar endpoints de webhook. POST registra { "url": "https://...", "events": ["message.received"] }. La url debe ser https://. La respuesta incluye secret exactamente una vez. GET lista sus endpoints (nunca devuelve el secret).',
+    en: 'Register or list webhook endpoints. POST registers { "url": "https://...", "events": ["message.received"] }. url must be https://. The response includes secret exactly once. GET lists your endpoints (never returns the secret).',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/webhooks \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "url": "https://example.com/hooks/wacrm", "events": ["message.received"] }'`,
+};
+
+const webhooksDetail: EndpointDoc = {
+  method: 'GET / PATCH / DELETE',
+  path: '/api/v1/webhooks/{id}',
+  scopes: ['webhooks:manage'],
+  description: {
+    pt: 'Ler, atualizar ou remover um webhook. PATCH atualiza url, events ou is_active (reativar limpa o contador de falhas). DELETE remove permanentemente.',
+    es: 'Leer, actualizar o eliminar un webhook. PATCH actualiza url, events o is_active (reactivar limpia el contador de fallos). DELETE elimina permanentemente.',
+    en: 'Read, update, or delete a webhook. PATCH updates url, events, or is_active (re-enabling clears the failure counter). DELETE removes permanently.',
+  },
+};
+
+export const endpoints: EndpointDoc[] = [
+  me,
+  messages,
+  contactsList,
+  contactsCreate,
+  contactsDetail,
+  conversationsList,
+  conversationsDetail,
+  conversationsMessages,
+  broadcastsCreate,
+  broadcastsDetail,
+  pipelinesList,
+  pipelinesCreate,
+  pipelinesDetail,
+  pipelinesStages,
+  stagesDetail,
+  dealsList,
+  dealsCreate,
+  dealsDetail,
+  dealsMove,
+  dealsStatus,
+  webhooksList,
+  webhooksDetail,
+];
+
+export const statusCodes: string[][] = [
+  ['401', 'unauthorized', 'Missing / malformed / unknown / revoked / expired key'],
+  ['403', 'forbidden', 'Valid key, but missing the required scope'],
+  ['429', 'rate_limited', 'Per-key rate limit exceeded'],
+  ['400', 'bad_request', 'Malformed input'],
+  ['404', 'not_found', 'No such resource'],
+  ['500', 'internal', 'Server error'],
+];
+
+export const scopeRows: string[][] = [
+  ['messages:send', 'Send WhatsApp messages'],
+  ['messages:read', 'Read messages and delivery status'],
+  ['contacts:read', 'List and read contacts'],
+  ['contacts:write', 'Create and update contacts'],
+  ['conversations:read', 'List and read conversations'],
+  ['broadcasts:send', 'Launch broadcast campaigns'],
+  ['webhooks:manage', 'Register and manage outbound event webhooks'],
+  ['pipelines:read', 'List and read pipelines and stages'],
+  ['pipelines:write', 'Create, update, and delete pipelines and stages'],
+  ['deals:read', 'List and read deals'],
+  ['deals:write', 'Create, update, delete deals, move, change status'],
+];
+
+export const webhookEvents: string[][] = [
+  ['message.received', 'An inbound message arrives from a contact'],
+  ['message.status_updated', 'A message you sent changed delivery status'],
+  ['conversation.created', 'A new conversation is opened for a contact'],
+];
+
+export const authSteps: string[][] = [
+  ['1.', 'Give the key a name (after the integration that will use it).'],
+  ['2.', 'Grant the scopes it needs — nothing more.'],
+  ['3.', 'Copy the key. The full key is shown exactly once. wacrm stores only a SHA-256 hash, so it can never be shown again. If you lose it, revoke it and create a new one.'],
+];
+
+export const paginationExample = `GET /api/v1/contacts?limit=50
+→ { "data": [ ... ], "meta": { "next_cursor": "eyJ..." } }
+
+GET /api/v1/contacts?limit=50&cursor=eyJ...
+→ { "data": [ ... ], "meta": { "next_cursor": null } }   // last page`;
+
+export const deliveryPayload = `{
+  "id": "8f3c...",
+  "event": "message.received",
+  "occurred_at": "2026-07-01T12:00:00.000Z",
+  "account_id": "...",
+  "data": { "conversation_id": "...", "contact_id": "...", "whatsapp_message_id": "wamid....", "content_type": "text", "text": "Hi 👋" }
+}`;
+
+export const webhookManageSteps: string[][] = [
+  ['POST /api/v1/webhooks', 'Register { "url": "https://...", "events": ["message.received"] }. url must be https://. Response includes secret exactly once.'],
+  ['GET /api/v1/webhooks', 'List your endpoints (never returns the secret).'],
+  ['GET /api/v1/webhooks/{id}', 'Read one.'],
+  ['PATCH /api/v1/webhooks/{id}', 'Update url, events, or is_active (re-enabling clears the failure counter).'],
+  ['DELETE /api/v1/webhooks/{id}', 'Remove one.'],
+];
+
+export const verifyExample = `const [, t, v1] = header.match(/t=(\\d+),v1=([0-9a-f]+)/);
+const expected = crypto.createHmac('sha256', secret)
+  .update(\`\${t}.\${rawBody}\`).digest('hex');
+const ok = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));`;
+
+export const successEnvelope = `// success
+{ "data": { /* ... */ } }`;
+
+export const errorEnvelope = `// failure
+{ "error": { "code": "forbidden", "message": "This API key is missing the 'messages:send' scope" } }`;
