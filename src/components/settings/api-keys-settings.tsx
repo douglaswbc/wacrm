@@ -403,7 +403,7 @@ function CreateKeyDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="api-key-name" className="text-muted-foreground">
                   Name
