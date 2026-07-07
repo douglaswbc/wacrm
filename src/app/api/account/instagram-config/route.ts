@@ -4,13 +4,26 @@
 //   GET    — Read the account's Instagram config (access_token
 //            is never returned — only a masked placeholder).
 //   PUT    — Create or update the Instagram config (admin+).
+//            Automatically subscribes to webhooks after saving.
 //   DELETE — Remove the Instagram config (admin+).
 // ============================================================
 
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
-import { encrypt } from "@/lib/whatsapp/encryption";
-import { verifyIgAccount } from "@/lib/instagram/meta-api";
+import { encrypt, decrypt } from "@/lib/whatsapp/encryption";
+import { verifyIgAccount, subscribeIgApp } from "@/lib/instagram/meta-api";
+
+let _adminClient: any = null
+function supabaseAdmin() {
+  if (!_adminClient) {
+    _adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+  }
+  return _adminClient
+}
 
 export async function GET() {
   try {
@@ -18,7 +31,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from("instagram_config")
-      .select("instagram_business_account_id, business_name, status, connected_at, verify_token")
+      .select("instagram_business_account_id, business_name, status, connected_at, verify_token, registered_at, subscribed_apps_at, last_registration_error")
       .eq("account_id", ctx.accountId)
       .maybeSingle();
 
@@ -36,6 +49,9 @@ export async function GET() {
       status: data?.status || "disconnected",
       connected_at: data?.connected_at || null,
       verify_token: data?.verify_token || null,
+      registered_at: data?.registered_at || null,
+      subscribed_apps_at: data?.subscribed_apps_at || null,
+      last_registration_error: data?.last_registration_error || null,
       // access_token is never returned to the client.
       access_token: data?.instagram_business_account_id ? "••••••••" : null,
     });
@@ -105,7 +121,8 @@ export async function PUT(request: Request) {
       encryptedToken = existing.access_token;
     }
 
-    const { error } = await ctx.supabase.from("instagram_config").upsert(
+    // Save the config first.
+    const { error: upsertError } = await ctx.supabase.from("instagram_config").upsert(
       {
         account_id: ctx.accountId,
         user_id: ctx.userId,
@@ -119,15 +136,55 @@ export async function PUT(request: Request) {
       { onConflict: "account_id" },
     );
 
-    if (error) {
-      console.error("[PUT /api/account/instagram-config] error:", error);
+    if (upsertError) {
+      console.error("[PUT /api/account/instagram-config] error:", upsertError);
       return NextResponse.json(
         { error: "Failed to save Instagram config" },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({ ok: true });
+    // Now subscribe the account to webhook events.
+    const now = new Date().toISOString();
+    let subscribed = false;
+    let subscriptionError: string | null = null;
+
+    try {
+      const rawToken = body.access_token
+        ? body.access_token
+        : await getDecryptedToken(ctx.accountId);
+
+      if (rawToken) {
+        await subscribeIgApp(body.instagram_business_account_id, rawToken);
+        subscribed = true;
+
+        await ctx.supabase
+          .from("instagram_config")
+          .update({
+            registered_at: now,
+            subscribed_apps_at: now,
+            last_registration_error: null,
+          })
+          .eq("account_id", ctx.accountId);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error("[PUT /api/account/instagram-config] subscribe error:", message);
+      subscriptionError = message;
+
+      await ctx.supabase
+        .from("instagram_config")
+        .update({
+          last_registration_error: message,
+        })
+        .eq("account_id", ctx.accountId);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      subscribed,
+      subscription_error: subscriptionError,
+    });
   } catch (err) {
     return toErrorResponse(err);
   }
@@ -153,5 +210,24 @@ export async function DELETE() {
     return NextResponse.json({ ok: true });
   } catch (err) {
     return toErrorResponse(err);
+  }
+}
+
+/**
+ * Decrypt the stored access token from instagram_config.
+ */
+async function getDecryptedToken(accountId: string): Promise<string | null> {
+  const db = supabaseAdmin()
+  const { data } = await db
+    .from("instagram_config")
+    .select("access_token")
+    .eq("account_id", accountId)
+    .maybeSingle();
+
+  if (!data?.access_token) return null;
+  try {
+    return decrypt(data.access_token);
+  } catch {
+    return null;
   }
 }

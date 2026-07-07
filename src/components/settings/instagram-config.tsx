@@ -10,6 +10,8 @@ import {
   XCircle,
   Loader2,
   ExternalLink,
+  Zap,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,15 @@ const MASKED_TOKEN = '••••••••••••••••';
 
 type ConnectionStatus = 'connected' | 'disconnected' | 'unknown';
 
+interface RegistrationProbe {
+  live: boolean;
+  checks: Record<string, boolean | null>;
+  errors?: string[];
+  last_registration_error?: string | null;
+  registered_at?: string | null;
+  subscribed_apps_at?: string | null;
+}
+
 export function InstagramConfig() {
   const { accountId, profileLoading } = useAuth();
 
@@ -38,12 +49,18 @@ export function InstagramConfig() {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unknown');
   const [statusMessage, setStatusMessage] = useState('');
+  const [verifyingRegistration, setVerifyingRegistration] = useState(false);
+  const [registrationProbe, setRegistrationProbe] = useState<RegistrationProbe | null>(null);
 
   const [instagramBusinessAccountId, setInstagramBusinessAccountId] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
+  const [registeredAt, setRegisteredAt] = useState<string | null>(null);
+  const [lastRegistrationError, setLastRegistrationError] = useState<string | null>(null);
+
+  const isRegistered = Boolean(registeredAt);
 
   const webhookUrl =
     typeof window !== 'undefined'
@@ -62,6 +79,8 @@ export function InstagramConfig() {
           status?: 'connected' | 'disconnected';
           verify_token?: string;
           access_token?: string;
+          registered_at?: string | null;
+          last_registration_error?: string | null;
         };
         setConfig(data as unknown as Record<string, unknown>);
         setInstagramBusinessAccountId(data.instagram_business_account_id || '');
@@ -69,6 +88,9 @@ export function InstagramConfig() {
         setVerifyToken(data.verify_token || '');
         setAccessToken(MASKED_TOKEN);
         setTokenEdited(false);
+        setRegisteredAt(data.registered_at || null);
+        setLastRegistrationError(data.last_registration_error || null);
+        setRegistrationProbe(null);
 
         if (data.status === 'connected') {
           setConnectionStatus('connected');
@@ -84,6 +106,8 @@ export function InstagramConfig() {
         setVerifyToken('');
         setAccessToken('');
         setTokenEdited(false);
+        setRegisteredAt(null);
+        setLastRegistrationError(null);
         setConnectionStatus('disconnected');
         setStatusMessage('');
       }
@@ -139,7 +163,19 @@ export function InstagramConfig() {
         return;
       }
 
-      toast.success('Instagram connected successfully');
+      const result = await res.json();
+
+      if (result.subscribed) {
+        toast.success('Instagram connected and subscribed to webhooks.');
+      } else if (result.subscription_error) {
+        toast.error(
+          `Saved, but webhook subscription failed: ${result.subscription_error}`,
+          { duration: 10000 },
+        );
+      } else {
+        toast.success('Instagram connected successfully.');
+      }
+
       if (accountId) await fetchConfig();
     } catch {
       toast.error('Could not reach the server');
@@ -165,6 +201,8 @@ export function InstagramConfig() {
       setVerifyToken('');
       setAccessToken('');
       setTokenEdited(false);
+      setRegisteredAt(null);
+      setLastRegistrationError(null);
       setConnectionStatus('disconnected');
       setConfig(null);
       setStatusMessage('');
@@ -172,6 +210,27 @@ export function InstagramConfig() {
       toast.error('Could not reach the server');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleVerifyRegistration() {
+    setVerifyingRegistration(true);
+    setRegistrationProbe(null);
+    try {
+      const res = await fetch('/api/account/instagram-config/verify-registration', {
+        method: 'GET',
+      });
+      const data = (await res.json()) as RegistrationProbe;
+      setRegistrationProbe(data);
+      if (data.live) {
+        toast.success('Instagram is fully wired — Meta is delivering events.');
+      } else {
+        toast.error('Some checks failed. See diagnostic details below.');
+      }
+    } catch {
+      toast.error('Verification request failed.');
+    } finally {
+      setVerifyingRegistration(false);
     }
   }
 
@@ -217,10 +276,108 @@ export function InstagramConfig() {
             </div>
             <AlertDescription className="text-muted-foreground">
               {connectionStatus === 'connected'
-                ? 'Your Instagram Business Account is connected. DMs will appear in the inbox.'
-                : statusMessage || 'Configure your Instagram credentials below to receive DMs.'}
+                ? 'Your Instagram Business Account is connected.'
+                : statusMessage || 'Configure your Instagram credentials below.'}
             </AlertDescription>
           </Alert>
+
+          {/* Registration Status */}
+          {config && (
+            <Alert
+              className={
+                isRegistered
+                  ? 'bg-emerald-950/30 border-emerald-700/50'
+                  : 'bg-amber-950/30 border-amber-700/50'
+              }
+            >
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {isRegistered ? (
+                    <CheckCircle2 className="size-4 text-emerald-400" />
+                  ) : (
+                    <AlertTriangle className="size-4 text-amber-400" />
+                  )}
+                  <AlertTitle
+                    className={
+                      'mb-0 ' + (isRegistered ? 'text-emerald-200' : 'text-amber-200')
+                    }
+                  >
+                    {isRegistered
+                      ? 'Subscribed — Meta will deliver DMs to wacrm'
+                      : 'Not subscribed — Meta will not deliver events'}
+                  </AlertTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleVerifyRegistration}
+                  disabled={verifyingRegistration}
+                  className="border-border bg-transparent text-foreground hover:bg-muted h-7"
+                >
+                  {verifyingRegistration ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="size-3.5" />
+                  )}
+                  Verify with Meta
+                </Button>
+              </div>
+              <AlertDescription className="text-muted-foreground mt-2 text-xs leading-relaxed">
+                {isRegistered ? (
+                  <>
+                    Subscribed since{' '}
+                    {registeredAt
+                      ? new Date(registeredAt).toLocaleString()
+                      : 'unknown'}
+                    . Click <strong>Verify with Meta</strong> if events
+                    stop arriving.
+                  </>
+                ) : lastRegistrationError ? (
+                  <>
+                    Last attempt failed with:{' '}
+                    <span className="text-red-300">
+                      &quot;{lastRegistrationError}&quot;
+                    </span>
+                    . Re-enter credentials and save to retry.
+                  </>
+                ) : (
+                  'Save your credentials above to auto-subscribe to webhooks.'
+                )}
+              </AlertDescription>
+
+              {registrationProbe && (
+                <div className="mt-3 rounded border border-border bg-card/60 px-3 py-2 space-y-1.5 text-[11px]">
+                  <p className="font-medium text-foreground">
+                    Diagnostic — last run:{' '}
+                    <span className={registrationProbe.live ? 'text-emerald-400' : 'text-amber-400'}>
+                      {registrationProbe.live ? 'live' : 'not live'}
+                    </span>
+                  </p>
+                  <ul className="space-y-0.5 text-muted-foreground">
+                    {Object.entries(registrationProbe.checks).map(([k, v]) => (
+                      <li key={k} className="flex items-center gap-1.5">
+                        {v === true ? (
+                          <CheckCircle2 className="size-3 text-emerald-400 shrink-0" />
+                        ) : v === false ? (
+                          <XCircle className="size-3 text-red-400 shrink-0" />
+                        ) : (
+                          <span className="size-3 rounded-full border border-border shrink-0" />
+                        )}
+                        <code className="text-muted-foreground">{k}</code>
+                      </li>
+                    ))}
+                  </ul>
+                  {(registrationProbe.errors ?? []).length > 0 && (
+                    <ul className="pt-1 space-y-0.5 text-red-300">
+                      {registrationProbe.errors?.map((e, i) => (
+                        <li key={i}>• {e}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </Alert>
+          )}
 
           {/* API Credentials */}
           <Card>

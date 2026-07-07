@@ -169,3 +169,62 @@ export async function verifyIgAccount(
 
   return response.json()
 }
+
+// ============================================================
+// Webhook subscription
+// ============================================================
+
+/**
+ * Subscribe the Instagram Business Account to webhook events.
+ *
+ * POST /{ig-user-id}/subscribed_apps?subscribed_fields=messages
+ *
+ * This is the Instagram equivalent of WhatsApp's `/register` +
+ * `/subscribed_apps`. Without it, Meta won't deliver webhook
+ * notifications to the callback URL even if the URL is verified.
+ */
+export async function subscribeIgApp(
+  igUserId: string,
+  accessToken: string,
+): Promise<{ success: boolean }> {
+  const url = `${INSTAGRAM_API_BASE}/${igUserId}/subscribed_apps`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      subscribed_fields: ['messages'],
+    }),
+  })
+
+  if (!response.ok) {
+    await throwInstagramError(response, `Instagram subscribe error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Check which fields the Instagram Business Account is subscribed to.
+ *
+ * GET /{ig-user-id}/subscribed_apps
+ */
+export async function getSubscribedIgApps(
+  igUserId: string,
+  accessToken: string,
+): Promise<{ data?: { subscribed_fields?: string[] }[] }> {
+  const url = `${INSTAGRAM_API_BASE}/${igUserId}/subscribed_apps`
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+
+  if (!response.ok) {
+    await throwInstagramError(response, `Instagram API error: ${response.status}`)
+  }
+
+  return response.json()
+}
