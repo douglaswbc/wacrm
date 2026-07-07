@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { requireApiKey } from "@/lib/auth/api-context";
+import { resolveAuditUserId } from "@/lib/api/v1/contacts";
 import { ok, fail, toApiErrorResponse } from "@/lib/api/v1/respond";
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -36,6 +37,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       return fail("bad_request", `'content_type' must be one of: ${validTypes.join(", ")}`, 400);
     }
 
+    // Resolve audit user for created rows.
+    const auditUserId = await resolveAuditUserId(ctx.supabase, ctx.accountId);
+
     // Find or create contact by instagram_id within the account.
     let contactId: string;
     let contactCreated = false;
@@ -54,6 +58,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         .from("contacts")
         .insert({
           account_id: ctx.accountId,
+          user_id: auditUserId,
           instagram_id: body.instagram_id,
           instagram_username: body.instagram_username || null,
           name: body.name || body.instagram_username || null,
@@ -89,6 +94,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         .from("conversations")
         .insert({
           account_id: ctx.accountId,
+          user_id: auditUserId,
           contact_id: contactId,
           channel: "instagram",
           status: "open",
@@ -107,6 +113,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Insert the message.
     const msgPayload: Record<string, unknown> = {
       account_id: ctx.accountId,
+      user_id: auditUserId,
       conversation_id: conversationId,
       sender_type: "customer",
       content_type: body.content_type,

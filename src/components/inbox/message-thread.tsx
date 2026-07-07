@@ -219,9 +219,14 @@ export function MessageThread({
     };
   }, []);
 
-  // 24-hour session timer
+  // 24-hour session timer (WhatsApp only — Instagram has no session window)
   const sessionInfo = useMemo(() => {
     if (!messages.length) return { expired: false, remaining: "" };
+
+    // Instagram conversations have no 24-hour session limit
+    if (conversation?.channel === "instagram") {
+      return { expired: false, remaining: "" };
+    }
 
     // Find last customer message
     const lastCustomerMsg = [...messages]
@@ -244,7 +249,7 @@ export function MessageThread({
         : `${Math.floor(hoursLeft * 60)}m remaining`;
 
     return { expired, remaining };
-  }, [messages]);
+  }, [messages, conversation?.channel]);
 
   // Store latest callback in a ref so fetchMessages doesn't need to
   // depend on `onMessagesLoaded` — otherwise parent re-renders cause

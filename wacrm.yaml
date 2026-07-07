@@ -15,16 +15,16 @@ services:
       - NODE_ENV=production
 
       ## Supabase
-      - NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-anon-key
-      - SUPABASE_SERVICE_ROLE_KEY=seu-service-role-key
+      - NEXT_PUBLIC_SUPABASE_URL=https://dnaleyuhfhzxusdqhlqd.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuYWxleXVoZmh6eHVzZHFobHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzODQ5NzksImV4cCI6MjA5ODk2MDk3OX0.umDsUspkYldaLtoJpCfxnrviiI4yJ63j9HiM0ZXP8K0
+      - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuYWxleXVoZmh6eHVzZHFobHFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzM4NDk3OSwiZXhwIjoyMDk4OTYwOTc5fQ.ui0Hi1fhc1Jba0kt7CFZ8GUvUUNUNsMlojx77sIch9s
 
       ## Criptografia e Segurança
-      - ENCRYPTION_KEY=64-char-hex-key
-      - META_APP_SECRET=seu-meta-app-secret
+      - ENCRYPTION_KEY=0dae52338a092a8862c971563dd1335f51df1509097220b2b231c4e5f65a8949
+      - META_APP_SECRET=743491add97d2ead0d74d961c042c987
 
       ## URL pública
-      - NEXT_PUBLIC_SITE_URL=https://crm.seudominio.com
+      - NEXT_PUBLIC_SITE_URL=https://wacrm.autofunil.com.br
 
     deploy:
       mode: replicated
