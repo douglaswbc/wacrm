@@ -15,8 +15,11 @@ export function InstagramConfig() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
+  const [accessToken, setAccessToken] = useState('');
+  const [instagramBusinessAccountId, setInstagramBusinessAccountId] = useState('');
+  const [verifyToken, setVerifyToken] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [status, setStatus] = useState<'connected' | 'disconnected'>('disconnected');
   const [hasConfig, setHasConfig] = useState(false);
 
   const fetchConfig = useCallback(async () => {
@@ -26,16 +29,23 @@ export function InstagramConfig() {
       const res = await fetch('/api/account/instagram-config', { cache: 'no-store' });
       if (res.ok) {
         const data = (await res.json()) as {
-          n8n_webhook_url?: string;
+          instagram_business_account_id?: string;
           business_name?: string;
+          status?: 'connected' | 'disconnected';
+          verify_token?: string;
+          access_token?: string;
         };
-        const url = data.n8n_webhook_url || '';
-        setN8nWebhookUrl(url);
+        setInstagramBusinessAccountId(data.instagram_business_account_id || '');
         setBusinessName(data.business_name || '');
-        setHasConfig(url.length > 0);
+        setStatus(data.status || 'disconnected');
+        setVerifyToken(data.verify_token || '');
+        // If token is masked, the user has a saved config.
+        setHasConfig(data.access_token === '••••••••');
       } else {
-        setN8nWebhookUrl('');
+        setInstagramBusinessAccountId('');
         setBusinessName('');
+        setStatus('disconnected');
+        setVerifyToken('');
         setHasConfig(false);
       }
     } catch {
@@ -52,13 +62,20 @@ export function InstagramConfig() {
   }, [profileLoading, accountId, fetchConfig]);
 
   async function handleSave() {
+    if (!instagramBusinessAccountId.trim() || !accessToken.trim()) {
+      toast.error('Instagram Business Account ID and Access Token are required');
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch('/api/account/instagram-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          n8n_webhook_url: n8nWebhookUrl.trim() || null,
+          access_token: accessToken.trim() || null,
+          instagram_business_account_id: instagramBusinessAccountId.trim() || null,
+          verify_token: verifyToken.trim() || null,
           business_name: businessName.trim() || null,
         }),
       });
@@ -69,8 +86,11 @@ export function InstagramConfig() {
         return;
       }
 
-      toast.success('Instagram config saved');
-      setHasConfig(n8nWebhookUrl.trim().length > 0);
+      toast.success('Instagram connected successfully');
+      setStatus('connected');
+      setHasConfig(true);
+      setAccessToken('');
+      void fetchConfig();
     } catch {
       toast.error('Could not reach the server');
     } finally {
@@ -90,8 +110,10 @@ export function InstagramConfig() {
       }
 
       toast.success('Instagram config removed');
-      setN8nWebhookUrl('');
+      setInstagramBusinessAccountId('');
       setBusinessName('');
+      setVerifyToken('');
+      setStatus('disconnected');
       setHasConfig(false);
     } catch {
       toast.error('Could not reach the server');
@@ -112,15 +134,15 @@ export function InstagramConfig() {
     <section className="animate-in fade-in-50 space-y-6 duration-200">
       <SettingsPanelHead
         title="Instagram"
-        description="Configure the n8n webhook for Instagram DM integration. n8n receives Meta webhooks and forwards messages to wacrm."
+        description="Connect your Instagram Business Account to receive and reply to DMs directly from wacrm."
       />
 
-      {hasConfig && (
+      {status === 'connected' && (
         <Card>
           <CardContent className="flex items-center gap-2 py-3">
             <CheckCircle2 className="size-4 text-green-400" />
             <span className="text-sm text-foreground">
-              Instagram integration is configured
+              Instagram is connected
             </span>
             {businessName && (
               <span className="text-xs text-muted-foreground">
@@ -131,21 +153,64 @@ export function InstagramConfig() {
         </Card>
       )}
 
+      {status === 'disconnected' && hasConfig && (
+        <Card>
+          <CardContent className="flex items-center gap-2 py-3">
+            <XCircle className="size-4 text-red-400" />
+            <span className="text-sm text-foreground">
+              Instagram configuration exists but is disconnected
+            </span>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="space-y-4 pt-6">
           <div className="space-y-2">
             <Label className="text-muted-foreground">
-              n8n webhook URL <span className="text-xs text-muted-foreground">(required)</span>
+              Instagram Business Account ID <span className="text-xs text-muted-foreground">(required)</span>
             </Label>
             <Input
-              placeholder="https://your-n8n.example.com/webhook/instagram-outbound"
-              value={n8nWebhookUrl}
-              onChange={(e) => setN8nWebhookUrl(e.target.value)}
+              placeholder="e.g. 17841405822304..."
+              value={instagramBusinessAccountId}
+              onChange={(e) => setInstagramBusinessAccountId(e.target.value)}
               className="bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs"
             />
             <p className="text-xs text-muted-foreground">
-              wacrm will POST outgoing Instagram messages (agent replies) to this URL.
-              n8n receives them and forwards to the Meta Instagram API.
+              Your Instagram Business Account ID. Found in Meta Business Suite or Instagram Settings → Account.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-muted-foreground">
+              Access Token <span className="text-xs text-muted-foreground">(required)</span>
+            </Label>
+            <Input
+              type="password"
+              placeholder={hasConfig ? '•••••••• (leave blank to keep current)' : 'EAAx...'}
+              value={accessToken}
+              onChange={(e) => setAccessToken(e.target.value)}
+              className="bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs"
+            />
+            <p className="text-xs text-muted-foreground">
+              Instagram User Access Token with the <code className="text-xs">instagram_basic</code> and{' '}
+              <code className="text-xs">instagram_manage_messages</code> permissions.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-muted-foreground">
+              Verify Token <span className="text-xs text-muted-foreground">(recommended)</span>
+            </Label>
+            <Input
+              placeholder="Your custom verify token"
+              value={verifyToken}
+              onChange={(e) => setVerifyToken(e.target.value)}
+              className="bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs"
+            />
+            <p className="text-xs text-muted-foreground">
+              Used during webhook setup. Meta sends this back on GET /api/instagram/webhook?hub.verify_token=...
+              Set the same value in Meta Developer Console when subscribing to the webhook.
             </p>
           </div>
 
@@ -159,6 +224,9 @@ export function InstagramConfig() {
               onChange={(e) => setBusinessName(e.target.value)}
               className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
             />
+            <p className="text-xs text-muted-foreground">
+              Display label for this Instagram connection. Auto-filled from Meta if left empty.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -172,8 +240,10 @@ export function InstagramConfig() {
                   <Loader2 className="size-4 animate-spin" />
                   Saving...
                 </>
+              ) : hasConfig ? (
+                'Update & reconnect'
               ) : (
-                'Save'
+                'Connect'
               )}
             </Button>
 
@@ -198,20 +268,35 @@ export function InstagramConfig() {
           </h3>
           <ol className="list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
             <li>
-              Create an API key in <strong>Settings → API keys</strong> with the{' '}
-              <code className="text-xs">messages:send</code> scope.
+              Go to{' '}
+              <a
+                href="https://developers.facebook.com/apps"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline"
+              >
+                Meta Developer Console
+              </a>{' '}
+              and create or select your app.
             </li>
             <li>
-              In n8n, create a webhook trigger to receive Instagram messages from Meta.
+              Add the <strong>Instagram Graph API</strong> product to your app.
             </li>
             <li>
-              In the n8n workflow, add an <strong>HTTP Request</strong> node that calls{' '}
-              <code className="text-xs">POST /api/v1/instagram/messages</code> with the API key
-              to push inbound messages to wacrm.
+              Generate a <strong>User Access Token</strong> with the{' '}
+              <code className="text-xs">instagram_basic</code> and{' '}
+              <code className="text-xs">instagram_manage_messages</code> permissions.
             </li>
             <li>
-              Paste the n8n outbound webhook URL above — wacrm will call it when an agent
-              replies to an Instagram conversation.
+              Set up the <strong>Instagram</strong> webhook in Meta Console:
+              URL = <code className="text-xs">https://wacrm.autofunil.com.br/api/instagram/webhook</code>,
+              Verify Token = the token you set above.
+            </li>
+            <li>
+              Go to{' '}
+              <strong>Settings → Webhooks</strong> in wacrm to configure external integrations
+              (AI agents, n8n, etc.) that should react to Instagram messages —
+              subscribe to the <code className="text-xs">message.received</code> event.
             </li>
           </ol>
         </CardContent>

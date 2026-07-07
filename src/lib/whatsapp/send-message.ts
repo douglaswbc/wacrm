@@ -27,6 +27,11 @@ import {
   sendMediaMessage,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api';
+import {
+  sendTextMessage as sendInstagramText,
+  sendMediaMessage as sendInstagramMedia,
+  type MediaKind as InstagramMediaKind,
+} from '@/lib/instagram/meta-api';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
 import {
@@ -457,8 +462,7 @@ export async function sendMessageToConversation(
 }
 
 // ----------------------------------------------------------
-// Instagram send — routes the message to the account's n8n
-// webhook URL instead of calling the Meta API directly.
+// Instagram send — calls the Instagram Messaging API directly.
 // ----------------------------------------------------------
 
 async function sendInstagramMessage(
@@ -472,65 +476,79 @@ async function sendInstagramMessage(
     messageType,
     contentText,
     mediaUrl,
-    filename,
     replyToMessageId,
   } = params;
 
-  // Load Instagram config to get the n8n webhook URL.
+  // Load Instagram config for the account.
   const { data: config, error: configError } = await db
     .from('instagram_config')
-    .select('n8n_webhook_url')
+    .select('access_token, instagram_business_account_id')
     .eq('account_id', accountId)
     .single();
 
-  if (configError || !config?.n8n_webhook_url) {
+  if (configError || !config?.access_token || !config?.instagram_business_account_id) {
     throw new SendMessageError(
       'instagram_not_configured',
-      'Instagram n8n webhook not configured. Please set up the Instagram integration first.',
+      'Instagram not configured. Please set up Instagram integration in Settings first.',
       400,
     );
   }
 
-  // Build the payload for n8n.
-  const payload = {
-    event: 'message.send',
-    account_id: accountId,
-    conversation_id: conversationId,
-    contact_id: contact.id,
-    instagram_id: contact.instagram_id || null,
-    instagram_username: contact.instagram_username || null,
-    message_type: messageType,
-    content_text: contentText || null,
-    media_url: mediaUrl || null,
-    filename: filename || null,
-    reply_to_message_id: replyToMessageId || null,
-  };
+  const accessToken = decrypt(config.access_token);
+  const igUserId = config.instagram_business_account_id;
+  const igRecipientId = contact.instagram_id;
 
-  let n8nMessageId = '';
+  if (!igRecipientId) {
+    throw new SendMessageError(
+      'bad_request',
+      'Contact has no Instagram ID. Cannot send via Instagram.',
+      400,
+    );
+  }
+
+  // Send the message via Instagram API.
+  let igMessageId: string;
 
   try {
-    const response = await fetch(config.n8n_webhook_url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      // Give n8n a reasonable timeout to forward to Instagram.
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) {
-      console.error(
-        `[send-message] n8n webhook returned ${response.status}: ${await response.text().catch(() => '')}`,
-      );
-      throw new Error(`n8n webhook error: ${response.status}`);
+    if (messageType === 'text') {
+      const result = await sendInstagramText({
+        igUserId,
+        accessToken,
+        to: igRecipientId,
+        text: contentText || '',
+      });
+      igMessageId = result.messageId;
+    } else if (messageType === 'image' || messageType === 'video' || messageType === 'audio') {
+      if (!mediaUrl) {
+        throw new SendMessageError(
+          'bad_request',
+          `Media URL required for ${messageType} messages`,
+          400,
+        );
+      }
+      const result = await sendInstagramMedia({
+        igUserId,
+        accessToken,
+        to: igRecipientId,
+        kind: messageType as InstagramMediaKind,
+        link: mediaUrl,
+        caption: contentText || undefined,
+      });
+      igMessageId = result.messageId;
+    } else {
+      // document or unsupported — fall back to text with a note.
+      const result = await sendInstagramText({
+        igUserId,
+        accessToken,
+        to: igRecipientId,
+        text: contentText || `[${messageType}]`,
+      });
+      igMessageId = result.messageId;
     }
-
-    const result = await response.json().catch(() => ({}));
-    n8nMessageId = result?.message_id || `n8n_${crypto.randomUUID()}`;
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Unknown n8n API error';
-    console.error('[send-message] Instagram send via n8n failed:', message);
-    throw new SendMessageError('n8n_error', `n8n error: ${message}`, 502);
+    const message = err instanceof Error ? err.message : 'Unknown Instagram API error';
+    console.error('[send-message] Instagram send failed:', message);
+    throw new SendMessageError('instagram_error', `Instagram API error: ${message}`, 502);
   }
 
   // Persist the sent message.
@@ -543,7 +561,7 @@ async function sendInstagramMessage(
       content_type: messageType,
       content_text: contentText || null,
       media_url: mediaUrl || null,
-      message_id: n8nMessageId,
+      message_id: igMessageId,
       status: 'sent',
       reply_to_message_id: replyToMessageId || null,
     })
@@ -554,7 +572,7 @@ async function sendInstagramMessage(
     console.error('[send-message] Instagram: error inserting sent message:', msgError);
     throw new SendMessageError(
       'db_error',
-      `Message sent to n8n but failed to save to DB: ${msgError.message}`,
+      `Message sent to Instagram but failed to save to DB: ${msgError.message}`,
       500,
     );
   }
@@ -568,5 +586,5 @@ async function sendInstagramMessage(
     })
     .eq('id', conversationId);
 
-  return { messageId: messageRecord.id, whatsappMessageId: n8nMessageId };
+  return { messageId: messageRecord.id, whatsappMessageId: igMessageId };
 }
