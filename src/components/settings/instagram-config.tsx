@@ -29,9 +29,10 @@ export function InstagramConfig() {
           n8n_webhook_url?: string;
           business_name?: string;
         };
-        setN8nWebhookUrl(data.n8n_webhook_url || '');
+        const url = data.n8n_webhook_url || '';
+        setN8nWebhookUrl(url);
         setBusinessName(data.business_name || '');
-        setHasConfig(true);
+        setHasConfig(url.length > 0);
       } else {
         setN8nWebhookUrl('');
         setBusinessName('');
@@ -69,7 +70,7 @@ export function InstagramConfig() {
       }
 
       toast.success('Instagram config saved');
-      setHasConfig(true);
+      setHasConfig(n8nWebhookUrl.trim().length > 0);
     } catch {
       toast.error('Could not reach the server');
     } finally {
