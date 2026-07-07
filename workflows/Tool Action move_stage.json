@@ -19,6 +19,9 @@
             },
             {
               "name": "contact_id"
+            },
+            {
+              "name": "amount"
             }
           ]
         }
@@ -109,7 +112,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"stage_id\": \"{{ $(\"Workflow IA Agent\").item.json.stage_id }}\" }",
+        "jsonBody": "={ \n  \"stage_id\": \"{{ $(\"Workflow IA Agent\").item.json.stage_id }}\",\n  \"value\": \"{{ $('Workflow IA Agent').item.json.amount }}\"\n}",
         "options": {
           "response": {
             "response": {
@@ -218,8 +221,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        992,
-        -144
+        976,
+        -128
       ],
       "executeOnce": true,
       "credentials": {
@@ -238,7 +241,8 @@
           "conversations_id": "0835e7d7-8845-4835-a962-135fb5fde49f",
           "pipeline_id": "82296bab-2024-4f2c-8197-92d008fccf8c",
           "url_wacrm": "https://wacrm.autofunil.com.br",
-          "contact_id": "2bac0ae2-4c97-461b-970f-387709ff51cd"
+          "contact_id": "2bac0ae2-4c97-461b-970f-387709ff51cd",
+          "amount": "200"
         }
       }
     ]
@@ -309,7 +313,7 @@
     "timeSavedMode": "fixed",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "e5bcc7c8-9f43-49ab-8331-a46e394e2d72",
+  "versionId": "2ca42396-a5d4-4b53-95fc-a3760001c27b",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",

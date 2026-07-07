@@ -65,7 +65,11 @@ CREATE TABLE IF NOT EXISTS accounts (
   -- below. The source of truth for membership is profiles.account_id.
   owner_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Super-admin fields: when non-null the account is frozen and no
+  -- member can use the app until a super admin re-enables it.
+  disabled_at TIMESTAMPTZ,
+  disabled_reason TEXT
 );
 
 -- One account per user (the locked design decision — single

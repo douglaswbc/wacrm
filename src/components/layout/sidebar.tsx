@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
@@ -18,6 +18,7 @@ import {
   Radio,
   Settings,
   Shield,
+  ShieldCheck,
   User,
   UserCog,
   Users,
@@ -104,6 +105,12 @@ const bottomNavItems = [
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 
+const adminNavItem = {
+  href: "/admin",
+  labelKey: "nav.admin",
+  icon: ShieldCheck,
+};
+
 interface SidebarProps {
   /** Controlled on mobile by the Header's hamburger button. Ignored on lg+. */
   open?: boolean;
@@ -114,6 +121,14 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { profile, profileLoading, account, accountRole, signOut } = useAuth();
   const { t } = useLanguage();
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then((d) => setIsSuperAdmin(d.admin === true))
+      .catch(() => setIsSuperAdmin(false));
+  }, []);
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
   // Only surface the account-name strip when it actually carries
@@ -268,7 +283,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           <div className="my-4 border-t border-border" />
 
           <ul className="flex flex-col gap-1">
-            {bottomNavItems.map((item) => {
+            {[
+              ...bottomNavItems,
+              ...(isSuperAdmin ? [adminNavItem] : []),
+            ].map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <li key={item.href}>

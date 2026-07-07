@@ -69,6 +69,34 @@ export async function middleware(request: NextRequest) {
     return withRefreshedCookies(NextResponse.redirect(url))
   }
 
+  // If authenticated, check whether the user's account has been
+  // disabled by a super admin. We use the SSR client for the lookup
+  // so the request-Supabase-resource lifecycle is tidy — no service-
+  // role key needed in middleware. The `from('profiles')` query is
+  // RLS-gated to the caller's own row, so this is safe.
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (profile?.account_id) {
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('disabled_at')
+        .eq('id', profile.account_id)
+        .maybeSingle()
+
+      if (account?.disabled_at) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        url.searchParams.set('error', 'account_disabled')
+        return withRefreshedCookies(NextResponse.redirect(url))
+      }
+    }
+  }
+
   // Protected pages - redirect to login if not authenticated
   const protectedPaths = ['/dashboard', '/inbox', '/contacts', '/pipelines', '/broadcasts', '/automations', '/settings']
   if (!user && protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))) {

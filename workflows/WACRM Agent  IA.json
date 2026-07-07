@@ -1162,7 +1162,8 @@
             "url_wacrm": "={{ $('normalize').item.json.url_wacrm }}",
             "media_caption": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('media_caption', ``, 'string') }}",
             "media_type": "image",
-            "media_url": "https://res.cloudinary.com/dvge9dx9p/image/upload/v1778674049/logotipo-dc_chrrhp.png"
+            "media_url": "https://res.cloudinary.com/dvge9dx9p/image/upload/v1778674049/logotipo-dc_chrrhp.png",
+            "servico/produto": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('servico_produto', `adicione somente o nome do serviço ou produto escolhido`, 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1225,6 +1226,16 @@
               "canBeUsedToMatch": true,
               "type": "string",
               "removed": false
+            },
+            {
+              "id": "servico/produto",
+              "displayName": "servico/produto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -1234,8 +1245,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        5376,
-        -304
+        5328,
+        -320
       ],
       "id": "59aae5fb-5927-4513-b1f9-912c0d171da0",
       "name": "send_media"
@@ -1342,7 +1353,8 @@
             "conversations_id": "={{ $('normalize').item.json.conversation_id }}",
             "url_wacrm": "={{ $('normalize').item.json.url_wacrm }}",
             "pipeline_id": "={{ $('Get Pipelines').item.json.data[0].id }}",
-            "contact_id": "={{ $('normalize').item.json.contact_id }}"
+            "contact_id": "={{ $('normalize').item.json.contact_id }}",
+            "amount": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('amount', `adicione o valor da quantia do serviço/produto neste campo e deve ser somente o numero. Ex.: \"100\"`, 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1389,6 +1401,16 @@
             {
               "id": "contact_id",
               "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1949,7 +1971,7 @@
     "timeSavedMode": "fixed",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "e7316687-ddc6-4b8c-9d00-2e465b017df1",
+  "versionId": "e0d76d75-7481-477c-a5ce-f0accea84427",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",

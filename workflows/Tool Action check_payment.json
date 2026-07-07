@@ -226,135 +226,88 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBearerAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "assignments": {
+          "assignments": [
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "id": "0cae31ec-44b5-4c5e-a73c-02d2cc14e36d",
+              "name": "response",
+              "value": "=payment {{ $('Consultar Status (MP)').item.json.results[0].status }}",
+              "type": "string"
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"text\": \"Pagamento confirmado! Obrigado pela compra 🎉\" }",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 10000
-        }
+        "options": {}
       },
-      "id": "24166ab5-7359-4686-8738-030bd4be4189",
-      "name": "Notificar Aprovado",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        1568,
-        0
+        1728,
+        -80
       ],
-      "executeOnce": true,
-      "credentials": {
-        "httpBearerAuth": {
-          "id": "SeWp9X3mRnODjbKZ",
-          "name": "Bearer Auth WACRM"
-        }
-      }
+      "id": "9a81185e-e9bf-464a-9780-026a86a8ae66",
+      "name": "Payment approved"
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBearerAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "assignments": {
+          "assignments": [
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "id": "0cae31ec-44b5-4c5e-a73c-02d2cc14e36d",
+              "name": "response",
+              "value": "=payment {{ $('Consultar Status (MP)').item.json.results[0].status }}",
+              "type": "string"
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"text\": \"Seu pagamento esta {{ $json.results[0].status_detail }}. Assim que for confirmado, avisamos voce!\" }",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 10000
-        }
+        "options": {}
       },
-      "id": "081c1692-7afc-45cd-89c3-e71d5825845d",
-      "name": "Notificar Pendente",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        1568,
-        192
+        1728,
+        160
       ],
-      "executeOnce": true,
-      "credentials": {
-        "httpBearerAuth": {
-          "id": "SeWp9X3mRnODjbKZ",
-          "name": "Bearer Auth WACRM"
-        }
-      }
+      "id": "f1e72fa4-dc37-4e41-981a-b121bd03397a",
+      "name": "Payment pending"
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $(\"Normalizar Dados\").item.json.url_wacrm }}/api/v1/messages",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBearerAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "assignments": {
+          "assignments": [
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "id": "0cae31ec-44b5-4c5e-a73c-02d2cc14e36d",
+              "name": "response",
+              "value": "=payment not found",
+              "type": "string"
             }
           ]
         },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={ \"to\": \"{{ $(\"Normalizar Dados\").item.json.contact_phone }}\", \"text\": \"{{ $(\"Consultar Status (MP)\").item.json.results[0].additional_info.payer.first_name.split(\" \")[0] }}, Nenhum pagamento encontrado para esta conversa.\" }",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 10000
-        }
+        "options": {}
       },
-      "id": "f809f539-db01-4fa3-a960-259e2e4b6da8",
-      "name": "Notificar Nao Encontrado",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        1344,
-        288
+        1728,
+        384
       ],
-      "executeOnce": true,
-      "credentials": {
-        "httpBearerAuth": {
-          "id": "SeWp9X3mRnODjbKZ",
-          "name": "Bearer Auth WACRM"
-        }
-      }
+      "id": "29ec6ca5-bc9d-4e9b-9724-09b7e68785ac",
+      "name": "Payment not found"
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Workflow IA Agent": [
+      {
+        "json": {
+          "action": "check_payment",
+          "conversation_id": "0835e7d7-8845-4835-a962-135fb5fde49f",
+          "url_wacrm": "https://wacrm.autofunil.com.br"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "connections": {
     "Workflow IA Agent": {
       "main": [
@@ -422,7 +375,7 @@
         ],
         [
           {
-            "node": "Notificar Nao Encontrado",
+            "node": "Payment not found",
             "type": "main",
             "index": 0
           }
@@ -433,14 +386,14 @@
       "main": [
         [
           {
-            "node": "Notificar Aprovado",
+            "node": "Payment approved",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Notificar Pendente",
+            "node": "Payment pending",
             "type": "main",
             "index": 0
           }
@@ -456,7 +409,7 @@
     "timeSavedMode": "fixed",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "1f43d2fa-bee1-4abc-9340-fa9f95c9e4dd",
+  "versionId": "490af706-7117-46d3-8882-ede7732060a6",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",

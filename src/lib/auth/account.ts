@@ -149,7 +149,7 @@ export async function getCurrentAccount(): Promise<AccountContext> {
   // RLS, so it stays robust against cache staleness and older schemas.
   const { data: account, error: accountErr } = await supabase
     .from("accounts")
-    .select("id, name")
+    .select("id, name, disabled_at, disabled_reason")
     .eq("id", data.account_id)
     .maybeSingle();
 
@@ -161,6 +161,13 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     // account_id points at no readable account row — orphaned profile
     // or an RLS gap. Same "can't scope this user" outcome as above.
     throw new ForbiddenError("Profile is not linked to an account");
+  }
+
+  // Check if the account has been disabled by a super admin.
+  if (account.disabled_at) {
+    throw new ForbiddenError(
+      account.disabled_reason || "This account has been disabled",
+    );
   }
 
   return {

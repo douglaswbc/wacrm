@@ -231,6 +231,29 @@
           "name": "Bearer Auth WACRM"
         }
       }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cd8e5673-4e93-4d9a-ba87-758c3521d157",
+              "name": "response",
+              "value": "Segue a informação para efetuar o pagamento",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1328,
+        0
+      ],
+      "id": "48946ede-ca47-4f24-95d5-d72d449534c7",
+      "name": "response"
     }
   ],
   "pinData": {
@@ -304,6 +327,17 @@
           }
         ]
       ]
+    },
+    "Enviar Link": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -314,7 +348,7 @@
     "timeSavedMode": "fixed",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "b20a2118-23e6-4f43-ab86-59b17a429d7f",
+  "versionId": "bcc52c46-0a7d-43a5-a61a-ca32c8ef14fc",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",

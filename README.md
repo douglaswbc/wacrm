@@ -123,6 +123,18 @@ Required variables — configure in `.env.local` before building:
 | `META_APP_SECRET` | Meta App Secret for webhook verification |
 | `NEXT_PUBLIC_SITE_URL` | Public URL of your CRM (`https://crm.seudominio.com`) |
 
+### Supabase Auth URL configuration
+
+After deploying, configure these URLs in your **Supabase Dashboard → Authentication → URL Configuration**:
+
+| Setting | Value |
+|---|---|
+| **Site URL** | `https://crm.seudominio.com` |
+| **Redirect URLs** | `https://crm.seudominio.com/auth/callback` (password reset) |
+| | `https://crm.seudominio.com/join/*` (invite email confirmation) |
+
+Without these, password reset emails and invite confirmation links will not work.
+
 ### Traefik configuration
 
 The included `wacrm.yaml` expects Traefik running with these labels.

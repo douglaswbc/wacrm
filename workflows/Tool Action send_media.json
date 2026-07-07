@@ -22,6 +22,9 @@
             },
             {
               "name": "media_caption"
+            },
+            {
+              "name": "servico/produto"
             }
           ]
         }
@@ -248,7 +251,7 @@
     "timeSavedMode": "fixed",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "2c965007-b017-4b99-8ffa-6f2bb5ff2274",
+  "versionId": "2ca8d249-873c-4649-a5c7-baf8830c43b0",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",
