@@ -15,16 +15,16 @@ services:
       - NODE_ENV=production
 
       ## Supabase
-      - NEXT_PUBLIC_SUPABASE_URL=https://dnaleyuhfhzxusdqhlqd.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuYWxleXVoZmh6eHVzZHFobHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzODQ5NzksImV4cCI6MjA5ODk2MDk3OX0.umDsUspkYldaLtoJpCfxnrviiI4yJ63j9HiM0ZXP8K0
-      - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuYWxleXVoZmh6eHVzZHFobHFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzM4NDk3OSwiZXhwIjoyMDk4OTYwOTc5fQ.ui0Hi1fhc1Jba0kt7CFZ8GUvUUNUNsMlojx77sIch9s
+      - NEXT_PUBLIC_SUPABASE_URL=https://id_projeto.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=anon_key
+      - SUPABASE_SERVICE_ROLE_KEY=role_key
 
       ## Criptografia e Segurança
       - ENCRYPTION_KEY=0dae52338a092a8862c971563dd1335f51df1509097220b2b231c4e5f65a8949
-      - META_APP_SECRET=743491add97d2ead0d74d961c042c987
+      - META_APP_SECRET=secret_key_app
 
       ## URL pública
-      - NEXT_PUBLIC_SITE_URL=https://wacrm.autofunil.com.br
+      - NEXT_PUBLIC_SITE_URL=https://wacrm.seudominio.com.br
 
     deploy:
       mode: replicated
@@ -38,7 +38,7 @@ services:
           memory: 1024M
       labels:
         - traefik.enable=true
-        - traefik.http.routers.wacrm.rule=Host(`wacrm.autofunil.com.br`)
+        - traefik.http.routers.wacrm.rule=Host(`wacrm.seudominio.com.br`)
         - traefik.http.routers.wacrm.entrypoints=websecure
         - traefik.http.routers.wacrm.priority=10
         - traefik.http.routers.wacrm.tls.certresolver=letsencryptresolver
