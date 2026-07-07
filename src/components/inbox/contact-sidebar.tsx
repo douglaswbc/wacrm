@@ -123,7 +123,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     );
   }
 
-  const displayName = contact.name || contact.phone;
+  const displayName = contact.name || contact.phone || contact.instagram_username || contact.instagram_id || "Unknown";
   const initials = displayName.charAt(0).toUpperCase();
 
   return (

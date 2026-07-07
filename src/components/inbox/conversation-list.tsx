@@ -423,13 +423,19 @@ interface ConversationItemProps {
   onSelect: (conversation: Conversation) => void;
 }
 
+const CHANNEL_BADGE: Record<string, { label: string; className: string }> = {
+  whatsapp: { label: 'WA', className: 'bg-green-500/10 text-green-400 border-green-500/40' },
+  instagram: { label: 'IG', className: 'bg-purple-500/10 text-purple-400 border-purple-500/40' },
+};
+
 function ConversationItem({
   conversation,
   isActive,
   onSelect,
 }: ConversationItemProps) {
   const contact = conversation.contact;
-  const displayName = contact?.name || contact?.phone || "Unknown";
+  const channel = conversation.channel || 'whatsapp';
+  const displayName = contact?.name || contact?.phone || contact?.instagram_username || contact?.instagram_id || "Unknown";
   const initials = displayName.charAt(0).toUpperCase();
 
   const handleClick = useCallback(() => {
@@ -469,7 +475,17 @@ function ConversationItem({
           <span className="truncate text-sm font-medium text-foreground">
             {displayName}
           </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {channel !== 'whatsapp' && (() => {
+              const badge = CHANNEL_BADGE[channel];
+              return badge ? (
+                <span className={`inline-flex items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${badge.className}`}>
+                  {badge.label}
+                </span>
+              ) : null;
+            })()}
+            <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
+          </div>
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p className="truncate text-xs text-muted-foreground">

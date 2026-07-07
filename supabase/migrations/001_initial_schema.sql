@@ -36,17 +36,20 @@ CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (
 CREATE TABLE IF NOT EXISTS contacts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  phone TEXT NOT NULL,
+  phone TEXT,
   name TEXT,
   email TEXT,
   company TEXT,
   avatar_url TEXT,
+  instagram_id TEXT,
+  instagram_username TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id);
 CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone);
+CREATE INDEX IF NOT EXISTS idx_contacts_instagram_id ON contacts(instagram_id);
 
 ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own contacts" ON contacts;
@@ -146,6 +149,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   last_message_text TEXT,
   last_message_at TIMESTAMPTZ,
   unread_count INTEGER DEFAULT 0,
+  channel TEXT NOT NULL DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp', 'instagram')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
