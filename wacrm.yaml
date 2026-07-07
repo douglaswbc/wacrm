@@ -38,7 +38,7 @@ services:
           memory: 1024M
       labels:
         - traefik.enable=true
-        - traefik.http.routers.wacrm.rule=Host(`crm.seudominio.com`)
+        - traefik.http.routers.wacrm.rule=Host(`wacrm.autofunil.com.br`)
         - traefik.http.routers.wacrm.entrypoints=websecure
         - traefik.http.routers.wacrm.priority=10
         - traefik.http.routers.wacrm.tls.certresolver=letsencryptresolver

@@ -148,6 +148,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
   const template_name = input.kind === 'template' ? input.templateName : null
 
   const { error: msgErr } = await db.from('messages').insert({
+    account_id: input.accountId,
     conversation_id: input.conversationId,
     sender_type: 'bot',
     content_type,

@@ -667,6 +667,7 @@ async function processMessage(
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
   const { error: msgError } = await supabaseAdmin().from('messages').insert({
+    account_id: conversation.account_id,
     conversation_id: conversation.id,
     sender_type: 'customer',
     content_type: contentType,
