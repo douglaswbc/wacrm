@@ -43,12 +43,14 @@ function SettingsPageContent() {
   // section — deep-linkable, and it keeps the existing links in the
   // app sidebar/header working. Legacy tab values (tags, custom-fields)
   // resolve onto their new home; unknown/empty → the Overview landing.
-  const section = resolveSection(searchParams.get('tab'));
+  const section = resolveSection(searchParams?.get('tab') ?? null);
 
   const go = (next: SettingsSection) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const raw = searchParams?.toString() ?? window.location.search.slice(1);
+    const params = new URLSearchParams(raw);
     params.set('tab', next);
-    router.replace(`/settings?${params.toString()}`, { scroll: false });
+    const url = `/settings?${params.toString()}`;
+    router.push(url, { scroll: false });
   };
 
   // Cheap, fetch-free rail hints. The Overview landing carries the
