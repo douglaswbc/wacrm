@@ -342,6 +342,46 @@ export async function sendButtonTemplate(
 }
 
 // ============================================================
+// Fetch Instagram posts (for automation post selector UI)
+// ============================================================
+
+export interface InstagramPost {
+  id: string
+  caption?: string
+  media_type?: string
+  media_url?: string
+  thumbnail_url?: string
+  permalink?: string
+  timestamp?: string
+}
+
+/**
+ * Fetch the most recent media posts for an Instagram Business Account.
+ *
+ * GET /{ig-user-id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp
+ *
+ * Used by the automation builder to let users pick which posts should
+ * trigger comment-based automations.
+ */
+export async function fetchInstagramPosts(
+  igUserId: string,
+  accessToken: string,
+  limit = 25,
+): Promise<InstagramPost[]> {
+  const fields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp'
+  const url = `${INSTAGRAM_API_BASE}/${igUserId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    await throwInstagramError(response, `Instagram fetch posts error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return (data.data ?? []) as InstagramPost[]
+}
+
+// ============================================================
 // Send private reply to a commenter (comment → DM)
 // ============================================================
 

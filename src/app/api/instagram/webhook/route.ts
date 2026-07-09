@@ -754,6 +754,7 @@ async function processComment(
     content_text: contentText,
     message_id: `ig_comment_${comment.comment_id}`,
     instagram_comment_id: comment.comment_id,
+    instagram_media_id: comment.media.id,
     status: 'delivered',
     created_at: new Date().toISOString(),
   })
@@ -817,6 +818,7 @@ async function processComment(
       context: {
         message_text: comment.text,
         conversation_id: conversationId,
+        instagram_media_id: comment.media.id,
       },
     }).catch((err) => console.error('[instagram comment automations] dispatch failed:', err))
   }

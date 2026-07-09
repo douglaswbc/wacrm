@@ -32,6 +32,8 @@ export interface AutomationContext {
   tag_id?: string
   /** Agent the conversation was assigned to, for conversation_assigned. */
   agent_id?: string
+  /** Instagram media (post) ID from a comment webhook event. */
+  instagram_media_id?: string
 }
 
 export interface DispatchInput {
@@ -595,10 +597,17 @@ function triggerMatches(automation: Automation, ctx: AutomationContext | undefin
   const text = (ctx?.message_text ?? '').toString()
   if (!text) return false
   const haystack = cfg.case_sensitive ? text : text.toLowerCase()
-  return cfg.keywords.some((raw) => {
+  const keywordMatch = cfg.keywords.some((raw) => {
     const k = cfg.case_sensitive ? raw : raw.toLowerCase()
     return cfg.match_type === 'exact' ? haystack === k : haystack.includes(k)
   })
+  if (!keywordMatch) return false
+  if (cfg.instagram_media_ids?.length) {
+    const mediaId = ctx?.instagram_media_id
+    if (!mediaId) return false
+    return cfg.instagram_media_ids.includes(mediaId)
+  }
+  return true
 }
 
 async function evaluateCondition(cfg: ConditionStepConfig, args: ExecuteArgs): Promise<boolean> {

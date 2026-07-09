@@ -424,6 +424,9 @@ export interface KeywordMatchTriggerConfig {
   keywords: string[];
   match_type: 'exact' | 'contains';
   case_sensitive?: boolean;
+  /** Instagram media (post) IDs to limit this trigger to. When empty
+   *  or undefined, fires on comments from any post. */
+  instagram_media_ids?: string[];
 }
 
 export interface TagTriggerConfig {

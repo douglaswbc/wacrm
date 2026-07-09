@@ -30,6 +30,9 @@ import {
   Loader2,
   ArrowDown,
   ArrowUp,
+  RefreshCw,
+  ImageIcon,
+  Check,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -873,6 +876,12 @@ function KeywordMatchConfig({
   // when the trigger type changes, so the seed stays in sync.
   const [draft, setDraft] = useState(keywords.join(", "))
 
+  const [posts, setPosts] = useState<{ id: string; caption?: string; media_url?: string; thumbnail_url?: string; media_type?: string; permalink?: string }[]>([])
+  const [loadingPosts, setLoadingPosts] = useState(false)
+  const [postsFetched, setPostsFetched] = useState(false)
+  const [postSelectorOpen, setPostSelectorOpen] = useState(false)
+  const selectedIds = (config?.instagram_media_ids ?? []) as string[]
+
   // Persist the default the <select> displays. The dropdown falls back to
   // "contains" for display, but leaving it untouched would otherwise omit
   // match_type from the saved config — and activation validation then
@@ -894,8 +903,31 @@ function KeywordMatchConfig({
     onChange({ ...config, keywords: parsed })
   }
 
+  async function fetchPosts() {
+    setLoadingPosts(true)
+    try {
+      const res = await fetch("/api/instagram/posts")
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
+      const data = await res.json()
+      setPosts(data.posts ?? [])
+      setPostsFetched(true)
+      setPostSelectorOpen(true)
+    } catch {
+      // silently fail — the user can retry
+    } finally {
+      setLoadingPosts(false)
+    }
+  }
+
+  function togglePost(id: string) {
+    const next = selectedIds.includes(id)
+      ? selectedIds.filter((p) => p !== id)
+      : [...selectedIds, id]
+    onChange({ ...config, instagram_media_ids: next })
+  }
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
           Keywords (comma-separated)
@@ -926,6 +958,112 @@ function KeywordMatchConfig({
           <option value="contains">Contains</option>
           <option value="exact">Exact</option>
         </select>
+      </div>
+
+      {/* ---- Instagram post selector ---- */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+          Instagram posts
+        </label>
+        <button
+          type="button"
+          onClick={fetchPosts}
+          disabled={loadingPosts}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors"
+        >
+          {loadingPosts ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          {postsFetched ? "Reload posts" : "Fetch my posts"}
+        </button>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Pick which posts trigger this automation. If nothing is selected, any post will work.
+        </p>
+
+        {selectedIds.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {selectedIds.map((id) => {
+              const post = posts.find((p) => p.id === id)
+              return (
+                <span
+                  key={id}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground border border-border"
+                >
+                  {post?.media_url ? (
+                    <img src={post.media_url} alt="" className="h-4 w-4 rounded object-cover" />
+                  ) : (
+                    <ImageIcon className="h-3 w-3" />
+                  )}
+                  <span className="max-w-[100px] truncate">{post?.caption?.substring(0, 30) ?? id.substring(0, 8)}</span>
+                  <button
+                    type="button"
+                    onClick={() => togglePost(id)}
+                    className="ml-0.5 text-muted-foreground hover:text-foreground"
+                    aria-label="Remove post"
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
+            <button
+              type="button"
+              onClick={() => setPostSelectorOpen((v) => !v)}
+              className="text-[11px] text-primary hover:text-primary/80"
+            >
+              {postSelectorOpen ? "Hide" : "Edit selection"}
+            </button>
+          </div>
+        )}
+
+        {postSelectorOpen && posts.length > 0 && (
+          <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-muted/50 p-2">
+            {posts.map((post) => {
+              const isSelected = selectedIds.includes(post.id)
+              const thumb = post.thumbnail_url ?? post.media_url
+              return (
+                <label
+                  key={post.id}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-muted",
+                    isSelected && "bg-primary/10",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => togglePost(post.id)}
+                    className="mt-0.5"
+                  />
+                  {thumb ? (
+                    <img src={thumb} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-muted">
+                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="line-clamp-2 text-[11px] leading-tight text-foreground">
+                      {post.caption || "(no caption)"}
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-muted px-1 py-px font-mono">
+                        {post.id.substring(0, 10)}&hellip;
+                      </span>
+                      <span>{post.media_type}</span>
+                    </div>
+                  </div>
+                  {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
+                </label>
+              )
+            })}
+          </div>
+        )}
+        {postSelectorOpen && postsFetched && posts.length === 0 && (
+          <p className="mt-1 text-[11px] text-muted-foreground">No posts found for this account.</p>
+        )}
       </div>
     </div>
   )
