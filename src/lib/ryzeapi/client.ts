@@ -269,17 +269,19 @@ export async function createInstance(
     body.webhookURL = args.webhookUrl
     body.webhookEvents = args.webhookEvents ?? ['message.exchange', 'message.status']
   }
-  // After creation, if webhook config was provided, we also configure
-  // the webhook via MCP since the REST API may not set it properly.
   const result = await restFetch<RyzeApiCreateResult>(
     args.apiUrl, args.adminToken, '/api/instance/new',
     { method: 'POST', body: JSON.stringify(body) },
   )
+  // Configure webhook via MCP after creation. Use admin token —
+  // the instance token has limited scope until the instance is fully
+  // connected. This call is best-effort; failure doesn't roll back
+  // the instance (user can configure webhook later via Reconnect).
   if (args.webhookUrl && result.instance?.token) {
     try {
       await setWebhook({
         apiUrl: args.apiUrl,
-        instanceToken: result.instance.token,
+        instanceToken: args.adminToken,
         instance: args.name,
         enabled: true,
         url: args.webhookUrl,

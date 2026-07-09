@@ -27,7 +27,8 @@ async function resolveAccountId(
  * GET /api/ryzeapi/config
  *
  * Returns the current RyzeAPI config for the authenticated account.
- * Decrypts the api_token for the caller (server-side only).
+ * Actively checks the instance status via REST API when the local
+ * status is 'pending_qr' — so the UI auto-updates after QR scan.
  */
 export async function GET() {
   try {
@@ -53,6 +54,46 @@ export async function GET() {
     }
     if (!config) {
       return NextResponse.json(null, { status: 200 })
+    }
+
+    // If status is pending_qr, actively check the instance state on
+    // the RyzeAPI server. On QR scan, the instance transitions from
+    // "closed" → "connected" — we detect that here and update the DB.
+    if (config.status === 'pending_qr') {
+      try {
+        const adminToken = decrypt(config.api_token)
+        const instances = await listInstances({
+          apiUrl: config.api_url,
+          adminToken,
+          instanceName: config.instance_name,
+        })
+        const inst = instances.find((i) => i.name === config.instance_name)
+        if (inst) {
+          if (inst.status === 'connected') {
+            // QR was scanned — mark connected.
+            await supabase
+              .from('ryzeapi_config')
+              .update({
+                status: 'connected',
+                connected_at: new Date().toISOString(),
+                qr_base64: null,
+                qr_expires_at: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('account_id', accountId)
+            config.status = 'connected'
+            config.connected_at = new Date().toISOString()
+            config.qr_base64 = null
+            config.qr_expires_at = null
+          } else if (inst.status === 'connecting') {
+            // Still waiting — keep status as is.
+          }
+          // 'closed' means QR expired or not scanned yet — keep pending_qr.
+        }
+      } catch (e) {
+        console.warn('[ryzeapi config GET] status check failed:', e)
+        // Don't block the response — return whatever's in the DB.
+      }
     }
 
     // Don't expose encrypted tokens to the client.
@@ -136,26 +177,41 @@ export async function DELETE() {
       .eq('account_id', accountId)
       .maybeSingle()
 
-    if (config) {
-      try {
-        const token = decrypt(config.api_token)
-        await deleteInstance({
-          apiUrl: config.api_url,
-          adminToken: token,
-          instance: config.instance_name,
-        })
-      } catch (e) {
-        console.warn('RyzeAPI deleteInstance failed (ignored):', e)
-      }
+    if (!config) {
+      return NextResponse.json({ error: 'No config to delete' }, { status: 404 })
     }
 
-    const { error: delErr } = await supabase
-      .from('ryzeapi_config')
-      .delete()
-      .eq('account_id', accountId)
+    // Delete the instance on the RyzeAPI server first.
+    let remoteDeleted = false
+    try {
+      const token = decrypt(config.api_token)
+      await deleteInstance({
+        apiUrl: config.api_url,
+        adminToken: token,
+        instance: config.instance_name,
+      })
+      remoteDeleted = true
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[ryzeapi DELETE] Remote instance deletion failed:', msg)
+      return NextResponse.json(
+        { error: `Failed to delete instance on RyzeAPI: ${msg}` },
+        { status: 502 },
+      )
+    }
 
-    if (delErr) {
-      return NextResponse.json({ error: 'Failed to delete config' }, { status: 500 })
+    if (remoteDeleted) {
+      const { error: delErr } = await supabase
+        .from('ryzeapi_config')
+        .delete()
+        .eq('account_id', accountId)
+
+      if (delErr) {
+        return NextResponse.json(
+          { error: 'Instance deleted on RyzeAPI but failed to remove local config.' },
+          { status: 500 },
+        )
+      }
     }
 
     return NextResponse.json({ success: true })
@@ -342,7 +398,12 @@ async function handleLogout(
         instance: config.instance_name,
       })
     } catch (e) {
-      console.warn('RyzeAPI logout failed (non-fatal):', e)
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[ryzeapi logout] failed:', msg)
+      return NextResponse.json(
+        { error: `Logout failed: ${msg}` },
+        { status: 502 },
+      )
     }
   }
 
