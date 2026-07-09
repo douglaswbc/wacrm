@@ -92,15 +92,17 @@ export function FlowEditorShell({ initialFlow, initialNodes }: Props) {
 
   return (
     <FlowEditorProvider initialFlow={initialFlow} initialNodes={initialNodes}>
-      <div className="flex h-full min-h-0 flex-col">
-        <EditorHeader />
+      <div className="fixed inset-0 z-40 flex flex-col bg-background">
+        <div className="flex-shrink-0">
+          <EditorHeader />
+        </div>
 
         {/* ---- mode row: view toggle + node-type legend ----
             Omitted entirely on mobile (canvas is unavailable there and
             the legend is lg-only), so there's no empty band above the
             stage on small screens. */}
         {!isMobile && (
-          <div className="flex items-center gap-4 px-6 py-3.5">
+          <div className="flex flex-shrink-0 items-center gap-4 px-6 py-3.5">
             <div
               role="group"
               aria-label="Editor view"
@@ -148,7 +150,7 @@ export function FlowEditorShell({ initialFlow, initialNodes }: Props) {
         </div>
 
         {/* ---- validation / activate-readiness bar ---- */}
-        <div className="px-6 pb-5 pt-3">
+        <div className="flex-shrink-0 px-6 pb-5 pt-3">
           <ValidationPanel />
         </div>
       </div>
