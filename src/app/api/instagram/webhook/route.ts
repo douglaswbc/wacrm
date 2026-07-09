@@ -447,7 +447,7 @@ async function processMessage(
     message_id: msg.mid,
     status: 'delivered',
     interactive_reply_id: interactiveReplyId,
-    created_at: new Date(item.timestamp * 1000).toISOString(),
+    created_at: new Date(item.timestamp).toISOString(),
   }
 
   if (msg.reply_to?.mid) {
@@ -477,7 +477,7 @@ async function processMessage(
     .from('conversations')
     .update({
       last_message_text: contentText || `[${contentType}]`,
-      last_message_at: new Date(item.timestamp * 1000).toISOString(),
+      last_message_at: new Date(item.timestamp).toISOString(),
       unread_count: unreadCount + 1,
     })
     .eq('id', conversationId)
