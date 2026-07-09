@@ -28,7 +28,7 @@ interface IgConfig {
   instagram_business_account_id: string
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const ctx = await getCurrentAccount()
     const accountId = ctx.accountId
@@ -48,12 +48,17 @@ export async function GET() {
       )
     }
 
-    const posts = await fetchInstagramPosts(
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor') || undefined
+
+    const result = await fetchInstagramPosts(
       config.instagram_business_account_id,
       decrypt(config.access_token),
+      12,
+      cursor,
     )
 
-    return NextResponse.json({ posts })
+    return NextResponse.json(result)
   } catch (err) {
     return toErrorResponse(err)
   }

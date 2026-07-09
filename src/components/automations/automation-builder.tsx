@@ -829,6 +829,7 @@ function TriggerCard({
             {type === "keyword_match" && (
               <KeywordMatchConfig
                 config={config as unknown as KeywordMatchTriggerConfig}
+                channel={channel}
                 onChange={onConfigChange}
               />
             )}
@@ -862,9 +863,11 @@ function TriggerCard({
 
 function KeywordMatchConfig({
   config,
+  channel,
   onChange,
 }: {
   config: KeywordMatchTriggerConfig
+  channel?: 'whatsapp' | 'instagram' | null
   onChange: (c: Record<string, unknown>) => void
 }) {
   const keywords = config?.keywords ?? []
@@ -878,7 +881,9 @@ function KeywordMatchConfig({
 
   const [posts, setPosts] = useState<{ id: string; caption?: string; media_url?: string; thumbnail_url?: string; media_type?: string; permalink?: string }[]>([])
   const [loadingPosts, setLoadingPosts] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [postsFetched, setPostsFetched] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined)
   const [postSelectorOpen, setPostSelectorOpen] = useState(false)
   const selectedIds = (config?.instagram_media_ids ?? []) as string[]
 
@@ -903,19 +908,24 @@ function KeywordMatchConfig({
     onChange({ ...config, keywords: parsed })
   }
 
-  async function fetchPosts() {
-    setLoadingPosts(true)
+  async function fetchPosts(cursor?: string) {
+    const isMore = !!cursor
+    if (isMore) setLoadingMore(true)
+    else setLoadingPosts(true)
     try {
-      const res = await fetch("/api/instagram/posts")
+      const url = `/api/instagram/posts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`
+      const res = await fetch(url)
       if (!res.ok) throw new Error(`Failed: ${res.status}`)
       const data = await res.json()
-      setPosts(data.posts ?? [])
+      setPosts((prev) => isMore ? [...prev, ...(data.posts as typeof posts)] : (data.posts as typeof posts))
+      setNextCursor(data.nextCursor ?? undefined)
       setPostsFetched(true)
-      setPostSelectorOpen(true)
+      if (!isMore) setPostSelectorOpen(true)
     } catch {
       // silently fail — the user can retry
     } finally {
       setLoadingPosts(false)
+      setLoadingMore(false)
     }
   }
 
@@ -960,14 +970,15 @@ function KeywordMatchConfig({
         </select>
       </div>
 
-      {/* ---- Instagram post selector ---- */}
+      {/* ---- Instagram post selector — only shown for Instagram channel ---- */}
+      {(!channel || channel === 'instagram') && (
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
           Instagram posts
         </label>
         <button
           type="button"
-          onClick={fetchPosts}
+          onClick={() => fetchPosts()}
           disabled={loadingPosts}
           className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors"
         >
@@ -1059,12 +1070,28 @@ function KeywordMatchConfig({
                 </label>
               )
             })}
+            {nextCursor && (
+              <button
+                type="button"
+                onClick={() => fetchPosts(nextCursor)}
+                disabled={loadingMore}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                Load more
+              </button>
+            )}
           </div>
         )}
         {postSelectorOpen && postsFetched && posts.length === 0 && (
           <p className="mt-1 text-[11px] text-muted-foreground">No posts found for this account.</p>
         )}
       </div>
+      )}
     </div>
   )
 }

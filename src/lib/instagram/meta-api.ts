@@ -355,10 +355,16 @@ export interface InstagramPost {
   timestamp?: string
 }
 
+export interface InstagramPostResult {
+  posts: InstagramPost[]
+  /** Cursor for the next page, if any. Pass to the `after` parameter. */
+  nextCursor?: string
+}
+
 /**
  * Fetch the most recent media posts for an Instagram Business Account.
  *
- * GET /{ig-user-id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp
+ * GET /{ig-user-id}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&after=...
  *
  * Used by the automation builder to let users pick which posts should
  * trigger comment-based automations.
@@ -366,10 +372,12 @@ export interface InstagramPost {
 export async function fetchInstagramPosts(
   igUserId: string,
   accessToken: string,
-  limit = 25,
-): Promise<InstagramPost[]> {
+  limit = 12,
+  after?: string,
+): Promise<InstagramPostResult> {
   const fields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp'
-  const url = `${INSTAGRAM_API_BASE}/${igUserId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`
+  let url = `${INSTAGRAM_API_BASE}/${igUserId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`
+  if (after) url += `&after=${encodeURIComponent(after)}`
 
   const response = await fetch(url)
 
@@ -378,7 +386,8 @@ export async function fetchInstagramPosts(
   }
 
   const data = await response.json()
-  return (data.data ?? []) as InstagramPost[]
+  const nextCursor = data.paging?.cursors?.after as string | undefined
+  return { posts: (data.data ?? []) as InstagramPost[], nextCursor }
 }
 
 // ============================================================
