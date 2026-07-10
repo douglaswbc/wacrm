@@ -78,6 +78,8 @@ export interface BuilderInitial {
   is_active: boolean
   /** Channel scope — NULL = both. */
   channel?: 'whatsapp' | 'instagram' | null
+  /** WhatsApp provider scope — NULL = both (Meta + RyzeAPI). */
+  provider?: 'meta' | 'ryzeapi' | null
   steps: BuilderStep[]
 }
 
@@ -638,6 +640,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
         is_active: state.is_active,
         steps: toApiSteps(state.steps),
         ...(state.channel !== undefined && { channel: state.channel }),
+        ...(state.provider !== undefined && { provider: state.provider }),
       }
 
       const res = isEditing
@@ -724,9 +727,11 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
               type={state.trigger_type}
               config={state.trigger_config}
               channel={state.channel}
+              provider={state.provider}
               onTypeChange={(t) => patchTop("trigger_type", t)}
               onConfigChange={(c) => patchTop("trigger_config", c)}
               onChannelChange={(ch) => patchTop("channel", ch)}
+              onProviderChange={(p) => patchTop("provider", p)}
             />
             <StepList
               steps={state.steps}
@@ -753,16 +758,20 @@ function TriggerCard({
   type,
   config,
   channel,
+  provider,
   onTypeChange,
   onConfigChange,
   onChannelChange,
+  onProviderChange,
 }: {
   type: AutomationTriggerType
   config: Record<string, unknown>
   channel?: 'whatsapp' | 'instagram' | null
+  provider?: 'meta' | 'ryzeapi' | null
   onTypeChange: (t: AutomationTriggerType) => void
   onConfigChange: (c: Record<string, unknown>) => void
   onChannelChange: (ch: 'whatsapp' | 'instagram' | null) => void
+  onProviderChange: (p: 'meta' | 'ryzeapi' | null) => void
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -826,6 +835,25 @@ function TriggerCard({
                 Limit this automation to a specific channel, or leave on &quot;Both&quot;.
               </p>
             </div>
+            {(!channel || channel === 'whatsapp') && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  WhatsApp Provider
+                </label>
+                <select
+                  value={provider ?? ''}
+                  onChange={(e) => onProviderChange((e.target.value || null) as 'meta' | 'ryzeapi' | null)}
+                  className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">Both (Meta + RyzeAPI)</option>
+                  <option value="meta">Meta only</option>
+                  <option value="ryzeapi">RyzeAPI only</option>
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Which WhatsApp provider this automation should fire for. &quot;Both&quot; fires regardless of provider.
+                </p>
+              </div>
+            )}
             {type === "keyword_match" && (
               <KeywordMatchConfig
                 config={config as unknown as KeywordMatchTriggerConfig}

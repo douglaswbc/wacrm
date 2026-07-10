@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
 
-  const { name, description, trigger_type, trigger_config, is_active, steps, template, channel } = body
+  const { name, description, trigger_type, trigger_config, is_active, steps, template, channel, provider } = body
 
   let effectiveSteps: BuilderStepInput[] | undefined = steps
   let effectiveName = name
@@ -106,6 +106,7 @@ export async function POST(request: Request) {
       trigger_config: effectiveTriggerConfig ?? {},
       is_active: !!is_active,
       ...(channel && { channel }),
+      ...(provider && { provider }),
     })
     .select()
     .single()

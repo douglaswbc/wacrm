@@ -74,6 +74,7 @@ export async function PATCH(
     'trigger_config',
     'is_active',
     'channel',
+    'provider',
   ] as const) {
     if (k in body) update[k] = body[k]
   }

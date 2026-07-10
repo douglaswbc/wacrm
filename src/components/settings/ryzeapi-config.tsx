@@ -496,19 +496,34 @@ export function RyzeApiConfig() {
             )}
 
             {isConnected && (
-              <Button
-                variant="outline"
-                onClick={handleDisconnect}
-                disabled={saving}
-                className="border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-              >
-                {saving ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Unplug className="size-4" />
-                )}
-                Disconnect
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleReconnect}
+                  disabled={saving}
+                  className="border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-4" />
+                  )}
+                  Reconnect
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDisconnect}
+                  disabled={saving}
+                  className="border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Unplug className="size-4" />
+                  )}
+                  Disconnect
+                </Button>
+              </>
             )}
 
             {config && (
