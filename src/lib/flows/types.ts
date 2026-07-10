@@ -241,6 +241,9 @@ export interface FlowRow {
   /** NULL = fires on both channels. 'whatsapp' | 'instagram' scopes
    *  this flow to only that channel's inbound webhooks. */
   channel?: 'whatsapp' | 'instagram' | null;
+  /** NULL = fires for both WhatsApp providers. 'meta' | 'ryzeapi'
+   *  scopes this flow to only that WhatsApp provider. */
+  provider?: 'meta' | 'ryzeapi' | null;
   execution_count: number;
   last_executed_at: string | null;
   created_at: string;
@@ -345,6 +348,9 @@ export interface DispatchInboundInput {
   /** Channel the inbound message arrived on. Used to filter flows
    *  scoped to a specific channel (NULL = both). */
   channel?: 'whatsapp' | 'instagram';
+  /** WhatsApp provider. Used to filter flows scoped to a specific
+   *  WhatsApp provider (NULL = both). Ignored for Instagram. */
+  provider?: 'meta' | 'ryzeapi';
 }
 
 export interface DispatchInboundResult {

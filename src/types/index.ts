@@ -561,6 +561,10 @@ export interface Automation {
   /** NULL = fires on both channels. 'whatsapp' | 'instagram' scopes
    *  this automation to only that channel's inbound webhooks. */
   channel?: 'whatsapp' | 'instagram' | null;
+  /** NULL = fires for both WhatsApp providers. 'meta' | 'ryzeapi'
+   *  scopes this automation to only that WhatsApp provider. Ignored
+   *  for Instagram channel. */
+  provider?: 'meta' | 'ryzeapi' | null;
   execution_count: number;
   last_executed_at?: string | null;
   created_at: string;

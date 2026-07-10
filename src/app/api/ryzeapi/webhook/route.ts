@@ -48,6 +48,8 @@ export async function POST(request: Request) {
   const event = String(payload.event ?? 'message.exchange')
   const instanceName = String(payload.instance ?? '')
 
+  console.log('[ryzeapi webhook] received event:', event, 'instance:', instanceName, 'msgId:', payload.id ?? payload.messageId)
+
   if (event === 'instance.state') {
     void handleInstanceState(db, instanceName, payload)
     return NextResponse.json({ status: 'ok' })
@@ -169,6 +171,7 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (!config?.account_id) {
+    console.log('[ryzeapi webhook] no config found for instance:', instanceName, 'or status not connected')
     return NextResponse.json({ status: 'ok' })
   }
 
@@ -287,6 +290,7 @@ async function processInboundMessage(
     triggerType: 'new_message_received',
     contactId,
     channel: 'whatsapp',
+    provider: 'ryzeapi',
     context: {
       message_text: inboundText,
       conversation_id: conversationId,
@@ -314,6 +318,7 @@ async function processInboundMessage(
     conversationId,
     message: parsedInbound,
     channel: 'whatsapp',
+    provider: 'ryzeapi',
     isFirstInboundMessage: false,
   }).catch((err) => console.error('[flows] dispatch failed:', err))
 

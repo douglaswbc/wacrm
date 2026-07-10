@@ -241,7 +241,7 @@ async function handleCreate(
     )
   }
 
-  // 1. Create the instance on the RyzeAPI server.
+  // 1. Create the instance on the RyzeAPI server (includes webhook config).
   let instance: { id: string; name: string; token: string; status: string }
   try {
     const result = await createInstance({
@@ -253,6 +253,13 @@ async function handleCreate(
     })
     instance = result.instance
   } catch (err) {
+    // createInstance may have created the instance on REST but failed
+    // during MCP webhook_set. Clean up the remote instance if possible.
+    try {
+      await deleteInstance({ apiUrl, adminToken, instance: instanceName })
+    } catch {
+      // best effort
+    }
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json(
       { error: `RyzeAPI instance creation failed: ${msg}` },

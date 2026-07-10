@@ -314,6 +314,7 @@ async function findEntryFlow(
   message: ParsedInbound,
   isFirstInbound: boolean,
   channel?: 'whatsapp' | 'instagram',
+  provider?: 'meta' | 'ryzeapi',
 ): Promise<FlowRow | null> {
   // Only text messages can match an entry trigger. Interactive replies
   // are responses to existing prompts; they never start a new flow.
@@ -330,6 +331,12 @@ async function findEntryFlow(
 
   if (channel) {
     query = query.or(`channel.is.null,channel.eq.${channel}`)
+  }
+
+  // Provider filter — only meaningful for WhatsApp. When set, flows
+  // must either be NULL (both) or match the specific provider.
+  if (channel !== 'instagram' && provider) {
+    query = query.or(`provider.is.null,provider.eq.${provider}`)
   }
 
   const { data: flows, error } = await query
@@ -874,6 +881,7 @@ export async function dispatchInboundToFlows(
       input.message,
       input.isFirstInboundMessage,
       input.channel,
+      input.provider,
     );
     if (!flow || !flow.entry_node_id) {
       return { consumed: false, outcome: "no_match" };

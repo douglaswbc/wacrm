@@ -273,23 +273,18 @@ export async function createInstance(
     args.apiUrl, args.adminToken, '/api/instance/new',
     { method: 'POST', body: JSON.stringify(body) },
   )
-  // Configure webhook via MCP after creation. Use admin token —
-  // the instance token has limited scope until the instance is fully
-  // connected. This call is best-effort; failure doesn't roll back
-  // the instance (user can configure webhook later via Reconnect).
-  if (args.webhookUrl && result.instance?.token) {
-    try {
-      await setWebhook({
-        apiUrl: args.apiUrl,
-        instanceToken: args.adminToken,
-        instance: args.name,
-        enabled: true,
-        url: args.webhookUrl,
-        events: args.webhookEvents ?? ['message.exchange', 'message.status'],
-      })
-    } catch (e) {
-      console.warn('[ryzeapi] webhook config after create failed (non-fatal):', e)
-    }
+  // Webhook configuration is MANDATORY — without it, inbound messages
+  // never arrive. Use admin token for MCP auth since the instance token
+  // may have limited scope before the instance is connected.
+  if (args.webhookUrl) {
+    await setWebhook({
+      apiUrl: args.apiUrl,
+      instanceToken: args.adminToken,
+      instance: args.name,
+      enabled: true,
+      url: args.webhookUrl,
+      events: args.webhookEvents ?? ['message.exchange', 'message.status'],
+    })
   }
   return result
 }

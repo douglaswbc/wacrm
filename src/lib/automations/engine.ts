@@ -50,6 +50,10 @@ export interface DispatchInput {
    *  specific channel (e.g. 'instagram') only fire for that channel.
    *  NULL-channel automations fire on both (backward compatible). */
   channel?: 'whatsapp' | 'instagram'
+  /** WhatsApp provider. Automations scoped to a specific WhatsApp
+   *  provider (e.g. 'meta') only fire for that provider. NULL-provider
+   *  automations fire for both. Ignored for non-WhatsApp channels. */
+  provider?: 'meta' | 'ryzeapi'
 }
 
 /**
@@ -97,6 +101,13 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
 
     if (input.channel) {
       query = query.or(`channel.is.null,channel.eq.${input.channel}`)
+    }
+
+    // Provider filter — only meaningful for WhatsApp channel. When set,
+    // automations must either be NULL (firing for both) or match the
+    // specific provider. Omitted for Instagram (provider is irrelevant).
+    if (input.channel !== 'instagram' && input.provider) {
+      query = query.or(`provider.is.null,provider.eq.${input.provider}`)
     }
 
     const { data: automations, error } = await query
