@@ -18,6 +18,8 @@ export interface ApiConversation {
   last_message_text: string | null;
   last_message_at: string | null;
   unread_count: number;
+  channel: string;
+  provider: string | null;
   created_at: string;
   updated_at: string;
   contact: {
@@ -26,6 +28,9 @@ export interface ApiConversation {
     name: string | null;
     email: string | null;
     company: string | null;
+    avatar_url: string | null;
+    instagram_id: string | null;
+    instagram_username: string | null;
     tags: { id: string; name: string; color: string }[];
   } | null;
 }
@@ -60,6 +65,8 @@ export function serializeConversation(conv: Conversation): ApiConversation {
     last_message_text: conv.last_message_text ?? null,
     last_message_at: conv.last_message_at ?? null,
     unread_count: conv.unread_count ?? 0,
+    channel: conv.channel ?? 'whatsapp',
+    provider: conv.provider ?? null,
     created_at: conv.created_at,
     updated_at: conv.updated_at,
     contact: c
@@ -69,6 +76,9 @@ export function serializeConversation(conv: Conversation): ApiConversation {
           name: c.name ?? null,
           email: c.email ?? null,
           company: c.company ?? null,
+          avatar_url: c.avatar_url ?? null,
+          instagram_id: c.instagram_id ?? null,
+          instagram_username: c.instagram_username ?? null,
           tags: (c.tags ?? []).map((t) => ({
             id: t.id,
             name: t.name,

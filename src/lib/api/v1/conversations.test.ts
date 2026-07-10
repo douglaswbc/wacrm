@@ -10,6 +10,8 @@ describe('serializeConversation', () => {
       account_id: 'internal-acct',
       contact_id: 'c1',
       status: 'open',
+      channel: 'whatsapp',
+      provider: null,
       last_message_text: 'hi',
       last_message_at: '2026-01-01T00:00:00Z',
       unread_count: 2,
@@ -26,7 +28,12 @@ describe('serializeConversation', () => {
     const out = serializeConversation(conv);
     expect(out).not.toHaveProperty('user_id');
     expect(out).not.toHaveProperty('account_id');
+    expect(out.channel).toBe('whatsapp');
+    expect(out.provider).toBeNull();
     expect(out.contact?.tags).toEqual([{ id: 't1', name: 'vip', color: '#fff' }]);
+    expect(out.contact).toHaveProperty('avatar_url');
+    expect(out.contact).toHaveProperty('instagram_id');
+    expect(out.contact).toHaveProperty('instagram_username');
     expect(out.unread_count).toBe(2);
   });
 });
