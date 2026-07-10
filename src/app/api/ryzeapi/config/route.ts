@@ -8,6 +8,7 @@ import {
   deleteInstance,
   logoutInstance,
   reconnectInstance,
+  setWebhook,
 } from '@/lib/ryzeapi/client'
 
 async function resolveAccountId(
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
       return handleLogout(supabase, accountId, user.id)
     }
     if (action === 'reconnect') {
-      return handleReconnect(supabase, accountId, user.id)
+      return handleReconnect(supabase, accountId, user.id, body)
     }
 
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
@@ -232,7 +233,13 @@ async function handleCreate(
   const apiUrl = String(body.api_url ?? '').trim()
   const adminToken = String(body.admin_token ?? '').trim()
   const instanceName = String(body.instance_name ?? '').trim()
-  const webhookUrl = String(body.webhook_url ?? '').trim()
+  const baseWebhookUrl = String(body.webhook_url ?? '').trim()
+  // Append instance name as query param so the webhook handler can
+  // identify which instance sent the event even when RyzeAPI's
+  // webhook payload doesn't include the instance field.
+  const webhookUrl = baseWebhookUrl
+    ? `${baseWebhookUrl}?instance=${encodeURIComponent(instanceName)}`
+    : ''
 
   if (!apiUrl || !adminToken || !instanceName) {
     return NextResponse.json(
@@ -331,8 +338,7 @@ async function handleCreate(
 async function handleConnect(
   supabase: Awaited<ReturnType<typeof createClient>>,
   accountId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _body: Record<string, unknown>,
+  body: Record<string, unknown>,
 ) {
   const { data: config, error: configError } = await supabase
     .from('ryzeapi_config')
@@ -375,6 +381,24 @@ async function handleConnect(
 
   if (updErr) {
     return NextResponse.json({ error: 'Failed to update QR' }, { status: 500 })
+  }
+
+  // Reconfigure webhook with instance name in URL.
+  const adminToken = decrypt(config.api_token)
+  try {
+    const baseUrl = String(body.webhook_url ?? '').trim()
+    if (baseUrl) {
+      await setWebhook({
+        apiUrl: config.api_url,
+        instanceToken: adminToken,
+        instance: config.instance_name,
+        enabled: true,
+        url: `${baseUrl}?instance=${encodeURIComponent(config.instance_name)}`,
+        events: ['message.exchange', 'message.status'],
+      })
+    }
+  } catch (err) {
+    console.warn('[ryzeapi connect] webhook reconfig failed (non-fatal):', err)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -435,8 +459,8 @@ async function handleLogout(
 async function handleReconnect(
   supabase: Awaited<ReturnType<typeof createClient>>,
   accountId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _userId: string,
+  body: Record<string, unknown>,
 ) {
   const { data: config, error: configError } = await supabase
     .from('ryzeapi_config')
@@ -463,6 +487,24 @@ async function handleReconnect(
       { error: `Reconnect failed: ${msg}` },
       { status: 400 },
     )
+  }
+
+  // Reconfigure webhook with instance name in URL so the handler
+  // can identify which instance sent the event.
+  try {
+    const baseUrl = String(body.webhook_url ?? '').trim()
+    if (baseUrl) {
+      await setWebhook({
+        apiUrl: config.api_url,
+        instanceToken: adminToken,
+        instance: config.instance_name,
+        enabled: true,
+        url: `${baseUrl}?instance=${encodeURIComponent(config.instance_name)}`,
+        events: ['message.exchange', 'message.status'],
+      })
+    }
+  } catch (err) {
+    console.warn('[ryzeapi reconnect] webhook reconfig failed (non-fatal):', err)
   }
 
   // After reconnect, get a fresh QR if needed.

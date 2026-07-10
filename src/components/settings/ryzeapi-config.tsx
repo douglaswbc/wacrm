@@ -155,6 +155,7 @@ export function RyzeApiConfig() {
         body: JSON.stringify({
           action: 'connect',
           instance_name: instanceName,
+          webhook_url: webhookUrl,
         }),
       });
       const data = await res.json();
@@ -202,7 +203,7 @@ export function RyzeApiConfig() {
       const res = await fetch('/api/ryzeapi/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reconnect' }),
+        body: JSON.stringify({ action: 'reconnect', webhook_url: webhookUrl }),
       });
       if (!res.ok) {
         const data = await res.json();

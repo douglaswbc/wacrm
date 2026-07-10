@@ -46,9 +46,27 @@ export async function POST(request: Request) {
   }
 
   const event = String(payload.event ?? 'message.exchange')
-  const instanceName = String(payload.instance ?? '')
 
-  console.log('[ryzeapi webhook] received event:', event, 'instance:', instanceName, 'msgId:', payload.id ?? payload.messageId)
+  // Instance name — try payload fields first, then URL query param.
+  let instanceName = String(
+    payload.instance
+    ?? payload.instanceName
+    ?? payload.instance_name
+    ?? (payload.data as Record<string, unknown> | null)?.instance
+    ?? ''
+  )
+
+  // Fallback: extract from URL query param (?instance=...).
+  if (!instanceName) {
+    const url = new URL(request.url)
+    instanceName = url.searchParams.get('instance') ?? ''
+  }
+
+  console.log('[ryzeapi webhook] received event:', event, 'instance:', instanceName || '(empty)', 'msgId:', payload.id ?? payload.messageId)
+  console.log('[ryzeapi webhook] payload keys:', Object.keys(payload).join(', '))
+  if (payload.data && typeof payload.data === 'object') {
+    console.log('[ryzeapi webhook] data keys:', Object.keys(payload.data as Record<string, unknown>).join(', '))
+  }
 
   if (event === 'instance.state') {
     void handleInstanceState(db, instanceName, payload)
@@ -65,10 +83,28 @@ export async function POST(request: Request) {
   }
 
   // ---- Extract message data -------------------------------------------
-  const data = (payload.data as Record<string, unknown> | null) ?? {}
+  const rawData = (payload.data as Record<string, unknown> | null) ?? {}
+
+  // Handle messages.upsert format where data.messages is an array.
+  let data: Record<string, unknown>
+  let key: Record<string, unknown>
+  let messageObj: Record<string, unknown> | null
+
+  if (Array.isArray(rawData.messages) && rawData.messages.length > 0) {
+    const firstMsg = rawData.messages[0] as Record<string, unknown> | undefined
+    if (!firstMsg) {
+      return NextResponse.json({ status: 'ok' })
+    }
+    data = firstMsg
+    key = (firstMsg.key as Record<string, unknown>) ?? {}
+    messageObj = (firstMsg.message as Record<string, unknown>) ?? null
+  } else {
+    data = rawData
+    key = (data.key as Record<string, unknown>) ?? {}
+    messageObj = (data.message as Record<string, unknown>) ?? null
+  }
 
   // Sender phone — try multiple shapes.
-  const key = (data.key as Record<string, unknown> | null) ?? {}
   const fromRaw =
     String(payload.from ?? payload.remoteJid ?? key.remoteJid ?? '')
 
@@ -100,7 +136,7 @@ export async function POST(request: Request) {
   )
 
   // Determine type and content from the nested message object.
-  const msgData = (data.message as Record<string, unknown> | null) ?? payload.message as Record<string, unknown> | null ?? {}
+  const msgData = messageObj ?? (payload.message as Record<string, unknown> | null) ?? {}
   let messageType = String(data.messageType ?? payload.messageType ?? payload.type ?? 'text')
   let contentText: string | null = null
   let interactiveReplyId: string | null = null
