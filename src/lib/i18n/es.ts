@@ -10,6 +10,7 @@ const es: TranslationDict = {
   'nav.automations': 'Automatizaciones',
   'nav.flows': 'Flujos',
   'nav.settings': 'Configuración',
+  'nav.apiDocs': 'API Docs',
 
   'role.owner': 'Propietario',
   'role.admin': 'Administrador',

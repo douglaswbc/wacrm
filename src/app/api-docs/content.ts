@@ -414,9 +414,9 @@ const dealsList: EndpointDoc = {
   path: '/api/v1/deals',
   scopes: ['deals:read'],
   description: {
-    pt: 'Lista deals, do mais recente primeiro. Paginado. Filtros opcionais: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to=.',
-    es: 'Lista deals, del más reciente primero. Paginado. Filtros opcionales: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to=.',
-    en: 'List deals, newest first. Paginated. Optional filters: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to=.',
+    pt: 'Lista deals, do mais recente primeiro. Paginado. Filtros opcionais: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to= (ID de perfil de um membro).',
+    es: 'Lista deals, del más reciente primero. Paginado. Filtros opcionales: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to= (ID de perfil de un miembro).',
+    en: 'List deals, newest first. Paginated. Optional filters: ?pipeline_id=, ?stage_id=, ?status= (open / won / lost), ?contact_id=, ?assigned_to= (team member profile ID).',
   },
   curl: `curl https://your-crm.example.com/api/v1/deals?pipeline_id={id}&status=open&limit=50 \\
   -H "Authorization: Bearer wacrm_live_xxx"`,
@@ -442,9 +442,9 @@ const dealsCreate: EndpointDoc = {
   path: '/api/v1/deals',
   scopes: ['deals:write'],
   description: {
-    pt: 'Cria um deal. pipeline_id, stage_id, contact_id e title são obrigatórios.',
-    es: 'Crea un deal. pipeline_id, stage_id, contact_id y title son obligatorios.',
-    en: 'Create a deal. pipeline_id, stage_id, contact_id, and title are required.',
+    pt: 'Cria um deal. pipeline_id, stage_id, contact_id e title são obrigatórios. Opcionalmente passe assigned_to (UUID de um perfil do membro do time) para atribuir o deal a um agente.',
+    es: 'Crea un deal. pipeline_id, stage_id, contact_id y title son obligatorios. Opcionalmente pase assigned_to (UUID de un perfil de miembro del equipo) para asignar el deal a un agente.',
+    en: 'Create a deal. pipeline_id, stage_id, contact_id, and title are required. Optionally pass assigned_to (UUID of a team member profile) to assign the deal to an agent.',
   },
   curl: `curl -X POST https://your-crm.example.com/api/v1/deals \\
   -H "Authorization: Bearer wacrm_live_xxx" \\
@@ -458,7 +458,8 @@ const dealsCreate: EndpointDoc = {
         "currency": "BRL",
         "notes": "Interested in the enterprise plan",
         "expected_close_date": "2026-09-30",
-        "assigned_to": "..."
+        "assigned_to": "...",
+        "conversation_id": "..."
       }'`,
   notes: ['Response (201): the serialized deal (same shape as list rows above).'],
 };
@@ -468,9 +469,9 @@ const dealsDetail: EndpointDoc = {
   path: '/api/v1/deals/{id}',
   scopes: ['deals:read', 'deals:write'],
   description: {
-    pt: 'Ler, atualizar ou deletar um deal. PATCH aceita atualizações parciais em qualquer campo (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). DELETE remove o deal permanentemente.',
-    es: 'Leer, actualizar o eliminar un deal. PATCH acepta actualizaciones parciales en cualquier campo (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). DELETE elimina el deal permanentemente.',
-    en: 'Read, update, or delete a single deal. PATCH accepts partial updates on any deal field (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). DELETE removes the deal permanently.',
+    pt: 'Ler, atualizar ou deletar um deal. PATCH aceita atualizações parciais em qualquer campo (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). Passe assigned_to: null para desatribuir. DELETE remove o deal permanentemente.',
+    es: 'Leer, actualizar o eliminar un deal. PATCH acepta actualizaciones parciales en cualquier campo (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). Pase assigned_to: null para desasignar. DELETE elimina el deal permanentemente.',
+    en: 'Read, update, or delete a single deal. PATCH accepts partial updates on any deal field (title, value, currency, notes, expected_close_date, assigned_to, conversation_id, pipeline_id, stage_id, contact_id). Pass assigned_to: null to unassign. DELETE removes the deal permanently.',
   },
   curl: `# Read a deal
 curl https://your-crm.example.com/api/v1/deals/{id} \\
@@ -605,6 +606,88 @@ const instagramMessages: EndpointDoc = {
 }`,
 };
 
+const membersList: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/members',
+  scopes: ['members:read'],
+  description: {
+    pt: 'Lista todos os membros do time da sua conta (perfis), ordenados por data de criação. Paginado. Filtro opcional: ?role= (owner / admin / agent / viewer). Use para descobrir os IDs de perfil necessários para o campo assigned_to em deals e conversas.',
+    es: 'Lista todos los miembros del equipo de su cuenta (perfiles), ordenados por fecha de creación. Paginado. Filtro opcional: ?role= (owner / admin / agent / viewer). Úselo para descubrir los IDs de perfil necesarios para el campo assigned_to en deals y conversaciones.',
+    en: 'List all team members in your account (profiles), ordered by creation date. Paginated. Optional filter: ?role= (owner / admin / agent / viewer). Use this to discover the profile IDs needed for the assigned_to field on deals and conversations.',
+  },
+  curl: `curl https://your-crm.example.com/api/v1/members?limit=50 \\
+  -H "Authorization: Bearer wacrm_live_xxx"`,
+  json: `{
+  "data": [
+    {
+      "id": "...",
+      "user_id": "...",
+      "full_name": "Jane Doe",
+      "email": "jane@acme.com",
+      "avatar_url": null,
+      "account_role": "admin",
+      "created_at": "..."
+    }
+  ],
+  "meta": { "next_cursor": "..." }
+}`,
+};
+
+const membersDetail: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/members/{id}',
+  scopes: ['members:read'],
+  description: {
+    pt: 'Ler um membro específico pelo ID do perfil. 404 se pertencer a outra conta.',
+    es: 'Leer un miembro específico por su ID de perfil. 404 si pertenece a otra cuenta.',
+    en: 'Read a specific member by profile ID. 404 if it belongs to another account.',
+  },
+  curl: `curl https://your-crm.example.com/api/v1/members/{id} \\
+  -H "Authorization: Bearer wacrm_live_xxx"`,
+};
+
+const conversationsAssign: EndpointDoc = {
+  method: 'PATCH',
+  path: '/api/v1/conversations/{id}',
+  scopes: ['conversations:write'],
+  description: {
+    pt: 'Atualiza uma conversa. Atualmente suporta assigned_agent_id — passe um UUID de perfil de um membro para atribuir a conversa a um agente, ou null para desatribuir. Use GET /api/v1/members para descobrir os IDs.',
+    es: 'Actualiza una conversación. Actualmente soporta assigned_agent_id — pase un UUID de perfil de un miembro para asignar la conversación a un agente, o null para desasignar. Use GET /api/v1/members para descubrir los IDs.',
+    en: 'Update a conversation. Currently supports assigned_agent_id — pass a team member profile UUID to assign the conversation to an agent, or null to unassign. Use GET /api/v1/members to discover IDs.',
+  },
+  curl: `curl -X PATCH https://your-crm.example.com/api/v1/conversations/{id} \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "assigned_agent_id": "..." }'`,
+  json: `{
+  "data": {
+    "id": "...",
+    "status": "open",
+    "assigned_agent_id": "...",
+    "contact": { "id": "...", "phone": "+14155550123", "name": "Jane Doe" }
+  }
+}`,
+};
+
+const transferOwnership: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/account/transfer-ownership',
+  scopes: ['webhooks:manage'],
+  description: {
+    pt: 'Transfere a propriedade da conta para outro membro. Requer o escopo webhooks:manage (privilégio administrativo máximo via API). new_owner_user_id deve ser o user_id (UUID do auth.users, não o id do perfil) do novo proprietário — use GET /api/v1/members para obter o user_id. O proprietário atual é rebaixado a admin.',
+    es: 'Transfiere la propiedad de la cuenta a otro miembro. Requiere el alcance webhooks:manage (máximo privilegio administrativo vía API). new_owner_user_id debe ser el user_id (UUID de auth.users, no el id del perfil) del nuevo propietario — use GET /api/v1/members para obtener el user_id. El propietario actual se degrada a admin.',
+    en: 'Transfer account ownership to another member. Requires the webhooks:manage scope (maximum admin privilege via API). new_owner_user_id must be the user_id (UUID from auth.users, not the profile id) of the new owner — use GET /api/v1/members to obtain the user_id. The current owner is demoted to admin.',
+  },
+  curl: `curl -X POST https://your-crm.example.com/api/v1/account/transfer-ownership \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "new_owner_user_id": "..." }'`,
+  json: `{
+  "data": { "transferred": true }
+}`,
+  notes: ['This is an irreversible, audited action. Rate-limited to prevent abuse.'],
+};
+
 export const endpoints: EndpointDoc[] = [
   me,
   messages,
@@ -615,6 +698,7 @@ export const endpoints: EndpointDoc[] = [
   conversationsList,
   conversationsDetail,
   conversationsMessages,
+  conversationsAssign,
   broadcastsCreate,
   broadcastsDetail,
   pipelinesList,
@@ -629,6 +713,9 @@ export const endpoints: EndpointDoc[] = [
   dealsStatus,
   webhooksList,
   webhooksDetail,
+  membersList,
+  membersDetail,
+  transferOwnership,
 ];
 
 export const statusCodes: string[][] = [
@@ -646,12 +733,14 @@ export const scopeRows: string[][] = [
   ['contacts:read', 'List and read contacts'],
   ['contacts:write', 'Create and update contacts'],
   ['conversations:read', 'List and read conversations'],
+  ['conversations:write', 'Update conversations (assign agents, change status)'],
   ['broadcasts:send', 'Launch broadcast campaigns'],
   ['webhooks:manage', 'Register and manage outbound event webhooks'],
   ['pipelines:read', 'List and read pipelines and stages'],
   ['pipelines:write', 'Create, update, and delete pipelines and stages'],
   ['deals:read', 'List and read deals'],
   ['deals:write', 'Create, update, delete deals, move, change status'],
+  ['members:read', 'List and read team members and their roles'],
 ];
 
 export const webhookEvents: string[][] = [

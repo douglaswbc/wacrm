@@ -11,6 +11,7 @@ const en: TranslationDict = {
   'nav.automations': 'Automations',
   'nav.flows': 'Flows',
   'nav.settings': 'Settings',
+  'nav.apiDocs': 'API Docs',
 
   // Roles
   'role.owner': 'Owner',

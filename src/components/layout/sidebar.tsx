@@ -10,6 +10,7 @@ import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import {
   Bell,
+  Code2,
   Crown,
   GitBranch,
   LayoutDashboard,
@@ -102,6 +103,7 @@ const navItems: NavItem[] = [
 ];
 
 const bottomNavItems = [
+  { href: "/api-docs", labelKey: "nav.apiDocs", icon: Code2 },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 

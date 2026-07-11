@@ -17,7 +17,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { Copy, ExternalLink, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -145,12 +146,21 @@ export function ApiKeysSettings() {
           </>
         }
         action={
-          <RequireRole min="admin">
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="size-4" />
-              New API key
-            </Button>
-          </RequireRole>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/api-docs"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+            >
+              <ExternalLink className="size-3.5" />
+              API Docs
+            </Link>
+            <RequireRole min="admin">
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="size-4" />
+                New API key
+              </Button>
+            </RequireRole>
+          </div>
         }
       />
 
