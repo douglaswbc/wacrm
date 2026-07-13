@@ -51,6 +51,15 @@ const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = [
   { label: "Closed", value: "closed" },
 ];
 
+type ChannelFilter = "all" | "whatsapp_meta" | "whatsapp_ryzeapi" | "instagram";
+
+const CHANNEL_FILTER_OPTIONS: { label: string; value: ChannelFilter }[] = [
+  { label: "All channels", value: "all" },
+  { label: "WhatsApp (Meta)", value: "whatsapp_meta" },
+  { label: "WhatsApp (RyzeAPI)", value: "whatsapp_ryzeapi" },
+  { label: "Instagram", value: "instagram" },
+];
+
 export function ConversationList({
   activeConversationId,
   onSelect,
@@ -60,6 +69,7 @@ export function ConversationList({
 }: ConversationListProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [loading, setLoading] = useState(true);
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
@@ -182,8 +192,15 @@ export function ConversationList({
       });
     }
 
+    if (channelFilter !== "all") {
+      result = result.filter((c) => {
+        const key = badgeKey(c.channel || "whatsapp", c.provider);
+        return key === channelFilter;
+      });
+    }
+
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany]);
+  }, [conversations, filter, search, selectedTagIds, selectedCompany, channelFilter]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -213,6 +230,7 @@ export function ConversationList({
   );
 
   const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
+  const activeChannelFilter = CHANNEL_FILTER_OPTIONS.find((o) => o.value === channelFilter);
 
   return (
     // w-full on mobile so the list occupies the whole viewport when it's
@@ -248,6 +266,32 @@ export function ConversationList({
                   className={cn(
                     "text-sm",
                     filter === opt.value
+                      ? "text-primary"
+                      : "text-popover-foreground"
+                  )}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted text-muted-foreground hover:text-foreground">
+              {activeChannelFilter?.label ?? "All channels"}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="border-border bg-popover"
+            >
+              {CHANNEL_FILTER_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setChannelFilter(opt.value)}
+                  className={cn(
+                    "text-sm",
+                    channelFilter === opt.value
                       ? "text-primary"
                       : "text-popover-foreground"
                   )}
@@ -484,23 +528,23 @@ function ConversationItem({
           <span className="truncate text-sm font-medium text-foreground">
             {displayName}
           </span>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
             {(() => {
               const key = badgeKey(channel, provider);
               const badge = CHANNEL_BADGE[key];
               return badge ? (
-                <span className={`inline-flex items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${badge.className}`}>
+                <span className={`inline-flex shrink-0 items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${badge.className}`}>
                   {badge.label}
                 </span>
               ) : null;
             })()}
-            <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
+            <p className="truncate text-xs text-muted-foreground">
+              {conversation.last_message_text || "No messages yet"}
+            </p>
           </div>
-        </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="truncate text-xs text-muted-foreground">
-            {conversation.last_message_text || "No messages yet"}
-          </p>
           <div className="flex shrink-0 items-center gap-1.5">
             {conversation.unread_count > 0 && (
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
