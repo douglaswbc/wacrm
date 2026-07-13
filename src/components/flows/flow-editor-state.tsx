@@ -182,6 +182,16 @@ export function defaultConfigFor(type: NodeType): Record<string, unknown> {
         true_next: "",
         false_next: "",
       };
+    case "ai_condition":
+      return { prompt: "", true_next: "", false_next: "" };
+    case "ai_extract":
+      return {
+        prompt_text: "",
+        var_key: "extracted",
+        extract_prompt: "",
+        fields: [{ field_name: "result", var_key: "result", description: "Result" }],
+        next_node_key: "",
+      };
     case "set_tag":
       return { mode: "add", tag_id: "", next_node_key: "" };
     case "handoff":

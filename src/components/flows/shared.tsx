@@ -28,6 +28,8 @@ import {
   Tag,
   UserPlus,
   Workflow,
+  BrainCircuit,
+  ScanText,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -48,6 +50,8 @@ export type NodeType =
   | 'send_media'
   | 'collect_input'
   | 'condition'
+  | 'ai_condition'
+  | 'ai_extract'
   | 'set_tag'
   | 'handoff'
   | 'end';
@@ -145,6 +149,20 @@ export const NODE_META: Record<
     blurb: 'Branches on a rule',
     category: 'logic',
   },
+  ai_condition: {
+    label: 'AI if / else',
+    icon: BrainCircuit,
+    color: 'text-purple-400',
+    blurb: 'Branches on AI classification',
+    category: 'logic',
+  },
+  ai_extract: {
+    label: 'AI extract',
+    icon: ScanText,
+    color: 'text-violet-400',
+    blurb: 'Asks a question, uses AI to extract data',
+    category: 'logic',
+  },
   set_tag: {
     label: 'Tag contact',
     icon: Tag,
@@ -204,6 +222,8 @@ const NODE_HUE: Record<NodeType, { l: number; c: number; h: number }> = {
   send_media: { l: 0.65, c: 0.12, h: 210 }, // sky
   collect_input: { l: 0.65, c: 0.1, h: 185 }, // teal — capture
   condition: { l: 0.72, c: 0.15, h: 65 }, // amber — a fork in the road
+  ai_condition: { l: 0.65, c: 0.18, h: 290 }, // purple — AI fork
+  ai_extract: { l: 0.65, c: 0.16, h: 310 }, // violet — AI capture
   set_tag: { l: 0.65, c: 0.15, h: 350 }, // pink
   handoff: { l: 0.65, c: 0.17, h: 16 }, // rose — hands off
   end: { l: 0.55, c: 0.01, h: 260 }, // neutral grey — terminal
@@ -418,6 +438,24 @@ export function summarizeNode(node: BuilderNode): string | null {
     case 'handoff': {
       const note = typeof cfg.note === 'string' ? cfg.note : '';
       return note.length > 0 ? truncate(note) : null;
+    }
+    case 'ai_condition': {
+      const prompt = typeof cfg.prompt === 'string' ? cfg.prompt : '';
+      return prompt ? `AI: ${truncate(prompt, 60)}` : null;
+    }
+    case 'ai_extract': {
+      const prompt = typeof cfg.prompt_text === 'string' ? cfg.prompt_text : '';
+      const varKey = typeof cfg.var_key === 'string' ? cfg.var_key : '';
+      const fields = Array.isArray(cfg.fields)
+        ? (cfg.fields as Array<{ field_name: string }>)
+        : [];
+      const fieldNames = fields.map((f) => f.field_name).join(', ');
+      if (prompt.length > 0) {
+        return fieldNames
+          ? `AI extract → ${truncate(fieldNames, 50)}`
+          : `${truncate(prompt, 50)} → vars.${varKey}`;
+      }
+      return varKey ? `→ vars.${varKey}` : null;
     }
   }
 }

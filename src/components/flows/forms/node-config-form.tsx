@@ -205,6 +205,84 @@ export function NodeConfigForm({
           complete. No config needed.
         </p>
       );
+
+    case "ai_condition":
+      return (
+        <>
+          <TextRow
+            label="Classification prompt"
+            value={(cfg as { prompt?: string }).prompt ?? ""}
+            onChange={(v) => onUpdateConfig({ prompt: v })}
+            rows={3}
+          />
+          <p className="mb-3 text-[10px] text-muted-foreground">
+            The model will classify the conversation and branch to TRUE or FALSE.
+            Example: "Is this a support request?"
+          </p>
+          <NextNodeRow
+            value={(cfg as { true_next?: string }).true_next ?? ""}
+            allNodes={allNodes}
+            currentKey={node.node_key}
+            onChange={(v) => onUpdateConfig({ true_next: v })}
+            label="If TRUE, advance to"
+          />
+          <NextNodeRow
+            value={(cfg as { false_next?: string }).false_next ?? ""}
+            allNodes={allNodes}
+            currentKey={node.node_key}
+            onChange={(v) => onUpdateConfig({ false_next: v })}
+            label="If FALSE, advance to"
+          />
+        </>
+      );
+
+    case "ai_extract":
+      return (
+        <>
+          <TextRow
+            label="Prompt sent to the customer"
+            value={(cfg as { prompt_text?: string }).prompt_text ?? ""}
+            onChange={(v) => onUpdateConfig({ prompt_text: v })}
+            rows={2}
+          />
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              Variable key (raw captured text stored as{" "}
+              <code className="rounded bg-muted px-1 text-[10px]">
+                {"{{vars.<key>}}"}
+              </code>
+              )
+            </label>
+            <Input
+              value={(cfg as { var_key?: string }).var_key ?? ""}
+              onChange={(e) =>
+                onUpdateConfig({
+                  var_key: e.target.value.replace(/[^a-zA-Z0-9_]/g, ""),
+                })
+              }
+              placeholder="e.g. extracted_data"
+              className="bg-muted font-mono text-xs"
+            />
+          </div>
+          <TextRow
+            label="AI extraction prompt"
+            value={(cfg as { extract_prompt?: string }).extract_prompt ?? ""}
+            onChange={(v) => onUpdateConfig({ extract_prompt: v })}
+            rows={3}
+          />
+          <AiExtractFieldsEditor
+            fields={(cfg as { fields?: Array<Record<string, unknown>> }).fields ?? []}
+            onChange={(fields) => onUpdateConfig({ fields })}
+          />
+          <NextNodeRow
+            value={(cfg as { next_node_key?: string }).next_node_key ?? ""}
+            allNodes={allNodes}
+            currentKey={node.node_key}
+            onChange={(v) => onUpdateConfig({ next_node_key: v })}
+            label="After extraction, advance to"
+          />
+        </>
+      );
   }
 }
 
@@ -1044,5 +1122,90 @@ function SendMediaForm({
         label="After sending, advance to"
       />
     </>
+  );
+}
+
+// ============================================================
+// Shared field components used by the forms above
+// ============================================================
+
+function AiExtractFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: Array<Record<string, unknown>>;
+  onChange: (f: Array<Record<string, unknown>>) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="mb-1 block text-xs text-muted-foreground">
+        Extract fields (each becomes{" "}
+        <code className="rounded bg-muted px-1 text-[10px]">{"{{vars.<key>}}"}</code>
+        )
+      </label>
+      {fields.map((f, i) => (
+        <div key={i} className="flex items-start gap-1.5">
+          <div className="flex-1 space-y-1">
+            <Input
+              placeholder="Field name (e.g. product)"
+              value={(f.field_name as string) ?? ""}
+              onChange={(e) => {
+                const next = [...fields];
+                next[i] = { ...next[i], field_name: e.target.value };
+                onChange(next);
+              }}
+              className="bg-muted text-xs"
+            />
+            <div className="flex gap-1">
+              <Input
+                placeholder="Var key (e.g. produto)"
+                value={(f.var_key as string) ?? ""}
+                onChange={(e) => {
+                  const next = [...fields];
+                  next[i] = {
+                    ...next[i],
+                    var_key: e.target.value.replace(/[^a-zA-Z0-9_]/g, ""),
+                  };
+                  onChange(next);
+                }}
+                className="flex-1 bg-muted font-mono text-xs"
+              />
+              <Input
+                placeholder="Description"
+                value={(f.description as string) ?? ""}
+                onChange={(e) => {
+                  const next = [...fields];
+                  next[i] = { ...next[i], description: e.target.value };
+                  onChange(next);
+                }}
+                className="flex-1 bg-muted text-xs"
+              />
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-0.5 h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-red-400"
+            onClick={() => onChange(fields.filter((_, idx) => idx !== i))}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 w-full border-dashed text-xs text-muted-foreground hover:text-foreground"
+        onClick={() =>
+          onChange([
+            ...fields,
+            { field_name: "", var_key: "", description: "" },
+          ])
+        }
+      >
+        <Plus className="mr-1 h-3 w-3" />
+        Add field
+      </Button>
+    </div>
   );
 }

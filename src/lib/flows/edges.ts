@@ -48,6 +48,7 @@ export function deriveCanvasEdges(nodes: BuilderNode[]): CanvasEdge[] {
       case "send_message":
       case "send_media":
       case "collect_input":
+      case "ai_extract":
       case "set_tag": {
         const next = (cfg as { next_node_key?: string }).next_node_key;
         if (next && knownKeys.has(next)) {
@@ -61,7 +62,8 @@ export function deriveCanvasEdges(nodes: BuilderNode[]): CanvasEdge[] {
         break;
       }
 
-      case "condition": {
+      case "condition":
+      case "ai_condition": {
         const trueNext = (cfg as { true_next?: string }).true_next;
         const falseNext = (cfg as { false_next?: string }).false_next;
         if (trueNext && knownKeys.has(trueNext)) {
@@ -178,10 +180,12 @@ export function outgoingSlots(node: BuilderNode): OutgoingSlot[] {
     case "send_message":
     case "send_media":
     case "collect_input":
+    case "ai_extract":
     case "set_tag":
       return [{ id: "next", label: "Next" }];
 
     case "condition":
+    case "ai_condition":
       return [
         { id: "true", label: "true" },
         { id: "false", label: "false" },
@@ -252,11 +256,13 @@ export function applyEdgeConnection(
     case "send_message":
     case "send_media":
     case "collect_input":
+    case "ai_extract":
     case "set_tag":
       if (sourceHandle === "next") return { next_node_key: targetKey };
       return null;
 
     case "condition":
+    case "ai_condition":
       if (sourceHandle === "true") return { true_next: targetKey };
       if (sourceHandle === "false") return { false_next: targetKey };
       return null;
@@ -346,13 +352,15 @@ function patchedConfigWithoutKey(
     case "send_message":
     case "send_media":
     case "collect_input":
+    case "ai_extract":
     case "set_tag": {
       const next = (cfg as { next_node_key?: string }).next_node_key;
       if (next !== deletedKey) return null;
       return { ...cfg, next_node_key: "" };
     }
 
-    case "condition": {
+    case "condition":
+    case "ai_condition": {
       const c = cfg as { true_next?: string; false_next?: string };
       const trueMatch = c.true_next === deletedKey;
       const falseMatch = c.false_next === deletedKey;

@@ -173,6 +173,36 @@ export interface SetTagNodeConfig {
   next_node_key: string;
 }
 
+/**
+ * AI-powered branching. Like `condition` but evaluates a prompt
+ * against the customer's message text via an LLM. Auto-advancing.
+ */
+export interface AiConditionNodeConfig {
+  /** Classification prompt. The model will answer YES or NO. */
+  prompt: string;
+  /** Node to advance to when the AI returns YES. */
+  true_next: string;
+  /** Node to advance to when the AI returns NO. */
+  false_next: string;
+}
+
+/**
+ * Prompts the customer for free-text input (like collect_input),
+ * then uses AI to extract structured fields from the reply.
+ */
+export interface AiExtractNodeConfig {
+  /** Prompt sent to the customer before they reply. */
+  prompt_text: string;
+  /** Key under which to store the raw captured text in vars. */
+  var_key: string;
+  /** Extraction instructions for the AI. Supports {{vars.*}}. */
+  extract_prompt: string;
+  /** Map of extracted data field_name → var_key to store results. */
+  fields: Array<{ field_name: string; var_key: string; description: string }>;
+  /** Node to advance to after extraction succeeds. */
+  next_node_key: string;
+}
+
 // Terminal nodes carry no config — they just stop the run.
 export type EndNodeConfig = Record<string, never>;
 
@@ -192,6 +222,8 @@ export type FlowNodeConfig =
   | { node_type: "send_media"; config: SendMediaNodeConfig }
   | { node_type: "collect_input"; config: CollectInputNodeConfig }
   | { node_type: "condition"; config: ConditionNodeConfig }
+  | { node_type: "ai_condition"; config: AiConditionNodeConfig }
+  | { node_type: "ai_extract"; config: AiExtractNodeConfig }
   | { node_type: "set_tag"; config: SetTagNodeConfig }
   | { node_type: "handoff"; config: HandoffNodeConfig }
   | { node_type: "end"; config: EndNodeConfig };

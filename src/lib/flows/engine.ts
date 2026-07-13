@@ -42,6 +42,8 @@ import {
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
 import {
   type CollectInputNodeConfig,
+  type AiConditionNodeConfig,
+  type AiExtractNodeConfig,
   type ConditionNodeConfig,
   type DispatchInboundInput,
   type DispatchInboundResult,
@@ -57,6 +59,10 @@ import {
   type StartNodeConfig,
   type KeywordTriggerConfig,
 } from "./types";
+import {
+  evaluateAiConditionNode,
+  performAiExtraction,
+} from "./ai-utils";
 
 // ============================================================
 // Pure helpers — extracted so engine.test.ts can exercise them
@@ -116,6 +122,7 @@ export function isAutoAdvancing(node_type: string): boolean {
     node_type === "send_message" ||
     node_type === "send_media" ||
     node_type === "condition" ||
+    node_type === "ai_condition" ||
     node_type === "set_tag"
   );
 }
@@ -125,7 +132,8 @@ export function isSuspending(node_type: string): boolean {
   return (
     node_type === "send_buttons" ||
     node_type === "send_list" ||
-    node_type === "collect_input"
+    node_type === "collect_input" ||
+    node_type === "ai_extract"
   );
 }
 
@@ -535,6 +543,26 @@ function interpolateVars(template: string, vars: Record<string, unknown>): strin
   });
 }
 
+/**
+ * Fetch the most recent customer text message from a conversation,
+ * used as input for ai_condition classification.
+ */
+async function resolveLastCustomerText(
+  db: AdminClient,
+  conversationId: string,
+): Promise<string> {
+  const { data } = await db
+    .from("messages")
+    .select("content_text")
+    .eq("conversation_id", conversationId)
+    .eq("sender_type", "customer")
+    .eq("content_type", "text")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as { content_text?: string } | null)?.content_text?.trim() ?? "";
+}
+
 async function endRun(
   db: AdminClient,
   runId: string,
@@ -695,6 +723,52 @@ async function advanceFromNodeKey(
       }
       return { outcome: "advanced" };
     }
+    if (node.node_type === "ai_extract") {
+      const cfg = node.config as unknown as AiExtractNodeConfig;
+      try {
+        const { whatsapp_message_id } = await engineSendText({
+          accountId: run.account_id,
+    userId: run.user_id,
+          conversationId: run.conversation_id!,
+          contactId: run.contact_id!,
+          text: interpolateVars(cfg.prompt_text, run.vars),
+        });
+        await logEvent(db, run.id, "message_sent", node.node_key, {
+          node_type: "ai_extract",
+          whatsapp_message_id,
+        });
+        const { data: msg } = await db
+          .from("messages")
+          .select("id")
+          .eq("message_id", whatsapp_message_id)
+          .maybeSingle();
+        await db
+          .from("flow_runs")
+          .update({
+            last_prompt_message_id: (msg as { id: string } | null)?.id ?? null,
+          })
+          .eq("id", run.id);
+      } catch (err) {
+        await logEvent(db, run.id, "error", node.node_key, {
+          reason: "ai_extract_prompt_failed",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+        await endRun(db, run.id, "failed", "ai_extract_prompt_failed");
+        return { outcome: "completed" };
+      }
+      const advanced = await advanceCurrentNodeKey(
+        db,
+        run.id,
+        run.current_node_key,
+        node.node_key,
+      );
+      if (!advanced) {
+        await logEvent(db, run.id, "error", node.node_key, {
+          reason: "lost_race_during_advance",
+        });
+      }
+      return { outcome: "advanced" };
+    }
     if (node.node_type === "condition") {
       const cfg = node.config as unknown as ConditionNodeConfig;
       let branch: "true" | "false";
@@ -714,6 +788,34 @@ async function advanceFromNodeKey(
         branch === "true" ? cfg.true_next : cfg.false_next;
       await logEvent(db, run.id, "node_entered", node.node_key, {
         condition_result: branch,
+        advancing_to: currentKey,
+      });
+      continue;
+    }
+    if (node.node_type === "ai_condition") {
+      const cfg = node.config as unknown as AiConditionNodeConfig;
+      let branch: "true" | "false";
+      try {
+        const messageText = await resolveLastCustomerText(db, run.conversation_id!);
+        branch = (await evaluateAiConditionNode(
+          run.account_id,
+          cfg,
+          messageText,
+        ))
+          ? "true"
+          : "false";
+      } catch (err) {
+        await logEvent(db, run.id, "error", node.node_key, {
+          reason: "ai_condition_evaluation_failed",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+        await endRun(db, run.id, "failed", "ai_condition_evaluation_failed");
+        return { outcome: "completed" };
+      }
+      currentKey =
+        branch === "true" ? cfg.true_next : cfg.false_next;
+      await logEvent(db, run.id, "node_entered", node.node_key, {
+        ai_condition_result: branch,
         advancing_to: currentKey,
       });
       continue;
@@ -975,6 +1077,46 @@ async function handleReplyForActiveRun(
         matched = cfg.next_node_key;
       }
     }
+  } else if (
+    message.kind === "text" &&
+    currentNode.node_type === "ai_extract"
+  ) {
+    const cfg = currentNode.config as unknown as AiExtractNodeConfig;
+    const captured = message.text.trim();
+    if (captured.length > 0 && cfg.var_key) {
+      const newVars: Record<string, unknown> = { ...run.vars, [cfg.var_key]: captured };
+      try {
+        const extracted = await performAiExtraction(
+          run.account_id,
+          cfg,
+          captured,
+        );
+        for (const [key, value] of Object.entries(extracted)) {
+          newVars[key] = value;
+        }
+      } catch (err) {
+        await logEvent(db, run.id, "error", currentNode.node_key, {
+          reason: "ai_extraction_failed",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+      const { error: capErr } = await db
+        .from("flow_runs")
+        .update({
+          vars: newVars,
+          reprompt_count: 0,
+        })
+        .eq("id", run.id);
+      if (!capErr) {
+        run.vars = newVars;
+        run.reprompt_count = 0;
+        await logEvent(db, run.id, "node_entered", currentNode.node_key, {
+          captured_key: cfg.var_key,
+          captured_length: captured.length,
+        });
+        matched = cfg.next_node_key;
+      }
+    }
   }
 
   if (matched) {
@@ -1029,6 +1171,22 @@ async function handleReplyForActiveRun(
       // Customer typed something we couldn't accept (empty after trim,
       // or var_key missing — rare). Re-send the prompt so they try again.
       const cfg = currentNode.config as unknown as CollectInputNodeConfig;
+      try {
+        await engineSendText({
+          accountId: run.account_id,
+    userId: run.user_id,
+          conversationId: run.conversation_id!,
+          contactId: run.contact_id!,
+          text: interpolateVars(cfg.prompt_text, run.vars),
+        });
+      } catch (err) {
+        await logEvent(db, run.id, "error", currentNode.node_key, {
+          reason: "reprompt_send_failed",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else if (currentNode.node_type === "ai_extract") {
+      const cfg = currentNode.config as unknown as AiExtractNodeConfig;
       try {
         await engineSendText({
           accountId: run.account_id,

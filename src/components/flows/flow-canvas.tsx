@@ -691,6 +691,8 @@ const ADD_NODE_TYPES: NodeType[] = [
   'send_media',
   'collect_input',
   'condition',
+  'ai_condition',
+  'ai_extract',
   'set_tag',
   'handoff',
   'end',

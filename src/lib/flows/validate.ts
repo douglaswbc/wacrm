@@ -707,6 +707,114 @@ function validateNode(
       // beyond their existence.
       break;
 
+    case "ai_condition": {
+      const ac = node.config as {
+        prompt?: string;
+        true_next?: string;
+        false_next?: string;
+      };
+      if (!ac.prompt?.trim()) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "prompt",
+          message: "AI-condition needs a prompt for the AI to evaluate.",
+        });
+      }
+      for (const branch of ["true_next", "false_next"] as const) {
+        const key = ac[branch];
+        if (!key) {
+          issues.push({
+            severity: "error", scope: "node", node_key: node.node_key,
+            field: branch,
+            message: `AI-condition needs a node for the "${branch === "true_next" ? "true" : "false"}" branch.`,
+          });
+        } else if (!knownKeys.has(key)) {
+          issues.push({
+            severity: "error", scope: "node", node_key: node.node_key,
+            field: branch,
+            message: `AI-condition's "${branch}" points to non-existent node "${key}".`,
+          });
+        }
+      }
+      break;
+    }
+
+    case "ai_extract": {
+      const ae = node.config as {
+        prompt_text?: string;
+        var_key?: string;
+        extract_prompt?: string;
+        next_node_key?: string;
+        fields?: Array<Record<string, unknown>>;
+      };
+      if (!ae.prompt_text?.trim()) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "prompt_text",
+          message: "AI-extract needs a prompt to send the customer.",
+        });
+      }
+      if (!ae.var_key?.trim()) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "var_key",
+          message: "AI-extract needs a var_key to store the answer.",
+        });
+      } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(ae.var_key)) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "var_key",
+          message: `var_key "${ae.var_key}" must be alphanumeric+underscore.`,
+        });
+      }
+      if (!ae.extract_prompt?.trim()) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "extract_prompt",
+          message: "AI-extract needs an extraction prompt for the AI.",
+        });
+      }
+      if (!Array.isArray(ae.fields) || ae.fields.length === 0) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "fields",
+          message: "AI-extract needs at least one field to extract.",
+        });
+      } else {
+        for (let fi = 0; fi < ae.fields.length; fi++) {
+          const f = ae.fields[fi];
+          if (typeof f.field_name !== "string" || !f.field_name.trim()) {
+            issues.push({
+              severity: "error", scope: "node", node_key: node.node_key,
+              field: `fields[${fi}].field_name`,
+              message: "Field name is required.",
+            });
+          }
+          if (typeof f.var_key !== "string" || !f.var_key.trim()) {
+            issues.push({
+              severity: "error", scope: "node", node_key: node.node_key,
+              field: `fields[${fi}].var_key`,
+              message: "Var key is required.",
+            });
+          }
+        }
+      }
+      if (!ae.next_node_key) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "next_node_key",
+          message: "AI-extract must point to a next node.",
+        });
+      } else if (!knownKeys.has(ae.next_node_key)) {
+        issues.push({
+          severity: "error", scope: "node", node_key: node.node_key,
+          field: "next_node_key",
+          message: `AI-extract points to non-existent node "${ae.next_node_key}".`,
+        });
+      }
+      break;
+    }
+
     default:
       issues.push({
         severity: "error",
@@ -751,11 +859,13 @@ function outgoingEdges(node: NodeInput): string[] {
     case "send_message":
     case "send_media":
     case "collect_input":
+    case "ai_extract":
     case "set_tag": {
       const cfg = node.config as { next_node_key?: string };
       return cfg.next_node_key ? [cfg.next_node_key] : [];
     }
-    case "condition": {
+    case "condition":
+    case "ai_condition": {
       const cfg = node.config as {
         true_next?: string;
         false_next?: string;

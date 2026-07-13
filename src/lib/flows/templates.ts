@@ -20,6 +20,8 @@
  */
 
 import type {
+  AiConditionNodeConfig,
+  AiExtractNodeConfig,
   CollectInputNodeConfig,
   ConditionNodeConfig,
   HandoffNodeConfig,
@@ -37,6 +39,8 @@ export type FlowTemplateNodeType =
   | "send_list"
   | "collect_input"
   | "condition"
+  | "ai_condition"
+  | "ai_extract"
   | "set_tag"
   | "handoff"
   | "end";
@@ -51,6 +55,8 @@ export interface FlowTemplateNode {
     | SendListNodeConfig
     | CollectInputNodeConfig
     | ConditionNodeConfig
+    | AiConditionNodeConfig
+    | AiExtractNodeConfig
     | HandoffNodeConfig
     | Record<string, unknown>;
 }

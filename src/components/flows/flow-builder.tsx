@@ -601,6 +601,8 @@ function AddNodeButton({ onAdd }: { onAdd: (type: NodeType) => void }) {
     'send_media',
     'collect_input',
     'condition',
+    'ai_condition',
+    'ai_extract',
     'set_tag',
     'handoff',
     'end',
