@@ -19,6 +19,7 @@ import {
   X,
   Loader2,
   Sparkles,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GatedButton } from "@/components/ui/gated-button";
@@ -26,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCan } from "@/hooks/use-can";
@@ -36,6 +38,8 @@ import {
   deleteAccountMedia,
   MEDIA_MAX_BYTES_BY_KIND,
 } from "@/lib/storage/upload-media";
+import { MediaPicker } from "@/components/media-library/media-picker";
+import type { ApiMediaAsset } from "@/lib/api/v1/media-library";
 import { ReplyQuote } from "./reply-quote";
 
 /** Media content types an agent can send from the composer. */
@@ -154,6 +158,9 @@ export function MessageComposer({
   const recorderRef = useRef<import("opus-recorder").default | null>(null);
   const cancelledRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Media Library picker
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
 
   // Viewers (read-only role) can browse the inbox but never send.
   // For solo users this is always true — single-owner accounts pass
@@ -421,6 +428,27 @@ export function MessageComposer({
     setDraft((d) => (d ? { ...d, caption } : d));
   }, []);
 
+  // Selected from Media Library — the asset is already in storage, so we
+  // don't upload again; just stage its public URL as a draft.
+  const handleMediaLibrarySelect = useCallback(
+    (asset: Pick<ApiMediaAsset, "media_url" | "media_type" | "caption" | "name">) => {
+      const kind =
+        asset.media_type === "image"
+          ? "image"
+          : asset.media_type === "video"
+            ? "video"
+            : "document";
+      setDraft({
+        kind,
+        mediaUrl: asset.media_url,
+        path: "", // not ours to GC — it lives in the media-library bucket
+        filename: asset.name,
+        caption: asset.caption ?? "",
+      });
+    },
+    [],
+  );
+
   // ---- Render --------------------------------------------------------
 
   return (
@@ -554,6 +582,11 @@ export function MessageComposer({
                 <Mic className="mr-2 h-4 w-4" />
                 Voice note
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setMediaPickerOpen(true)}>
+                <FolderOpen className="mr-2 h-4 w-4" />
+                From Library
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -631,6 +664,12 @@ export function MessageComposer({
           Tap the ✨ to draft a reply with AI — you can edit it before sending
         </p>
       )}
+
+      <MediaPicker
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        onSelect={handleMediaLibrarySelect}
+      />
     </div>
   );
 }

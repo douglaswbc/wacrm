@@ -12,6 +12,7 @@ import {
   Bell,
   Code2,
   Crown,
+  FolderOpen,
   GitBranch,
   LayoutDashboard,
   LogOut,
@@ -100,6 +101,7 @@ const navItems: NavItem[] = [
   { href: "/broadcasts", labelKey: "nav.broadcasts", icon: Radio },
   { href: "/automations", labelKey: "nav.automations", icon: Zap },
   { href: "/flows", labelKey: "nav.flows", icon: Workflow, beta: true },
+  { href: "/media-library", labelKey: "nav.mediaLibrary", icon: FolderOpen },
 ];
 
 const bottomNavItems = [

@@ -38,7 +38,10 @@ import {
   X,
   DollarSign,
   LayoutTemplate,
+  FolderOpen,
 } from 'lucide-react';
+import { MediaPicker } from '@/components/media-library/media-picker';
+import type { ApiMediaAsset } from '@/lib/api/v1/media-library';
 
 interface ContactDetailViewProps {
   open: boolean;
@@ -65,6 +68,10 @@ export function ContactDetailView({
   // find-or-creates the conversation, so no inbound message is required.
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [sendingTemplate, setSendingTemplate] = useState(false);
+
+  // Media Library picker
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [sendingMedia, setSendingMedia] = useState(false);
 
   // Details tab
   const [editName, setEditName] = useState('');
@@ -370,6 +377,37 @@ export function ContactDetailView({
     }
   }
 
+  async function handleMediaLibrarySelect(
+    asset: Pick<ApiMediaAsset, 'media_url' | 'media_type' | 'caption' | 'name'>,
+  ) {
+    if (!contactId) return;
+    setSendingMedia(true);
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_id: contactId,
+          message_type: asset.media_type,
+          media_url: asset.media_url,
+          content_text: asset.caption || undefined,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const reason = payload?.error || `HTTP ${res.status}`;
+        toast.error(`Failed to send media: ${reason}`);
+        return;
+      }
+      toast.success('Media sent');
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'network error';
+      toast.error(`Failed to send media: ${reason}`);
+    } finally {
+      setSendingMedia(false);
+    }
+  }
+
   function getInitials(name?: string | null) {
     if (!name) return '?';
     return name
@@ -436,7 +474,7 @@ export function ContactDetailView({
                   </div>
                 </div>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex gap-2">
                 <Button
                   size="sm"
                   onClick={() => setTemplatePickerOpen(true)}
@@ -449,6 +487,20 @@ export function ContactDetailView({
                     <LayoutTemplate className="size-4" />
                   )}
                   Send template
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setMediaPickerOpen(true)}
+                  disabled={sendingMedia}
+                  className="border-border text-foreground hover:bg-muted"
+                >
+                  {sendingMedia ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FolderOpen className="size-4" />
+                  )}
+                  Send media
                 </Button>
               </div>
             </SheetHeader>
@@ -757,6 +809,11 @@ export function ContactDetailView({
       open={templatePickerOpen}
       onOpenChange={setTemplatePickerOpen}
       onSelect={handleSendTemplate}
+    />
+    <MediaPicker
+      open={mediaPickerOpen}
+      onOpenChange={setMediaPickerOpen}
+      onSelect={handleMediaLibrarySelect}
     />
     </>
   );

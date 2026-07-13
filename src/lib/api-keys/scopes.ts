@@ -27,6 +27,8 @@ export const API_SCOPES = [
   'deals:read',
   'deals:write',
   'members:read',
+  'media:read',
+  'media:write',
 ] as const;
 
 export type ApiScope = (typeof API_SCOPES)[number];
@@ -46,6 +48,8 @@ export const SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
   'deals:read': 'List and read deals',
   'deals:write': 'Create, update, delete deals, move between stages, and change status',
   'members:read': 'List and read team members and their roles',
+  'media:read': 'List and read media library assets and tags',
+  'media:write': 'Upload and delete media library assets, create and delete tags',
 };
 
 /** Type-narrow an unknown value into a valid `ApiScope`. */

@@ -1,5 +1,36 @@
 import type { AccountRole } from "@/lib/auth/roles";
 
+// ============================================================
+// Media Library (migration 042)
+// ============================================================
+
+export type MediaAssetType = 'image' | 'video' | 'document';
+
+export interface MediaAsset {
+  id: string;
+  account_id: string;
+  uploaded_by: string;
+  name: string;
+  caption?: string;
+  media_type: MediaAssetType;
+  media_url: string;
+  file_size?: number;
+  created_at: string;
+  tags?: MediaTag[];
+}
+
+export interface MediaTag {
+  id: string;
+  account_id: string;
+  name: string;
+  color?: string;
+}
+
+export interface MediaAssetTag {
+  media_asset_id: string;
+  tag_id: string;
+}
+
 export interface Profile {
   id: string;
   user_id: string;

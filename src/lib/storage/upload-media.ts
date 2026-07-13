@@ -14,7 +14,10 @@ import { createClient } from "@/lib/supabase/client";
  * composer call this so the logic lives in exactly one place.
  */
 
-/** 16 MB — matches the `file_size_limit` on both buckets (migrations 016/020/023). */
+/** Bucket name for the shared media library (migration 042). */
+export const MEDIA_LIBRARY_BUCKET = "media-library";
+
+/** 16 MB — matches the `file_size_limit` on both buckets (migrations 016/020/023/042). */
 export const MEDIA_MAX_BYTES = 16 * 1024 * 1024;
 
 /**

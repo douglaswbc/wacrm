@@ -11,6 +11,7 @@ const es: TranslationDict = {
   'nav.flows': 'Flujos',
   'nav.settings': 'Configuración',
   'nav.apiDocs': 'API Docs',
+  'nav.mediaLibrary': 'Biblioteca de Medios',
 
   'role.owner': 'Propietario',
   'role.admin': 'Administrador',
