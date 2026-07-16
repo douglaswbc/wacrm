@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/accordion';
 
 const MASKED_TOKEN = '••••••••••••••••';
-const MASKED_APP_ID = '****';
 
 function TokenStatus({
   expiresAt,

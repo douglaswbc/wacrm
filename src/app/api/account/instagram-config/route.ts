@@ -36,7 +36,7 @@ export async function GET() {
 
     const { data, error } = await ctx.supabase
       .from("instagram_config")
-      .select("instagram_business_account_id, business_name, status, connected_at, verify_token, registered_at, subscribed_apps_at, last_registration_error, meta_app_id, token_expires_at, token_refreshed_at, last_refresh_error")
+      .select("*")
       .eq("account_id", ctx.accountId)
       .maybeSingle();
 
@@ -191,7 +191,7 @@ export async function PUT(request: Request) {
       // Reuse existing. Only fetch if not already fetched above.
       const { data: existing } = await ctx.supabase
         .from("instagram_config")
-        .select("meta_app_secret")
+        .select("*")
         .eq("account_id", ctx.accountId)
         .maybeSingle();
       encryptedAppSecret = (existing as any)?.meta_app_secret ?? undefined;
