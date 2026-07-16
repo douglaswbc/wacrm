@@ -5,7 +5,6 @@
 
 import { NextResponse } from 'next/server';
 import { getCurrentAccount } from '@/lib/auth/account';
-import { supabaseAdmin } from '@/lib/flows/admin-client';
 import {
   uploadAccountMedia,
   deleteAccountMedia,
@@ -101,13 +100,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use supabaseAdmin for the DB insert — storage upload operations
-    // can corrupt the auth context on the SSR client (token refresh
-    // triggers setAll() which fails in route handlers), leaving
-    // auth.uid() = null for subsequent RLS checks. Auth was already
-    // validated by getCurrentAccount() above.
-    const admin = supabaseAdmin()
-    const { data: asset, error: insertErr } = await admin
+    const { data: asset, error: insertErr } = await supabase
       .from('media_assets')
       .insert({
         account_id: accountId,
@@ -127,7 +120,7 @@ export async function POST(request: Request) {
     }
 
     if (tagIds.length > 0) {
-      const { error: tagsErr } = await admin.from('media_asset_tags').insert(
+      const { error: tagsErr } = await supabase.from('media_asset_tags').insert(
         tagIds.map((tagId) => ({ media_asset_id: asset.id, tag_id: tagId }))
       );
       if (tagsErr) {
