@@ -1,21 +1,13 @@
-# wacrm — CRM Template for WhatsApp
+# wacrm — WhatsApp & Instagram CRM
 
-> Self-hostable CRM template for WhatsApp® — shared inbox, contacts,
-> sales pipelines, broadcasts, and no-code automations. Fork it, brand
-> it, host it.
+> Self-hosted WhatsApp & Instagram CRM — shared inbox, pipelines,
+> broadcasts, and no-code automations.
 
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-violet.svg)](./LICENSE)
-[![CI](https://github.com/ArnasDon/wacrm/actions/workflows/ci.yml/badge.svg)](https://github.com/ArnasDon/wacrm/actions/workflows/ci.yml)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ecf8e?logo=supabase)](https://supabase.com)
-[![Stars](https://img.shields.io/github/stars/ArnasDon/wacrm?style=social)](https://github.com/ArnasDon/wacrm/stargazers)
-
-The marketing site and self-host docs live in a separate repo:
-[ArnasDon/wacrm-site](https://github.com/ArnasDon/wacrm-site)
-([wacrm.tech](https://wacrm.tech)). This repo is the product —
-clone or fork it to run your own CRM.
 
 ## What you get out of the box
 
@@ -72,8 +64,7 @@ in an afternoon and make yours.
 ## Quick start
 
 ```bash
-# Fork on GitHub first: https://github.com/ArnasDon/wacrm → Fork
-git clone https://github.com/<your-username>/wacrm.git
+git clone https://github.com/douglaswbc/wacrm.git
 cd wacrm
 npm install
 cp .env.local.example .env.local   # fill in Supabase + Meta creds
@@ -100,7 +91,7 @@ Swarm mode with Traefik as reverse proxy handles SSL automatically.
 ```bash
 # Clone the repository
 cd /opt
-git clone https://github.com/<your-username>/wacrm
+git clone https://github.com/douglaswbc/wacrm
 cd wacrm
 
 # Create environment file — see .env.local.example for all vars
@@ -167,29 +158,18 @@ docker stack deploy -c wacrm.yaml wacrm
 
 Time-based automations and wait steps depend on the cron endpoint being
 called every ~5 minutes. Set `AUTOMATION_CRON_SECRET` in `.env.local`,
-then register a crontab (or a Vercel Cron / n8n Schedule Trigger):
+install cron on the VPS if not already present, then register the job:
 
 ```bash
+# Install cron if needed (Debian/Ubuntu)
+apt update && apt install -y cron
+systemctl enable --now cron
+
+# Register the job
 echo "*/5 * * * * curl -s -H 'x-cron-secret: YOUR_SECRET' https://your-domain.com/api/automations/cron >> /var/log/wacrm-cron.log 2>&1" | crontab -
 ```
 
 Use `?now=HH:mm` for manual testing (bypasses schedule check and dedup).
-
-## Documentation
-
-Full self-host documentation — Supabase migrations, WhatsApp Business
-API config, and production deploy — lives at
-**[wacrm.tech/docs](https://wacrm.tech/docs)**
-(source: [ArnasDon/wacrm-site](https://github.com/ArnasDon/wacrm-site)).
-
-Key pages:
-- [Getting started](https://wacrm.tech/docs/getting-started)
-- [Supabase setup](https://wacrm.tech/docs/supabase-setup)
-- [WhatsApp setup](https://wacrm.tech/docs/whatsapp-setup)
-- [Environment variables](https://wacrm.tech/docs/environment-variables)
-- [Deploy on Docker Swarm](#-deploy-on-docker-swarm)
-- [Architecture](https://wacrm.tech/docs/architecture)
-- [Troubleshooting](https://wacrm.tech/docs/troubleshooting)
 
 ## Stack
 
@@ -202,10 +182,7 @@ Key pages:
 
 ## Contributing
 
-This is a template, not a collaborative product — the expected flow is
-fork → customise → deploy, **not** upstream contribution. Bug reports
-and security issues are welcome; feature PRs often belong in your fork
-rather than here. Details in
+Bug reports and security issues are welcome. See
 [`CONTRIBUTING.md`](./CONTRIBUTING.md) and
 [`.github/SECURITY.md`](./.github/SECURITY.md).
 
