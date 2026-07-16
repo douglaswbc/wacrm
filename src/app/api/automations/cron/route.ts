@@ -30,6 +30,11 @@ export async function GET(request: Request) {
 
   const admin = supabaseAdmin()
 
+  // Support ?now=HH:mm for manual testing — overrides new Date() so you
+  // can verify a schedule without waiting for the real clock.
+  const { searchParams } = new URL(request.url)
+  const overrideNow = searchParams.get('now')
+
   // ----------------------------------------------------------
   // Part 1 — Drain pending executions (existing behaviour)
   // ----------------------------------------------------------
@@ -76,7 +81,18 @@ export async function GET(request: Request) {
   // ----------------------------------------------------------
   let timeBasedFired = 0
   try {
-    const now = new Date()
+    let now: Date
+    if (overrideNow) {
+      const parsedNow = parseSchedule(overrideNow)
+      if (!parsedNow) {
+        return NextResponse.json({ error: 'Invalid ?now format. Use HH:mm.' }, { status: 400 })
+      }
+      now = new Date()
+      now.setHours(parsedNow.hours, parsedNow.minutes, 0, 0)
+      console.info('[cron] using time override from ?now:', overrideNow, '→', now.toISOString())
+    } else {
+      now = new Date()
+    }
     const currentMinutes = now.getHours() * 60 + now.getMinutes()
 
     const { data: automations, error: tbErr } = await admin
@@ -105,14 +121,20 @@ export async function GET(request: Request) {
         if (diff > 6) continue
 
         // Dedup: skip if already fired within the last 6 minutes.
-        const lastFired = automation.last_fired_at ? new Date(automation.last_fired_at as string) : null
-        if (lastFired && (now.getTime() - lastFired.getTime()) < 6 * 60 * 1000) continue
+        // Bypassed when ?now= is set so manual testing can re-fire.
+        if (!overrideNow) {
+          const lastFired = automation.last_fired_at ? new Date(automation.last_fired_at as string) : null
+          if (lastFired && (now.getTime() - lastFired.getTime()) < 6 * 60 * 1000) continue
+        }
 
         // Update last_fired_at before dispatching (minimize double-fire risk).
-        await admin
-          .from('automations')
-          .update({ last_fired_at: now.toISOString() })
-          .eq('id', automation.id)
+        // Also skipped for ?now= testing to avoid marking the automation as fired.
+        if (!overrideNow) {
+          await admin
+            .from('automations')
+            .update({ last_fired_at: now.toISOString() })
+            .eq('id', automation.id)
+        }
 
         // Resolve target contacts.
         const accountId = automation.account_id as string

@@ -74,9 +74,13 @@ async function resolveByTags(
     .eq('contacts.account_id', accountId)
     .limit(500)
 
-  if (error || !data) return []
+  if (error) {
+    console.error('[targets] resolveByTags error:', error)
+    return []
+  }
 
   const unique = [...new Set(data.map((r: any) => r.contact_id as string))]
+  console.info('[targets] resolveByTags:', { accountId, tagIds, found: unique.length })
   return unique
 }
 
@@ -88,6 +92,7 @@ async function resolveByPipeline(
   let query = db
     .from('deals')
     .select('contact_id')
+    .eq('account_id', accountId)
     .eq('pipeline_id', cfg.pipeline_id!)
     .not('contact_id', 'is', null)
     .limit(500)
@@ -96,13 +101,27 @@ async function resolveByPipeline(
     query = query.eq('stage_id', cfg.stage_id)
   }
 
-  const status = cfg.deal_status || 'open'
-  query = query.eq('status', status)
+  if (cfg.deal_status) {
+    query = query.eq('status', cfg.deal_status)
+  }
+  // When deal_status is NOT set, don't filter — match any status.
+  // This way the user can target all contacts in a stage regardless
+  // of whether the deal is open/won/lost.
 
   const { data, error } = await query
 
-  if (error || !data) return []
+  if (error) {
+    console.error('[targets] resolveByPipeline error:', error)
+    return []
+  }
 
   const unique = [...new Set(data.map((r: any) => r.contact_id as string))]
+  console.info('[targets] resolveByPipeline:', {
+    accountId,
+    pipeline_id: cfg.pipeline_id,
+    stage_id: cfg.stage_id,
+    deal_status: cfg.deal_status ?? '(any)',
+    found: unique.length,
+  })
   return unique
 }
