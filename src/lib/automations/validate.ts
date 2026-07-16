@@ -233,18 +233,21 @@ export function validateTriggerForActivation(
       })
     }
   } else if (triggerType === 'time_based') {
+    const targetMode = typeof cfg.target_mode === 'string' ? cfg.target_mode : undefined
+    const tagIds = Array.isArray(cfg.tag_ids) ? (cfg.tag_ids as string[]) : undefined
+
     if (!nonEmpty(cfg.schedule)) {
       issues.push({ path: 'trigger.schedule', message: 'schedule is required' })
     }
-    if (cfg.target_mode != null && !['tags', 'pipeline', 'both'].includes(cfg.target_mode)) {
+    if (targetMode != null && !['tags', 'pipeline', 'both'].includes(targetMode)) {
       issues.push({ path: 'trigger.target_mode', message: 'target mode must be "tags", "pipeline", or "both"' })
     }
     if (
-      cfg.target_mode === 'pipeline' ||
-      cfg.target_mode === 'both' ||
-      (!cfg.target_mode && cfg.tag_ids == null)
+      targetMode === 'pipeline' ||
+      targetMode === 'both' ||
+      (!targetMode && tagIds == null)
     ) {
-      if (!nonEmpty(cfg.pipeline_id) && (!cfg.tag_ids || cfg.tag_ids.length === 0)) {
+      if (!nonEmpty(cfg.pipeline_id) && (!tagIds || tagIds.length === 0)) {
         issues.push({ path: 'trigger', message: 'time-based trigger needs at least one targeting criterion (tags or pipeline)' })
       }
     }
