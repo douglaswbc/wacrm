@@ -236,6 +236,18 @@ export function validateTriggerForActivation(
     if (!nonEmpty(cfg.schedule)) {
       issues.push({ path: 'trigger.schedule', message: 'schedule is required' })
     }
+    if (cfg.target_mode != null && !['tags', 'pipeline', 'both'].includes(cfg.target_mode)) {
+      issues.push({ path: 'trigger.target_mode', message: 'target mode must be "tags", "pipeline", or "both"' })
+    }
+    if (
+      cfg.target_mode === 'pipeline' ||
+      cfg.target_mode === 'both' ||
+      (!cfg.target_mode && cfg.tag_ids == null)
+    ) {
+      if (!nonEmpty(cfg.pipeline_id) && (!cfg.tag_ids || cfg.tag_ids.length === 0)) {
+        issues.push({ path: 'trigger', message: 'time-based trigger needs at least one targeting criterion (tags or pipeline)' })
+      }
+    }
   } else if (triggerType === 'tag_added') {
     if (!nonEmpty(cfg.tag_id)) {
       issues.push({ path: 'trigger.tag_id', message: 'tag is required' })

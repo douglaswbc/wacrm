@@ -894,13 +894,9 @@ function TriggerCard({
               </div>
             )}
             {type === "time_based" && (
-              <Input
-                placeholder="Cron expression or HH:mm"
-                value={(config.schedule as string) ?? ""}
-                onChange={(e) =>
-                  onConfigChange({ ...config, schedule: e.target.value })
-                }
-                className="bg-muted text-foreground"
+              <TimeBasedConfig
+                config={config as unknown as Record<string, unknown>}
+                onChange={onConfigChange}
               />
             )}
           </div>
@@ -1143,6 +1139,245 @@ function KeywordMatchConfig({
       )}
     </div>
   )
+}
+
+// ------------------------------------------------------------
+// Time-based trigger config — schedule + targeting
+// ------------------------------------------------------------
+
+function TimeBasedConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const tagIds = (config.tag_ids as string[]) ?? []
+  const pipelineId = (config.pipeline_id as string) ?? ''
+  const stageId = (config.stage_id as string) ?? ''
+  const dealStatus = (config.deal_status as string) ?? 'open'
+  const targetMode = (config.target_mode as string) ?? (pipelineId ? 'pipeline' : 'tags')
+  const { tags, pipelines, stages } = useResources()
+
+  const stageOptions = stages.filter((s) => s.pipeline_id === pipelineId)
+
+  function setTag(newTagId: string) {
+    const next = newTagId ? [newTagId] : []
+    onChange({ ...config, tag_ids: next })
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Schedule */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+          Schedule (HH:mm)
+        </label>
+        <Input
+          placeholder="e.g. 09:50"
+          value={(config.schedule as string) ?? ""}
+          onChange={(e) =>
+            onChange({ ...config, schedule: e.target.value })
+          }
+          className="bg-muted text-foreground"
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Daily time in 24h format. The automation fires once per day
+          when the cron runs (within a ~6 min window).
+        </p>
+      </div>
+
+      {/* Target mode */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+          Target contacts by
+        </label>
+        <select
+          value={targetMode}
+          onChange={(e) => onChange({ ...config, target_mode: e.target.value })}
+          className={SELECT_CLASS}
+        >
+          <option value="tags">Tags</option>
+          <option value="pipeline">Pipeline stage</option>
+          <option value="both">Both (tags AND pipeline)</option>
+        </select>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {targetMode === 'both'
+            ? 'Contacts must match BOTH criteria.'
+            : targetMode === 'pipeline'
+            ? 'All contacts with a deal in the selected stage.'
+            : 'All contacts with the selected tag.'}
+        </p>
+      </div>
+
+      {/* Tag selector */}
+      {(targetMode === 'tags' || targetMode === 'both') && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            Tag
+          </label>
+          <MultiTagSelect tagIds={tagIds} tags={tags} onChange={(ids) => onChange({ ...config, tag_ids: ids })} />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Contacts with any of these tags will receive the message.
+          </p>
+        </div>
+      )}
+
+      {/* Pipeline selector */}
+      {(targetMode === 'pipeline' || targetMode === 'both') && (
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Pipeline
+            </label>
+            {pipelines.length === 0 ? (
+              <Input placeholder="Pipeline ID" value={pipelineId} onChange={(e) => onChange({ ...config, pipeline_id: e.target.value })} className="bg-muted text-foreground" />
+            ) : (
+              <select
+                value={pipelineId}
+                onChange={(e) => {
+                  const nextStageId = stages.find((s) => s.pipeline_id === e.target.value)?.id ?? ''
+                  onChange({ ...config, pipeline_id: e.target.value, stage_id: nextStageId })
+                }}
+                className={SELECT_CLASS}
+              >
+                <option value="">Select a pipeline…</option>
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          {pipelineId && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Stage
+              </label>
+              <select
+                value={stageId}
+                onChange={(e) => onChange({ ...config, stage_id: e.target.value })}
+                className={SELECT_CLASS}
+                disabled={stageOptions.length === 0}
+              >
+                <option value="">Any stage</option>
+                {stageOptions.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Deal status
+            </label>
+            <select
+              value={dealStatus}
+              onChange={(e) => onChange({ ...config, deal_status: e.target.value })}
+              className={SELECT_CLASS}
+            >
+              <option value="open">Open</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+            </select>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Multi-tag selector — renders a compact list of selected tags with
+ * an "Add" button that opens a dropdown. Supports multiple tags unlike
+ * the single-tag TagSelect used in the tag_added trigger.
+ */
+function MultiTagSelect({
+  tagIds,
+  tags: allTags,
+  onChange,
+}: {
+  tagIds: string[]
+  tags: AutomationTagItem[]
+  onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = allTags.filter((t) => tagIds.includes(t.id))
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          SELECT_CLASS,
+          'flex w-full items-center gap-1.5 text-left',
+          selected.length === 0 && 'text-muted-foreground',
+        )}
+      >
+        {selected.length === 0 ? (
+          'Select tags…'
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {selected.map((t) => (
+              <span
+                key={t.id}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-white"
+                style={{ backgroundColor: t.color ?? '#3b82f6' }}
+              >
+                {t.name}
+                <X
+                  className="h-3 w-3 cursor-pointer hover:opacity-70"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onChange(tagIds.filter((id) => id !== t.id))
+                  }}
+                />
+              </span>
+            ))}
+          </div>
+        )}
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-40 overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+          {allTags.map((t) => {
+            const isChecked = tagIds.includes(t.id)
+            return (
+              <label
+                key={t.id}
+                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => {
+                    onChange(
+                      isChecked
+                        ? tagIds.filter((id) => id !== t.id)
+                        : [...tagIds, t.id],
+                    )
+                  }}
+                />
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full border border-border"
+                  style={{ backgroundColor: t.color ?? 'transparent' }}
+                />
+                {t.name}
+              </label>
+            )
+          })}
+          {allTags.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">No tags available.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface AutomationTagItem {
+  id: string
+  name: string
+  color?: string
 }
 
 // ------------------------------------------------------------

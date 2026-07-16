@@ -490,9 +490,29 @@ export interface TagTriggerConfig {
 }
 
 export interface TimeBasedTriggerConfig {
-  /** Cron expression or simple HH:mm string; engine can accept either. */
+  /** Cron expression or simple HH:mm string. Use HH:mm for daily schedules
+   *  parsed by the cron endpoint; full cron expressions also accepted. */
   schedule: string;
   timezone?: string;
+
+  /** How to select the contacts this automation fires for.
+   *  - 'tags': fire for every contact that has at least one of `tag_ids`
+   *  - 'pipeline': fire for every contact with a deal in the given pipeline/stage/status
+   *  - 'both': intersect — contacts must match BOTH tags AND pipeline criteria
+   *  Defaults to 'tags' if tag_ids is set, 'pipeline' if pipeline settings exist,
+   *  otherwise 'tags'. */
+  target_mode?: 'tags' | 'pipeline' | 'both';
+
+  /** Tag IDs the contact must have (at least one). OR logic — if the contact
+   *  has ANY of these tags they're included. */
+  tag_ids?: string[];
+
+  /** Pipeline the contact must have a deal in. */
+  pipeline_id?: string;
+  /** Stage within that pipeline. If omitted, any stage matches. */
+  stage_id?: string;
+  /** Deal status filter. If omitted, defaults to 'open'. */
+  deal_status?: DealStatus;
 }
 
 export type AutomationTriggerConfig =
