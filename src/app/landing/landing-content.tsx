@@ -198,7 +198,7 @@ const integrations = [
 const extraFeatures = [
   { icon: Bell, title: 'Notificações em tempo real', desc: 'Alertas de atribuição de conversas com navegação direta.' },
   { icon: Zap, title: '3 idiomas', desc: 'Português (PT-BR), Inglês e Espanhol com troca instantânea.' },
-  { icon: Shield, title: 'Self-hosted', desc: 'Seu código, seu Supabase, seu domínio, seus dados. Fork e personalize.' },
+  { icon: Shield, title: 'Infraestrutura própria', desc: 'Docker + Traefik com SSL automático. Deploy em minutos no seu VPS.' },
 ]
 
 export function LandingContent() {
@@ -213,20 +213,20 @@ export function LandingContent() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5 text-sm text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              Open Source — MIT License
+              Plataforma Profissional
             </div>
 
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
               CRM para WhatsApp{' '}
               <span className="bg-gradient-to-r from-primary via-primary to-primary-hover bg-clip-text text-transparent">
-                auto-hospedável
+                multi-canal
               </span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Caixa de entrada compartilhada, pipeline de vendas, automações no-code,
-              chatbot visual com IA, broadcasts em massa e API REST. Código aberto —
-              seus dados, sua infraestrutura, seu controle.
+              chatbot visual com IA, broadcasts em massa e API REST. Privacidade total —
+              seus dados, seu domínio, seu controle.
             </p>
 
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -375,7 +375,7 @@ export function LandingContent() {
         </div>
       </section>
 
-      {/* ======== SELF-HOSTED HIGHLIGHT ======== */}
+      {/* ======== INFRASTRUCTURE HIGHLIGHT ======== */}
       <section className="relative overflow-hidden border-y border-border bg-card/30">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
 
@@ -383,26 +383,26 @@ export function LandingContent() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary">
               <Shield className="h-3.5 w-3.5" />
-              Self-Hosted
+              Infraestrutura Própria
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Seu código.{' '}
+              Seu domínio.{' '}
               <span className="bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">
                 Seus dados.
               </span>{' '}
-              Sua infraestrutura.
+              Suas regras.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-              O wacrm é um template — você faz o fork, customiza com sua marca
-              e hospeda onde quiser. Nada de SaaS, nada de vendor lock-in.
-              Docker + Traefik com SSL automático, Supabase como backend.
-              Deploy em uma tarde.
+              O wacrm roda na sua infraestrutura — VPS, cloud ou on-premise.
+              Nada de SaaS, nada de vendor lock-in, nada de compartilhar dados
+              com terceiros. Docker + Traefik com SSL automático, Supabase como
+              backend. Você tem controle total.
             </p>
 
             <div className="mt-10 grid gap-6 sm:grid-cols-3">
               {[
-                { title: 'Código aberto', desc: 'MIT License. Fork, modifique, redistribua.' },
-                { title: 'Dados soberanos', desc: 'Tudo no seu projeto Supabase. RLS em cada tabela.' },
+                { title: 'Código proprietário', desc: 'Personalizado para o seu negócio. Adapte como quiser.' },
+                { title: 'Dados soberanos', desc: 'Tudo no seu projeto Supabase. Criptografia em repouso.' },
                 { title: 'Deploy flexível', desc: 'Docker Swarm + Traefik. Ou onde preferir.' },
               ].map((item) => (
                 <div
@@ -436,14 +436,6 @@ export function LandingContent() {
               Criar Conta Gratuita
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <a
-              href="https://github.com/ArnasDon/wacrm"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-8 py-3.5 text-sm font-semibold transition-all hover:bg-accent sm:w-auto"
-            >
-              Ver no GitHub
-            </a>
           </div>
         </div>
       </section>
@@ -451,22 +443,11 @@ export function LandingContent() {
       {/* ======== FOOTER ======== */}
       <footer className="border-t border-border py-10">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
+          <div className="flex flex-col items-center justify-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <MessageCircle className="h-4 w-4 text-primary" />
               <span className="font-semibold text-foreground">wacrm</span>
-              <span>— CRM auto-hospedável para WhatsApp</span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span>MIT License</span>
-              <a
-                href="https://github.com/ArnasDon/wacrm"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-colors hover:text-foreground"
-              >
-                GitHub
-              </a>
+              <span>— CRM multi-canal para WhatsApp & Instagram</span>
             </div>
           </div>
         </div>

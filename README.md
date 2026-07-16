@@ -40,12 +40,13 @@
   build your own automations on top of your CRM. See
   [docs/public-api.md](./docs/public-api.md).
 
-## Why fork this?
+## Why self-host?
 
-This is a **template**, not a product. Forking means you get:
+Self-hosting means total control:
 
 - **Full ownership** — your code, your Supabase project, your domain,
-  your data. No SaaS lock-in, no seat pricing, no trust dance.
+  your data. No SaaS lock-in, no seat pricing, no sharing data with
+  third parties.
 - **Full customisation** — add the fields your team needs, remove the
   modules you don't, redesign anything. The stack is boring on
   purpose (Next.js + Supabase + Tailwind) so the learning curve is
@@ -58,7 +59,7 @@ This is a **template**, not a product. Forking means you get:
   on every table, HMAC-verified webhooks, CSP, rate limiting, CI
   typecheck/build on every PR.
 
-Not a framework. Not an SDK. A concrete, working CRM you can stand up
+A complete, production-ready CRM you can stand up
 in an afternoon and make yours.
 
 ## Quick start
@@ -188,4 +189,4 @@ Bug reports and security issues are welcome. See
 
 ## License
 
-[MIT](./LICENSE). Fork it, brand it, host it.
+[MIT](./LICENSE)
