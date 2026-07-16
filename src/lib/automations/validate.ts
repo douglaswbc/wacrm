@@ -64,6 +64,29 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.template_name`, message: 'template name is required' })
       }
       break
+    case 'send_button':
+      if (!nonEmpty(c.text)) {
+        issues.push({ path: `${path}.text`, message: 'message text is required' })
+      }
+      if (!Array.isArray(c.buttons) || c.buttons.length === 0) {
+        issues.push({ path: `${path}.buttons`, message: 'at least 1 button is required' })
+      } else if (c.buttons.length > 3) {
+        issues.push({ path: `${path}.buttons`, message: 'maximum 3 buttons allowed' })
+      } else {
+        for (let bi = 0; bi < (c.buttons as unknown[]).length; bi++) {
+          const b = (c.buttons as Record<string, unknown>[])[bi]
+          if (!nonEmpty(b.title)) {
+            issues.push({ path: `${path}.buttons[${bi}].title`, message: 'button title is required' })
+          }
+          if (b.type === 'url' && !nonEmpty(b.url)) {
+            issues.push({ path: `${path}.buttons[${bi}].url`, message: 'URL is required for url-type buttons' })
+          }
+          if (b.type !== 'url' && b.type !== 'postback') {
+            issues.push({ path: `${path}.buttons[${bi}].type`, message: 'button type must be "postback" or "url"' })
+          }
+        }
+      }
+      break
     case 'add_tag':
     case 'remove_tag':
       if (!nonEmpty(c.tag_id)) {

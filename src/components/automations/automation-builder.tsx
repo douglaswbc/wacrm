@@ -102,6 +102,7 @@ interface StepMeta {
 const STEP_META: Record<AutomationStepType, StepMeta> = {
   send_message: { label: "Send Message", icon: MessageSquare, border: "border-l-primary" },
   send_template: { label: "Send Template", icon: FileText, border: "border-l-primary" },
+  send_button: { label: "Send Button", icon: MessageSquare, border: "border-l-primary" },
   add_tag: { label: "Add Tag", icon: Tag, border: "border-l-primary" },
   remove_tag: { label: "Remove Tag", icon: TagIcon, border: "border-l-primary" },
   assign_conversation: { label: "Assign Conversation", icon: UserCheck, border: "border-l-primary" },
@@ -119,6 +120,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
 const ADDABLE_STEPS: AutomationStepType[] = [
   "send_message",
   "send_template",
+  "send_button",
   "add_tag",
   "remove_tag",
   "assign_conversation",
@@ -162,6 +164,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { text: "" }
     case "send_template":
       return { template_name: "", language: "en_US" }
+    case "send_button":
+      return { text: "", buttons: [] }
     case "add_tag":
     case "remove_tag":
       return { tag_id: "" }
@@ -1396,6 +1400,127 @@ function AddButton({ onPick }: { onPick: (t: AutomationStepType) => void }) {
 }
 
 // ------------------------------------------------------------
+// SendButtonFields — config editor for send_button step
+// ------------------------------------------------------------
+
+interface ButtonField {
+  type: "postback" | "url"
+  title: string
+  payload?: string
+  url?: string
+}
+
+function SendButtonFields({
+  cfg,
+  onChange,
+}: {
+  cfg: Record<string, unknown>
+  onChange: (patch: Record<string, unknown>) => void
+}) {
+  const buttons = (cfg.buttons as ButtonField[]) ?? []
+
+  return (
+    <>
+      <FieldBlock label="Message text">
+        <Textarea
+          value={(cfg.text as string) ?? ""}
+          onChange={(e) => onChange({ text: e.target.value })}
+          placeholder="Choose an option below..."
+          className="min-h-20 bg-muted text-foreground"
+        />
+      </FieldBlock>
+
+      <FieldBlock label={`Buttons (${buttons.length}/3)`}>
+        <div className="space-y-2">
+          {buttons.map((btn, i) => (
+            <div
+              key={i}
+              className="rounded-md border border-border bg-muted p-2 space-y-2"
+            >
+              <div className="flex items-center gap-2">
+                <select
+                  value={btn.type ?? "postback"}
+                  onChange={(e) => {
+                    const next = [...buttons]
+                    next[i] = { ...next[i], type: e.target.value as "postback" | "url" }
+                    onChange({ buttons: next })
+                  }}
+                  className="w-24 rounded border border-border bg-background px-2 py-1 text-xs"
+                >
+                  <option value="postback">Postback</option>
+                  <option value="url">URL</option>
+                </select>
+                <input
+                  value={btn.title ?? ""}
+                  onChange={(e) => {
+                    const next = [...buttons]
+                    next[i] = { ...next[i], title: e.target.value }
+                    onChange({ buttons: next })
+                  }}
+                  placeholder="Button title"
+                  className="flex-1 rounded border border-border bg-background px-2 py-1 text-sm"
+                  maxLength={20}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = buttons.filter((_, j) => j !== i)
+                    onChange({ buttons: next })
+                  }}
+                  className="text-destructive hover:text-destructive/80 p-1 flex-shrink-0"
+                  aria-label="Remove button"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              {btn.type === "url" ? (
+                <input
+                  value={btn.url ?? ""}
+                  onChange={(e) => {
+                    const next = [...buttons]
+                    next[i] = { ...next[i], url: e.target.value }
+                    onChange({ buttons: next })
+                  }}
+                  placeholder="https://..."
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              ) : (
+                <input
+                  value={btn.payload ?? ""}
+                  onChange={(e) => {
+                    const next = [...buttons]
+                    next[i] = { ...next[i], payload: e.target.value }
+                    onChange({ buttons: next })
+                  }}
+                  placeholder="Payload (optional)"
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              )}
+            </div>
+          ))}
+          {buttons.length < 3 && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange({
+                  buttons: [
+                    ...buttons,
+                    { type: "postback", title: "", payload: "" },
+                  ],
+                })
+              }}
+              className="w-full rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+            >
+              + Add button
+            </button>
+          )}
+        </div>
+      </FieldBlock>
+    </>
+  )
+}
+
+// ------------------------------------------------------------
 // Per-step config editor
 // ------------------------------------------------------------
 
@@ -1430,6 +1555,8 @@ function StepEditor({
           onChange={(patch) => set(patch)}
         />
       )
+    case "send_button":
+      return <SendButtonFields cfg={cfg} onChange={set} />
     case "add_tag":
     case "remove_tag":
       return (
@@ -1739,6 +1866,9 @@ function previewFor(step: BuilderStep): string {
       return (step.step_config.text as string) || "no text yet"
     case "send_template":
       return (step.step_config.template_name as string) || "pick a template"
+    case "send_button":
+      const btnCount = Array.isArray(step.step_config.buttons) ? (step.step_config.buttons as unknown[]).length : 0
+      return btnCount > 0 ? `${btnCount} button(s)` : "no buttons yet"
     case "wait":
       return `${step.step_config.amount ?? "?"} ${step.step_config.unit ?? ""}`
     case "condition":

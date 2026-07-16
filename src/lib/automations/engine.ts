@@ -10,6 +10,7 @@ import type {
   KeywordMatchTriggerConfig,
   SendMessageStepConfig,
   SendTemplateStepConfig,
+  SendButtonStepConfig,
   SendWebhookStepConfig,
   TagStepConfig,
   UpdateContactFieldStepConfig,
@@ -18,7 +19,7 @@ import type {
   AssignConversationStepConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
-import { engineSendText, engineSendTemplate } from './meta-send'
+import { engineSendText, engineSendTemplate, engineSendButton } from './meta-send'
 import { generateReply } from '@/lib/ai/generate'
 import { loadAiConfig } from '@/lib/ai/config'
 import { buildConversationContext } from '@/lib/ai/context'
@@ -463,6 +464,23 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         params,
       })
       return `template sent via Meta (${whatsapp_message_id})`
+    }
+
+    case 'send_button': {
+      const cfg = step.step_config as SendButtonStepConfig
+      if (!args.contactId) throw new Error('send_button needs a contact')
+      if (!cfg.text?.trim()) throw new Error('send_button has empty text')
+      if (!cfg.buttons?.length) throw new Error('send_button needs at least 1 button')
+      const conversationId = await resolveConversationId(args)
+      const { whatsapp_message_id } = await engineSendButton({
+        accountId: args.automation.account_id,
+        userId: args.automation.user_id,
+        conversationId,
+        contactId: args.contactId,
+        text: interpolate(cfg.text, args),
+        buttons: cfg.buttons,
+      })
+      return `button message sent via Meta (${whatsapp_message_id})`
     }
 
     case 'add_tag': {

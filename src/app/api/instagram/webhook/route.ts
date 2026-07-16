@@ -234,9 +234,9 @@ async function processInstagramWebhook(body: InstagramWebhookPayload) {
 
     console.log('[instagram webhook] entry', entry.id, 'has', entry.messaging.length, 'messaging items')
 
-    // The recipient.id in the first messaging item is the Instagram
-    // Business Account ID that received the message.
-    const recipientIgUserId = entry.messaging[0]?.recipient?.id
+    // entry.id is always the Instagram Business Account ID,
+    // regardless of message direction (inbound vs echo).
+    const recipientIgUserId = entry.id
     if (!recipientIgUserId) {
       console.log('[instagram webhook] entry has no recipient id')
       continue

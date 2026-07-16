@@ -460,6 +460,7 @@ export type AutomationTriggerType =
 export type AutomationStepType =
   | 'send_message'
   | 'send_template'
+  | 'send_button'
   | 'add_tag'
   | 'remove_tag'
   | 'assign_conversation'
@@ -509,6 +510,16 @@ export interface SendTemplateStepConfig {
   template_name: string;
   language?: string;
   variables?: Record<string, string>;
+}
+
+export interface SendButtonStepConfig {
+  text: string;
+  buttons: {
+    type: 'postback' | 'url';
+    title: string;
+    payload?: string;
+    url?: string;
+  }[];
 }
 
 export interface TagStepConfig {

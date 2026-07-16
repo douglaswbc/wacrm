@@ -1,4 +1,4 @@
-import { sendTextMessage, sendTemplateMessage } from '@/lib/whatsapp/meta-api'
+import { sendTextMessage, sendTemplateMessage, sendInteractiveButtons } from '@/lib/whatsapp/meta-api'
 import { sendTextMessage as sendIgTextMessage, sendButtonTemplate, sendPrivateReply } from '@/lib/instagram/meta-api'
 import { sendText as sendRyzeText } from '@/lib/ryzeapi/client'
 import { decrypt } from '@/lib/whatsapp/encryption'
@@ -48,6 +48,15 @@ interface SendTemplateArgs {
   params?: string[]
 }
 
+interface SendButtonArgs {
+  accountId: string
+  userId: string
+  conversationId: string
+  contactId: string
+  text: string
+  buttons: { type: 'postback' | 'url'; title: string; payload?: string; url?: string }[]
+}
+
 export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_message_id: string }> {
   return sendViaMeta({ ...args, kind: 'text' })
 }
@@ -58,9 +67,16 @@ export async function engineSendTemplate(
   return sendViaMeta({ ...args, kind: 'template' })
 }
 
+export async function engineSendButton(
+  args: SendButtonArgs,
+): Promise<{ whatsapp_message_id: string }> {
+  return sendViaMeta({ ...args, kind: 'button' })
+}
+
 type SendInput =
   | (SendTextArgs & { kind: 'text' })
   | (SendTemplateArgs & { kind: 'template' })
+  | (SendButtonArgs & { kind: 'button' })
 
 async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
@@ -135,6 +151,39 @@ async function sendViaWhatsAppAPI(
       })
       return r.messageId
     }
+    if (input.kind === 'button') {
+      const replyButtons = input.buttons
+        .filter((b) => b.type === 'postback')
+        .map((b) => ({ id: b.payload || b.title, title: b.title }))
+      const urlButtons = input.buttons.filter((b) => b.type === 'url' && b.url)
+      if (replyButtons.length > 0) {
+        const r = await sendInteractiveButtons({
+          phoneNumberId: config.phone_number_id,
+          accessToken,
+          to: phone,
+          bodyText: input.text,
+          buttons: replyButtons,
+        })
+        return r.messageId
+      }
+      if (urlButtons.length > 0) {
+        const urlLines = urlButtons.map((b, i) => `${i + 1}. ${b.title}: ${b.url}`).join('\n')
+        const r = await sendTextMessage({
+          phoneNumberId: config.phone_number_id,
+          accessToken,
+          to: phone,
+          text: `${input.text}\n\n${urlLines}`,
+        })
+        return r.messageId
+      }
+      const r = await sendTextMessage({
+        phoneNumberId: config.phone_number_id,
+        accessToken,
+        to: phone,
+        text: input.text,
+      })
+      return r.messageId
+    }
     const r = await sendTextMessage({
       phoneNumberId: config.phone_number_id,
       accessToken,
@@ -172,8 +221,8 @@ async function sendViaWhatsAppAPI(
   // Persist the sent message so it appears in the inbox with a real
   // Meta message id. sender_type='bot' distinguishes automation sends
   // from manual agent sends.
-  const content_type = input.kind === 'template' ? 'template' : 'text'
-  const content_text = input.kind === 'text' ? input.text : null
+  const content_type = input.kind === 'template' ? 'template' : input.kind === 'button' ? 'interactive' : 'text'
+  const content_text = input.kind === 'text' || input.kind === 'button' ? input.text : null
   const template_name = input.kind === 'template' ? input.templateName : null
 
   const { error: msgErr } = await db.from('messages').insert({
@@ -196,7 +245,7 @@ async function sendViaWhatsAppAPI(
     .from('conversations')
     .update({
       last_message_text:
-        input.kind === 'template' ? `[template:${input.templateName}]` : input.text,
+        input.kind === 'template' ? `[template:${input.templateName}]` : input.kind === 'button' ? `[buttons] ${input.text.substring(0, 80)}` : input.text,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -246,6 +295,19 @@ async function sendViaRyzeAPI(
       message: `[template:${input.templateName}]`,
     })
     ryzeMessageId = r.messageId
+  } else if (input.kind === 'button') {
+    const buttonLines = input.buttons
+      .map((b, i) => `${i + 1}. ${b.title}${b.type === 'url' && b.url ? ` - ${b.url}` : ''}`)
+      .join('\n')
+    const message = `${input.text}\n\n${buttonLines}`
+    const r = await sendRyzeText({
+      apiUrl: config.api_url,
+      instanceToken,
+      instance: config.instance_name,
+      number: sanitized,
+      message,
+    })
+    ryzeMessageId = r.messageId
   } else {
     const r = await sendRyzeText({
       apiUrl: config.api_url,
@@ -257,8 +319,8 @@ async function sendViaRyzeAPI(
     ryzeMessageId = r.messageId
   }
 
-  const content_type = input.kind === 'template' ? 'template' : 'text'
-  const content_text = input.kind === 'text' ? input.text : null
+  const content_type = input.kind === 'template' ? 'template' : input.kind === 'button' ? 'interactive' : 'text'
+  const content_text = input.kind === 'text' || input.kind === 'button' ? input.text : null
   const template_name = input.kind === 'template' ? input.templateName : null
 
   const { error: msgErr } = await db.from('messages').insert({
@@ -279,7 +341,7 @@ async function sendViaRyzeAPI(
     .from('conversations')
     .update({
       last_message_text:
-        input.kind === 'template' ? `[template:${input.templateName}]` : input.text,
+        input.kind === 'template' ? `[template:${input.templateName}]` : input.kind === 'button' ? `[buttons] ${input.text.substring(0, 80)}` : input.text,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -361,6 +423,19 @@ async function sendViaInstagramAPI(
       buttons: [{ type: 'postback', title: input.templateName, payload: `template_${input.templateName}` }],
     })
     igMessageId = r.messageId
+  } else if (input.kind === 'button') {
+    const r = await sendButtonTemplate({
+      igUserId,
+      accessToken,
+      to: contact.instagram_id,
+      text: input.text,
+      buttons: input.buttons.map((b) => ({
+        type: b.type === 'url' ? 'web_url' as const : 'postback' as const,
+        title: b.title,
+        ...(b.type === 'url' ? { url: b.url! } : { payload: b.payload || b.title }),
+      })),
+    })
+    igMessageId = r.messageId
   } else {
     const r = await sendIgTextMessage({
       igUserId,
@@ -371,8 +446,8 @@ async function sendViaInstagramAPI(
     igMessageId = r.messageId
   }
 
-  const content_type = input.kind === 'template' ? 'template' : 'text'
-  const content_text = input.kind === 'text' ? input.text : null
+  const content_type = input.kind === 'template' ? 'template' : input.kind === 'button' ? 'interactive' : 'text'
+  const content_text = input.kind === 'text' || input.kind === 'button' ? input.text : null
   const template_name = input.kind === 'template' ? input.templateName : null
 
   const { error: msgErr } = await db.from('messages').insert({
@@ -393,7 +468,7 @@ async function sendViaInstagramAPI(
     .from('conversations')
     .update({
       last_message_text:
-        input.kind === 'template' ? `[template:${input.templateName}]` : input.text,
+        input.kind === 'template' ? `[template:${input.templateName}]` : input.kind === 'button' ? `[buttons] ${input.text.substring(0, 80)}` : input.text,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
