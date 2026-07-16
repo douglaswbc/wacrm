@@ -131,9 +131,10 @@ export async function PUT(request: Request) {
       }
 
       // If we didn't get expires_at from exchange, try debugToken as fallback.
-      if (!tokenExpiresAt) {
+      // debugToken needs app credentials for auth — skip if none provided.
+      if (!tokenExpiresAt && body.meta_app_id && body.meta_app_secret) {
         try {
-          const debug = await debugToken(rawToken);
+          const debug = await debugToken(rawToken, body.meta_app_id, body.meta_app_secret);
           if (debug.expiresAt) {
             tokenExpiresAt = new Date(debug.expiresAt * 1000).toISOString();
             console.info("[PUT /api/account/instagram-config] resolved token expiry via debugToken");

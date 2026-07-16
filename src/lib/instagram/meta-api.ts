@@ -104,20 +104,27 @@ export async function exchangeToken(
  * Debug an access token via Meta's /debug_token endpoint.
  *
  * GET /debug_token?input_token={token}
- *   Requires an app access token OR a valid user access token for the
- *   app that created the token being inspected.
+ *   The Authorization header must carry either:
+ *     - an app access token (app_id|app_secret), or
+ *     - a user access token belonging to a developer/admin of the app
+ *       that created the token being inspected.
  *
- * We use the token being inspected itself — Meta allows self-inspection
- * for user tokens. Returns validity, expiry, scopes, and app info.
+ * Self-inspection (using the same token as auth) is NOT supported by
+ * Meta — it fails with "Cannot parse access token". We always use the
+ * app-level token formed from appId + appSecret.
  */
 export async function debugToken(
   accessToken: string,
+  appId: string,
+  appSecret: string,
 ): Promise<DebugTokenResult> {
   const params = new URLSearchParams({ input_token: accessToken })
   const url = `${FACEBOOK_API_BASE}/debug_token?${params.toString()}`
 
+  const appAccessToken = `${appId}|${appSecret}`
+
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${appAccessToken}` },
   })
 
   if (!response.ok) {
