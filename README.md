@@ -19,16 +19,20 @@ clone or fork it to run your own CRM.
 
 ## What you get out of the box
 
-- **Shared inbox** on the official WhatsApp Business API — multiple
-  agents working one number, per-conversation assignment, status, and
-  notes.
+- **Shared inbox** on the official WhatsApp Business API and
+  Instagram Messaging API — multiple agents working one number/account,
+  per-conversation assignment, status, and notes.
 - **Contacts + tags + custom fields**, CSV import, deduplication.
 - **Sales pipelines** (Kanban) with deals linked to conversations.
 - **Broadcasts** with Meta-approved templates, delivery + read
   tracking, per-recipient variable substitution.
 - **No-code automations** — triggers on inbound messages, new
-  contacts, keywords, or schedule; conditional branches, waits,
-  tags, webhooks. Visual builder.
+  contacts, keywords, time-based schedules, or tag/pipeline events;
+  conditional branches, waits, tags, webhooks. Visual builder.
+- **Time-based automations with targeting** — send scheduled messages
+  to contacts filtered by tags, pipeline stage, or deal status.
+  Cron-driven dispatch with dedup; optional `?now=HH:mm` for manual
+  testing.
 - **AI reply assistant** — bring your own OpenAI or Anthropic key
   (stored encrypted; no per-seat AI fee, your data stays yours).
   One-click AI-drafted replies in the inbox, plus an optional
@@ -120,7 +124,9 @@ Required variables — configure in `.env.local` before building:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (bypasses RLS) |
 | `ENCRYPTION_KEY` | 64-char hex for token encryption (`crypto.randomBytes(32).toString('hex')`) |
-| `META_APP_SECRET` | Meta App Secret for webhook verification |
+| `AUTOMATION_CRON_SECRET` | Shared secret protecting `/api/automations/cron` (required for wait steps and time-based triggers) |
+| `META_APP_SECRET` | Meta App Secret for WhatsApp webhook verification |
+| `INSTAGRAM_APP_SECRET` | Meta App Secret for Instagram webhook verification (separate app) |
 | `NEXT_PUBLIC_SITE_URL` | Public URL of your CRM (`https://crm.seudominio.com`) |
 
 ### Supabase Auth URL configuration
@@ -157,6 +163,18 @@ docker build -t wacrm:latest .
 docker stack deploy -c wacrm.yaml wacrm
 ```
 
+### Automation cron
+
+Time-based automations and wait steps depend on the cron endpoint being
+called every ~5 minutes. Set `AUTOMATION_CRON_SECRET` in `.env.local`,
+then register a crontab (or a Vercel Cron / n8n Schedule Trigger):
+
+```bash
+echo "*/5 * * * * curl -s -H 'x-cron-secret: YOUR_SECRET' https://your-domain.com/api/automations/cron >> /var/log/wacrm-cron.log 2>&1" | crontab -
+```
+
+Use `?now=HH:mm` for manual testing (bypasses schedule check and dedup).
+
 ## Documentation
 
 Full self-host documentation — Supabase migrations, WhatsApp Business
@@ -177,7 +195,10 @@ Key pages:
 
 - **App** — Next.js 16 (App Router), React 19, TypeScript, Tailwind v4.
 - **Data** — Supabase (Postgres + Auth + Storage + RLS).
-- **WhatsApp** — Meta Cloud API (official WhatsApp Business API).
+- **WhatsApp** — Meta Cloud API (official WhatsApp Business API) and
+  RyzeAPI (self-hosted WhatsApp gateway).
+- **Instagram** — Instagram Graph API for messaging, comments, and
+  post-based automations. Supports long-lived token auto-refresh.
 
 ## Contributing
 

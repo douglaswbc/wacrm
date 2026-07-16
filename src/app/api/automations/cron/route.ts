@@ -103,28 +103,47 @@ export async function GET(request: Request) {
 
     if (tbErr) {
       console.error('[cron] time-based fetch failed:', tbErr)
-    } else if (automations && automations.length > 0) {
+    } else if (!automations || automations.length === 0) {
+      console.info('[cron] no time-based automations found')
+    } else {
+      console.info('[cron] checking', automations.length, 'time-based automations at',
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`)
+
       for (const automation of automations as any[]) {
         const cfg = (automation.trigger_config ?? {}) as TimeBasedTriggerConfig
-        if (!cfg.schedule) continue
+        const autoName = automation.name || automation.id
+
+        if (!cfg.schedule) {
+          console.info('[cron] skip', autoName, '— no schedule in trigger_config')
+          continue
+        }
 
         // Parse HH:mm schedule
         const parsed = parseSchedule(cfg.schedule)
         if (parsed === null) {
-          console.warn('[cron] time-based automation has unparseable schedule:', automation.id, cfg.schedule)
+          console.warn('[cron] skip', autoName, '— unparseable schedule:', cfg.schedule)
           continue
         }
 
         const scheduledMinutes = parsed.hours * 60 + parsed.minutes
-        // Allow a 6-minute window (cron runs every ~5 min + 1 min grace).
         const diff = Math.abs(currentMinutes - scheduledMinutes)
-        if (diff > 6) continue
+        if (diff > 6) {
+          console.info('[cron] skip', autoName, '— schedule', cfg.schedule,
+            `(diff ${diff} min > 6 min window)`)
+          continue
+        }
+
+        console.info('[cron] matched', autoName, '— schedule', cfg.schedule,
+          `(diff ${diff} min, within window)`)
 
         // Dedup: skip if already fired within the last 6 minutes.
         // Bypassed when ?now= is set so manual testing can re-fire.
         if (!overrideNow) {
           const lastFired = automation.last_fired_at ? new Date(automation.last_fired_at as string) : null
-          if (lastFired && (now.getTime() - lastFired.getTime()) < 6 * 60 * 1000) continue
+          if (lastFired && (now.getTime() - lastFired.getTime()) < 6 * 60 * 1000) {
+            console.info('[cron] skip', autoName, '— already fired at', lastFired.toISOString())
+            continue
+          }
         }
 
         // Update last_fired_at before dispatching (minimize double-fire risk).
@@ -141,9 +160,11 @@ export async function GET(request: Request) {
         const contactIds = await resolveTargetContacts(accountId, cfg)
 
         if (contactIds.length === 0) {
-          console.info('[cron] time-based automation has no matching contacts:', automation.id)
+          console.info('[cron] skip', autoName, '— resolveTargetContacts returned 0 contacts')
           continue
         }
+
+        console.info('[cron] dispatching', autoName, 'to', contactIds.length, 'contacts:', contactIds)
 
         const channel = (automation.channel as 'whatsapp' | 'instagram' | null) ?? undefined
         const provider = (automation.provider as 'meta' | 'ryzeapi' | null) ?? undefined
