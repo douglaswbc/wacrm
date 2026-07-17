@@ -169,10 +169,7 @@ export async function disconnectCalendar(
 
   await db.from('calendar_events').delete().eq('account_id', accountId);
 
-  await db
-    .from('calendar_connections')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
-    .eq('id', row.id);
+  await db.from('calendar_connections').delete().eq('id', row.id);
 }
 
 export function serializeConnection(

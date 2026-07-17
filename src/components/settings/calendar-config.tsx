@@ -78,7 +78,7 @@ export function CalendarConfig() {
 
       const { error } = await supabase
         .from('calendar_connections')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .delete()
         .eq('id', connection.id)
         .eq('account_id', accountId);
 
