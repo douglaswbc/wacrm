@@ -3,7 +3,6 @@ import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import {
   listEvents,
   createEvent,
-  serializeEvent,
 } from '@/lib/calendar/events';
 
 export async function GET(request: Request) {
@@ -86,7 +85,7 @@ export async function POST(request: Request) {
         typeof body.color === 'string' ? body.color : undefined,
     });
 
-    return ok(serializeEvent(event), 201);
+    return ok(event, 201);
   } catch (err) {
     return toApiErrorResponse(err);
   }
