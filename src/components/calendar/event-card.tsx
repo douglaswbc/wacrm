@@ -1,12 +1,13 @@
 'use client';
 
 import type { CalendarEvent } from '@/types';
+import type { MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Clock, MapPin } from 'lucide-react';
 
 interface EventCardProps {
   event: CalendarEvent;
-  onClick: () => void;
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
   compact?: boolean;
 }
 
