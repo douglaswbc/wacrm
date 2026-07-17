@@ -58,13 +58,13 @@ export async function GET(request: Request) {
       primary.summary ?? null
     );
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? url.origin;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? url.origin;
     return NextResponse.redirect(
       `${baseUrl}/settings?tab=calendar&connected=true`
     );
   } catch (err) {
     console.error('[api/calendar/callback] error:', err);
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
     return NextResponse.redirect(
       `${baseUrl}/settings?tab=calendar&error=oauth_failed`
     );
