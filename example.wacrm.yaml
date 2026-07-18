@@ -22,11 +22,17 @@ services:
       ## Criptografia e Segurança
       - ENCRYPTION_KEY=0dae52338a092a8862c971563dd1335f51df1509097220b2b231c4e5f65a8949
       - META_APP_SECRET=secret_key_app
+      - INSTAGRAM_APP_SECRET=13036b872gbgbfbgf3
+      - AUTOMATION_CRON_SECRET=generate-a-long-random-string
 
       ## Google Calendar
       - GOOGLE_CALENDAR_CLIENT_ID=your-client-id.apps.googleusercontent.com
       - GOOGLE_CALENDAR_CLIENT_SECRET=GOCSPX-your-client-secret
       - GOOGLE_CALENDAR_REDIRECT_URI=https://wacrm.seudominio.com.br/api/calendar/callback
+
+      # RyzeAPI
+      - RYZEAPI_API_URL=https://ryzeapi.cloud
+      - RYZEAPI_ADMIN_TOKEN=8425509dffgrbrgbf
 
       ## URL pública
       - NEXT_PUBLIC_SITE_URL=https://wacrm.seudominio.com.br
