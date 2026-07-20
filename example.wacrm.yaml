@@ -20,9 +20,9 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=role_key
 
       ## Criptografia e Segurança
-      - ENCRYPTION_KEY=0dae52338a092a8862c971563dd1335f51df1509097220b2b231c4e5f65a8949
+      - ENCRYPTION_KEY=sua_encryption_key
       - META_APP_SECRET=secret_key_app
-      - INSTAGRAM_APP_SECRET=13036b872gbgbfbgf3
+      - INSTAGRAM_APP_SECRET=secret_key_instagram
       - AUTOMATION_CRON_SECRET=generate-a-long-random-string
 
       ## Google Calendar
@@ -32,7 +32,7 @@ services:
 
       # RyzeAPI
       - RYZEAPI_API_URL=https://ryzeapi.cloud
-      - RYZEAPI_ADMIN_TOKEN=8425509dffgrbrgbf
+      - RYZEAPI_ADMIN_TOKEN=admin_token
 
       ## URL pública
       - NEXT_PUBLIC_SITE_URL=https://wacrm.seudominio.com.br
