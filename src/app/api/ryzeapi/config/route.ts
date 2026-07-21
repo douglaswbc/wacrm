@@ -63,7 +63,7 @@ export async function GET() {
     // "closed" → "connected" — we detect that here and update the DB.
     if (config.status === 'pending_qr') {
       try {
-        const adminToken = decrypt(config.api_token)
+        const adminToken = (process.env.RYZEAPI_ADMIN_TOKEN ?? '').trim()
         const instances = await listInstances({
           apiUrl: config.api_url,
           adminToken,
@@ -178,7 +178,7 @@ export async function DELETE() {
 
     const { data: config } = await supabase
       .from('ryzeapi_config')
-      .select('instance_name, api_url, api_token')
+      .select('instance_name, api_url')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -189,10 +189,10 @@ export async function DELETE() {
     // Delete the instance on the RyzeAPI server first.
     let remoteDeleted = false
     try {
-      const token = decrypt(config.api_token)
+      const adminToken = (process.env.RYZEAPI_ADMIN_TOKEN ?? '').trim()
       await deleteInstance({
         apiUrl: config.api_url,
-        adminToken: token,
+        adminToken,
         instance: config.instance_name,
       })
       remoteDeleted = true
@@ -403,7 +403,7 @@ async function handleConnect(
   }
 
   // Reconfigure webhook with instance name in URL.
-  const adminToken = decrypt(config.api_token)
+  const adminToken = (process.env.RYZEAPI_ADMIN_TOKEN ?? '').trim()
   try {
     const baseUrl = String(body.webhook_url ?? '').trim()
     if (baseUrl) {
@@ -435,16 +435,16 @@ async function handleLogout(
 ) {
   const { data: config } = await supabase
     .from('ryzeapi_config')
-    .select('instance_name, api_url, api_token')
+    .select('instance_name, api_url')
     .eq('account_id', accountId)
     .maybeSingle()
 
   if (config) {
     try {
-      const token = decrypt(config.api_token)
+      const adminToken = (process.env.RYZEAPI_ADMIN_TOKEN ?? '').trim()
       await logoutInstance({
         apiUrl: config.api_url,
-        adminToken: token,
+        adminToken,
         instance: config.instance_name,
       })
     } catch (e) {
@@ -491,7 +491,7 @@ async function handleReconnect(
     return NextResponse.json({ error: 'No RyzeAPI config found' }, { status: 404 })
   }
 
-  const adminToken = decrypt(config.api_token)
+  const adminToken = (process.env.RYZEAPI_ADMIN_TOKEN ?? '').trim()
   const instanceToken = decrypt(config.instance_token)
 
   try {
