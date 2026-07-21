@@ -340,11 +340,9 @@ export interface DeleteInstanceArgs {
 }
 
 export async function deleteInstance(args: DeleteInstanceArgs): Promise<void> {
-  await restFetch(
-    args.apiUrl, args.adminToken,
-    `/api/instance/delete/${encodeURIComponent(args.instance)}`,
-    { method: 'DELETE' },
-  )
+  await mcpCall(args.apiUrl, args.adminToken, 'ryzeapi_instance_delete', {
+    instance: args.instance,
+  })
 }
 
 export interface ReconnectInstanceArgs {
