@@ -91,9 +91,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
   }'
 
 # PIX payment (RyzeAPI only)
-curl -X POST https://your-crm.example.com/api/v1/messages \
-  -H "Authorization: Bearer wacrm_live_xxx" \
-  -H "Content-Type: application/json" \
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
   -d '{
     "to": "+14155550123",
     "type": "pix",
@@ -107,9 +107,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \
   }'
 
 # Image (RyzeAPI)
-curl -X POST https://your-crm.example.com/api/v1/messages \
-  -H "Authorization: Bearer wacrm_live_xxx" \
-  -H "Content-Type: application/json" \
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
   -d '{
     "to": "+14155550123",
     "type": "image",
@@ -118,9 +118,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \
   }'
 
 # Video (RyzeAPI)
-curl -X POST https://your-crm.example.com/api/v1/messages \
-  -H "Authorization: Bearer wacrm_live_xxx" \
-  -H "Content-Type: application/json" \
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
   -d '{
     "to": "+14155550123",
     "type": "video",
@@ -129,9 +129,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \
   }'
 
 # Document (RyzeAPI)
-curl -X POST https://your-crm.example.com/api/v1/messages \
-  -H "Authorization: Bearer wacrm_live_xxx" \
-  -H "Content-Type: application/json" \
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
   -d '{
     "to": "+14155550123",
     "type": "document",
@@ -141,9 +141,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \
   }'
 
 # Audio (RyzeAPI)
-curl -X POST https://your-crm.example.com/api/v1/messages \
-  -H "Authorization: Bearer wacrm_live_xxx" \
-  -H "Content-Type: application/json" \
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
   -d '{
     "to": "+14155550123",
     "type": "audio",

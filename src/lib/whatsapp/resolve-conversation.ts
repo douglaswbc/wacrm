@@ -60,12 +60,25 @@ export async function resolveConversationByPhone(
     .select('id')
     .eq('account_id', accountId)
     .maybeSingle();
+
+  // If neither Meta nor RyzeAPI is configured, fail fast. This allows
+  // accounts with only RyzeAPI to resolve conversations without needing
+  // a Meta config row.
   if (!config) {
-    throw new SendMessageError(
-      'whatsapp_not_configured',
-      'WhatsApp not configured. Please set up your WhatsApp integration first.',
-      400
-    );
+    const { data: ryzeConfig } = await db
+      .from('ryzeapi_config')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('status', 'connected')
+      .maybeSingle();
+
+    if (!ryzeConfig) {
+      throw new SendMessageError(
+        'whatsapp_not_configured',
+        'WhatsApp not configured. Please set up your WhatsApp integration first.',
+        400
+      );
+    }
   }
 
   // Audit user for created rows = the single account-wide default used

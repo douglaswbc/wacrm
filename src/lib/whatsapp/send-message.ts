@@ -324,15 +324,6 @@ export async function sendMessageToConversation(
     return sendRyzeMessage(db, accountId, conversationId, sanitizedPhone, params);
   }
 
-  // PIX is only available through RyzeAPI (native WhatsApp protocol).
-  if (messageType === 'pix') {
-    throw new SendMessageError(
-      'bad_request',
-      'PIX messages are only available via the RyzeAPI provider. Meta Cloud API does not support PIX cards.',
-      400,
-    );
-  }
-
   // WhatsApp config, account-scoped.
   const { data: config, error: configError } = await db
     .from('whatsapp_config')
@@ -340,11 +331,36 @@ export async function sendMessageToConversation(
     .eq('account_id', accountId)
     .single();
 
+  // If provider is NULL (unset) and Meta is not configured, check if
+  // RyzeAPI is available as a fallback. This lets accounts with only
+  // RyzeAPI send messages without explicitly setting provider on every
+  // conversation. When Meta is configured later, the explicit provider
+  // field takes precedence.
   if (configError || !config) {
+    const { data: ryzeConfig } = await db
+      .from('ryzeapi_config')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('status', 'connected')
+      .maybeSingle();
+
+    if (ryzeConfig) {
+      return sendRyzeMessage(db, accountId, conversationId, sanitizedPhone, params);
+    }
+
     throw new SendMessageError(
       'whatsapp_not_configured',
       'WhatsApp not configured. Please set up your WhatsApp integration first.',
       400
+    );
+  }
+
+  // PIX is only available through RyzeAPI (native WhatsApp protocol).
+  if (messageType === 'pix') {
+    throw new SendMessageError(
+      'bad_request',
+      'PIX messages are only available via the RyzeAPI provider. Meta Cloud API does not support PIX cards.',
+      400,
     );
   }
 

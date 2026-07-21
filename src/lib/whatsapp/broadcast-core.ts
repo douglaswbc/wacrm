@@ -116,13 +116,35 @@ export async function createBroadcast(
     .select('*')
     .eq('account_id', accountId)
     .single();
+
+  // If neither Meta nor RyzeAPI is configured, fail fast. Broadcasts
+  // currently only support Meta templates, but this allows the check
+  // to pass for accounts with only RyzeAPI.
   if (configError || !config) {
+    const { data: ryzeConfig } = await db
+      .from('ryzeapi_config')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('status', 'connected')
+      .maybeSingle();
+
+    if (!ryzeConfig) {
+      throw new BroadcastError(
+        'whatsapp_not_configured',
+        'WhatsApp not configured. Please set up your WhatsApp integration first.',
+        400
+      );
+    }
+
+    // RyzeAPI doesn't support Meta template broadcasts, so fail with
+    // a clear message if only RyzeAPI is available.
     throw new BroadcastError(
-      'whatsapp_not_configured',
-      'WhatsApp not configured. Please set up your WhatsApp integration first.',
+      'ryzeapi_not_configured',
+      'Broadcasts require Meta Cloud API with approved message templates. RyzeAPI does not support template broadcasts.',
       400
     );
   }
+
   const accessToken = decrypt(config.access_token);
 
   // Template row (once) for header/button components; guard a
