@@ -107,6 +107,8 @@ export interface SendMessageParams {
   pixKeyType?: string | null;
   merchantName?: string | null;
   pixItems?: { name: string; description?: string; quantity: number; unitPrice: number }[] | null;
+  // Link preview for text messages
+  linkPreview?: boolean | null;
 }
 
 export interface SendMessageResult {
@@ -265,6 +267,7 @@ export async function sendMessageToConversation(
     pixKeyType,
     merchantName,
     pixItems,
+    linkPreview,
   } = params;
 
   if (!conversationId) {
@@ -495,6 +498,7 @@ export async function sendMessageToConversation(
       to: phone,
       text: contentText!,
       contextMessageId,
+      linkPreview: linkPreview || undefined,
     });
     return result.messageId;
   };
@@ -649,6 +653,7 @@ async function sendRyzeMessage(
     pixKeyType,
     merchantName,
     pixItems,
+    linkPreview,
   } = params;
 
   let ryzeMessageId = '';
@@ -725,6 +730,7 @@ async function sendRyzeMessage(
         instance: config.instance_name,
         number: phone,
         message: contentText || '',
+        linkPreview: linkPreview || undefined,
       });
       ryzeMessageId = r.messageId;
     }

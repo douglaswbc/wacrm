@@ -223,6 +223,9 @@ export interface SendTextMessageArgs {
   /** Meta's message_id of the message being replied to. Adds a `context` field
    *  so WhatsApp renders the new message as a reply with a quote preview. */
   contextMessageId?: string
+  /** When true, WhatsApp fetches Open Graph metadata from URLs in the text
+   *  and renders a link preview card. */
+  linkPreview?: boolean
 }
 
 /**
@@ -232,7 +235,7 @@ export interface SendTextMessageArgs {
 export async function sendTextMessage(
   args: SendTextMessageArgs
 ): Promise<MetaSendResult> {
-  const { phoneNumberId, accessToken, to, text, contextMessageId } = args
+  const { phoneNumberId, accessToken, to, text, contextMessageId, linkPreview } = args
   const url = `${META_API_BASE}/${phoneNumberId}/messages`
   const body: Record<string, unknown> = {
     messaging_product: 'whatsapp',
@@ -243,6 +246,9 @@ export async function sendTextMessage(
   }
   if (contextMessageId) {
     body.context = { message_id: contextMessageId }
+  }
+  if (linkPreview) {
+    (body.text as Record<string, unknown>).preview_url = true
   }
   const response = await fetch(url, {
     method: 'POST',

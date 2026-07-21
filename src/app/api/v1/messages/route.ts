@@ -45,6 +45,7 @@
 //       { "name": "Product A", "quantity": 1, "unit_price": 99.90 }
 //     ],
 //     "reply_to_message_id": "<uuid>",       // optional
+//     "link_preview": true,                  // optional, enables URL preview card (text messages only)
 //     "name": "Jane Doe"                     // optional, for newly-created contact
 //   }
 //
@@ -228,6 +229,7 @@ export async function POST(request: Request) {
         pixKeyType: typeof body.pix_key_type === 'string' ? body.pix_key_type : null,
         merchantName: typeof body.merchant_name === 'string' ? body.merchant_name : null,
         pixItems,
+        linkPreview: typeof body.link_preview === 'boolean' ? body.link_preview : null,
       },
     )
 

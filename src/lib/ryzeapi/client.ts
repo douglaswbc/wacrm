@@ -442,6 +442,7 @@ export interface SendTextArgs {
   replyTo?: string
   mention?: string[]
   mentionAll?: boolean
+  linkPreview?: boolean
 }
 
 export async function sendText(args: SendTextArgs): Promise<RyzeApiSendResult> {
@@ -453,6 +454,7 @@ export async function sendText(args: SendTextArgs): Promise<RyzeApiSendResult> {
     replyTo: args.replyTo,
     mention: args.mention,
     mentionAll: args.mentionAll,
+    linkPreview: args.linkPreview,
   })
   const r = result as Record<string, unknown>
   return { messageId: String(r?.messageId ?? r?.message_id ?? r?.id ?? '') }

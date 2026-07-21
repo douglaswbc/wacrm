@@ -74,6 +74,17 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
   -H "Content-Type: application/json" \\
   -d '{ "to": "+14155550123", "type": "text", "text": "Hi 👋" }'
 
+# Text message with link preview
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "+14155550123",
+    "type": "text",
+    "text": "Check out this website: https://example.com",
+    "link_preview": true
+  }'
+
 # Interactive buttons
 curl -X POST https://your-crm.example.com/api/v1/messages \\
   -H "Authorization: Bearer wacrm_live_xxx" \\
