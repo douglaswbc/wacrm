@@ -7,6 +7,7 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import type { ParsedInbound } from '@/lib/flows/types'
+import type { AutomationTriggerType } from '@/types'
 
 export const maxDuration = 60
 
@@ -349,14 +350,23 @@ async function processInboundMessage(
   } = args
 
   // 1. Find or create contact.
-  const contactId = await upsertContact(db, accountId, configOwnerUserId, fromPhone, pushName)
+  const contactOutcome = await upsertContact(db, accountId, configOwnerUserId, fromPhone, pushName)
+  const contactId = contactOutcome.id
 
   // 2. Find or create conversation.
   const conversationId = await upsertConversation(
     db, accountId, configOwnerUserId, contactId,
   )
 
-  // 3. Insert message.
+  // 3. Check if this is the contact's first inbound message (before inserting).
+  const { count: priorCustomerMsgCount } = await db
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .eq('sender_type', 'customer')
+  const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
+
+  // 4. Insert message.
   const contentType = mapContentType(messageType)
   const text = contentText ?? null
 
@@ -375,7 +385,7 @@ async function processInboundMessage(
     console.error('[ryzeapi webhook] message insert error:', msgErr)
   }
 
-  // 4. Update conversation.
+  // 5. Update conversation.
   const preview = text?.slice(0, 200) ?? typePreview(messageType)
 
   await db
@@ -387,21 +397,8 @@ async function processInboundMessage(
     })
     .eq('id', conversationId)
 
-  // 5. Fire automations.
+  // 6. Dispatch to flows first to determine if the message was consumed.
   const inboundText = text ?? preview
-  await runAutomationsForTrigger({
-    accountId,
-    triggerType: 'new_message_received',
-    contactId,
-    channel: 'whatsapp',
-    provider: 'ryzeapi',
-    context: {
-      message_text: inboundText,
-      conversation_id: conversationId,
-    },
-  }).catch((err) => console.error('[automations] dispatch failed:', err))
-
-  // 6. Dispatch to flows.
   const parsedInbound: ParsedInbound = interactiveReplyId
     ? {
         kind: 'interactive_reply',
@@ -415,7 +412,7 @@ async function processInboundMessage(
         meta_message_id: messageId,
       }
 
-  await dispatchInboundToFlows({
+  const flowResult = await dispatchInboundToFlows({
     accountId,
     userId: configOwnerUserId,
     contactId,
@@ -423,18 +420,47 @@ async function processInboundMessage(
     message: parsedInbound,
     channel: 'whatsapp',
     provider: 'ryzeapi',
-    isFirstInboundMessage: false,
-  }).catch((err) => console.error('[flows] dispatch failed:', err))
+    isFirstInboundMessage,
+  }).catch((err) => {
+    console.error('[flows] dispatch failed:', err)
+    return { consumed: false }
+  })
+  const flowConsumed = flowResult.consumed
 
-  // 7. AI auto-reply.
-  await dispatchInboundToAiReply({
-    accountId,
-    contactId,
-    conversationId,
-    configOwnerUserId,
-  }).catch((err) => console.error('[ai] dispatch failed:', err))
+  // 7. Fire automations. All dispatches run here so the contact,
+  // conversation, and inbound message all exist before any step runs.
+  const automationTriggers: AutomationTriggerType[] = []
+  if (!flowConsumed) {
+    automationTriggers.push('new_message_received', 'keyword_match')
+  }
+  if (contactOutcome.wasCreated) automationTriggers.unshift('new_contact_created')
+  if (isFirstInboundMessage) automationTriggers.unshift('first_inbound_message')
 
-  // 8. Webhook delivery.
+  for (const triggerType of automationTriggers) {
+    runAutomationsForTrigger({
+      accountId,
+      triggerType,
+      contactId,
+      channel: 'whatsapp',
+      provider: 'ryzeapi',
+      context: {
+        message_text: inboundText,
+        conversation_id: conversationId,
+      },
+    }).catch((err) => console.error('[automations] dispatch failed:', err))
+  }
+
+  // 8. AI auto-reply (only if flow did not consume the message).
+  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+    await dispatchInboundToAiReply({
+      accountId,
+      contactId,
+      conversationId,
+      configOwnerUserId,
+    }).catch((err) => console.error('[ai] dispatch failed:', err))
+  }
+
+  // 9. Webhook delivery.
   await dispatchWebhookEvent(
     db,
     accountId,
@@ -459,9 +485,17 @@ async function upsertContact(
   userId: string,
   phone: string,
   pushName: string | null,
-): Promise<string> {
+): Promise<{ id: string; wasCreated: boolean }> {
   const existing = await findExistingContact(db, accountId, phone)
-  if (existing) return existing.id
+  if (existing) {
+    if (pushName && pushName !== existing.name) {
+      await db
+        .from('contacts')
+        .update({ name: pushName, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+    }
+    return { id: existing.id, wasCreated: false }
+  }
 
   const { data: created, error } = await db
     .from('contacts')
@@ -479,12 +513,12 @@ async function upsertContact(
   if (error) {
     if (isUniqueViolation(error)) {
       const again = await findExistingContact(db, accountId, phone)
-      if (again) return again.id
+      if (again) return { id: again.id, wasCreated: false }
     }
     throw error
   }
 
-  return created.id
+  return { id: created.id, wasCreated: true }
 }
 
 async function upsertConversation(
