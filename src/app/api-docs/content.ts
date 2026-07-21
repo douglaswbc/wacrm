@@ -91,9 +91,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
   }'
 
 # PIX payment (RyzeAPI only)
-curl -X POST https://your-crm.example.com/api/v1/messages \\
-  -H "Authorization: Bearer wacrm_live_xxx" \\
-  -H "Content-Type: application/json" \\
+curl -X POST https://your-crm.example.com/api/v1/messages \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
   -d '{
     "to": "+14155550123",
     "type": "pix",
@@ -104,6 +104,50 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
     "pix_items": [
       { "name": "Widget", "quantity": 2, "unit_price": 49.90 }
     ]
+  }'
+
+# Image (RyzeAPI)
+curl -X POST https://your-crm.example.com/api/v1/messages \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "+14155550123",
+    "type": "image",
+    "text": "Check out our new product!",
+    "media_url": "https://example.com/images/product.jpg"
+  }'
+
+# Video (RyzeAPI)
+curl -X POST https://your-crm.example.com/api/v1/messages \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "+14155550123",
+    "type": "video",
+    "text": "Watch our latest tutorial",
+    "media_url": "https://example.com/videos/tutorial.mp4"
+  }'
+
+# Document (RyzeAPI)
+curl -X POST https://your-crm.example.com/api/v1/messages \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "+14155550123",
+    "type": "document",
+    "text": "Your invoice is ready",
+    "media_url": "https://example.com/docs/invoice.pdf",
+    "filename": "invoice-123.pdf"
+  }'
+
+# Audio (RyzeAPI)
+curl -X POST https://your-crm.example.com/api/v1/messages \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "+14155550123",
+    "type": "audio",
+    "media_url": "https://example.com/audio/voice-note.ogg"
   }'`,
   json: `{
   "data": {
