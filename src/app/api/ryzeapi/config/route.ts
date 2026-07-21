@@ -121,6 +121,7 @@ export async function GET() {
  *   'connect' — regenerates QR code for existing instance
  *   'logout'  — logs out the instance (keeps config, status=disconnected)
  *   'reconnect' — reconnect existing instance + regen QR
+ *   'update_relay' — update the relay_url for raw payload forwarding
  */
 export async function POST(request: Request) {
   try {
@@ -149,6 +150,9 @@ export async function POST(request: Request) {
     }
     if (action === 'reconnect') {
       return handleReconnect(supabase, accountId, user.id, body)
+    }
+    if (action === 'update_relay') {
+      return handleUpdateRelay(supabase, accountId, body)
     }
 
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
@@ -337,6 +341,7 @@ async function handleCreate(
     qr_base64: qr,
     qr_expires_at: qrExpires ? qrExpires : null,
     webhook_label: 'wacrm',
+    relay_url: String(body.relay_url ?? '').trim() || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -580,4 +585,44 @@ async function handleReconnect(
   return NextResponse.json({
     config: { ...safe, qr_base64: qr, qr_expires_at: qrExpires, status: newStatus },
   })
+}
+
+async function handleUpdateRelay(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  accountId: string,
+  body: Record<string, unknown>,
+) {
+  const relayUrl = String(body.relay_url ?? '').trim()
+
+  // Validate URL if provided
+  if (relayUrl) {
+    try {
+      const u = new URL(relayUrl)
+      if (u.protocol !== 'https:') {
+        return NextResponse.json(
+          { error: 'relay_url must be a valid https:// URL' },
+          { status: 400 },
+        )
+      }
+    } catch {
+      return NextResponse.json(
+        { error: 'relay_url must be a valid https:// URL' },
+        { status: 400 },
+      )
+    }
+  }
+
+  const { error: updErr } = await supabase
+    .from('ryzeapi_config')
+    .update({
+      relay_url: relayUrl || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('account_id', accountId)
+
+  if (updErr) {
+    return NextResponse.json({ error: 'Failed to update relay URL' }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, relay_url: relayUrl || null })
 }

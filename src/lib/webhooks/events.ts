@@ -10,7 +10,10 @@
 export const WEBHOOK_EVENTS = [
   'message.received', // an inbound WhatsApp message landed
   'message.status_updated', // a sent message advanced (sent/delivered/read)
+  'message.sent', // an outbound message was sent
   'conversation.created', // a new conversation was opened for a contact
+  'conversation.updated', // a conversation status changed (closed, assigned, etc)
+  'contact.created', // a new contact was created
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
@@ -20,7 +23,10 @@ export const WEBHOOK_EVENT_DESCRIPTIONS: Record<WebhookEvent, string> = {
   'message.received': 'An inbound message was received from a contact',
   'message.status_updated':
     'A message you sent changed delivery status (sent/delivered/read/failed)',
+  'message.sent': 'An outbound message was sent successfully',
   'conversation.created': 'A new conversation was opened',
+  'conversation.updated': 'A conversation was updated (closed, assigned, reopened)',
+  'contact.created': 'A new contact was created',
 };
 
 /** Type-narrow an unknown value into a valid `WebhookEvent`. */

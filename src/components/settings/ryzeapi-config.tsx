@@ -39,6 +39,7 @@ interface ConfigShape {
   qr_base64?: string;
   qr_expires_at?: string;
   connected_at?: string;
+  relay_url?: string | null;
 }
 
 export function RyzeApiConfig() {
@@ -50,6 +51,7 @@ export function RyzeApiConfig() {
   const [status, setStatus] = useState<ConnectionStatus>('unknown');
 
   const [instanceName, setInstanceName] = useState('');
+  const [relayUrl, setRelayUrl] = useState('');
   const [qrExpiry, setQrExpiry] = useState<string | null>(null);
   const [pollTimer, setPollTimer] = useState<ReturnType<typeof setInterval> | null>(null);
 
@@ -68,11 +70,13 @@ export function RyzeApiConfig() {
         const data = (await res.json()) as ConfigShape;
         setConfig(data);
         setInstanceName(data.instance_name ?? '');
+        setRelayUrl(data.relay_url ?? '');
         setStatus(data.status ?? 'disconnected');
         setQrExpiry(data.qr_expires_at ?? null);
       } else {
         setConfig(null);
         setInstanceName('');
+        setRelayUrl('');
         setStatus('disconnected');
         setQrExpiry(null);
       }
@@ -238,8 +242,31 @@ export function RyzeApiConfig() {
       toast.success('RyzeAPI config removed.');
       setConfig(null);
       setInstanceName('');
+      setRelayUrl('');
       setStatus('disconnected');
       setQrExpiry(null);
+    } catch {
+      toast.error('Could not reach RyzeAPI');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveRelay() {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/ryzeapi/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_relay', relay_url: relayUrl || null }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to update relay URL');
+        return;
+      }
+      toast.success('Relay URL updated.');
+      setConfig((prev) => prev ? { ...prev, relay_url: relayUrl || null } : null);
     } catch {
       toast.error('Could not reach RyzeAPI');
     } finally {
@@ -405,6 +432,48 @@ export function RyzeApiConfig() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Relay URL */}
+          {config && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-foreground">Raw Payload Relay</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Forward the raw RyzeAPI webhook payload to an external URL (e.g., n8n, Zapier). Useful for accessing button selections, list replies, and other RyzeAPI-specific data.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Relay URL</Label>
+                  <Input
+                    placeholder="https://your-service.com/webhook/ryzeapi"
+                    value={relayUrl}
+                    onChange={(e) => setRelayUrl(e.target.value)}
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveRelay}
+                  disabled={saving}
+                  className="border-border text-muted-foreground hover:text-foreground"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="size-3.5" />
+                      Save Relay URL
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           )}

@@ -271,7 +271,7 @@ export async function POST(request: Request) {
 
   const { data: config } = await db
     .from('ryzeapi_config')
-    .select('account_id')
+    .select('account_id, relay_url')
     .eq('instance_name', instanceName)
     .eq('status', 'connected')
     .maybeSingle()
@@ -282,6 +282,7 @@ export async function POST(request: Request) {
   }
 
   const accountId: string = config.account_id
+  const relayUrl = config.relay_url as string | null
 
   // We need the user_id of whoever saved the config (audit column).
   const { data: configRow } = await db
@@ -294,6 +295,16 @@ export async function POST(request: Request) {
   // ---- Process message in after() -------------------------------------
 
   after(async () => {
+    // Relay raw payload to external URL (fire-and-forget)
+    if (relayUrl) {
+      fetch(relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: raw,
+        signal: AbortSignal.timeout(5000),
+      }).catch((err) => console.error('[ryzeapi relay] failed:', err))
+    }
+
     try {
       await processInboundMessage(db, {
         accountId,
@@ -648,6 +659,27 @@ async function handleMessageStatus(
 
     if (error) {
       console.error('[ryzeapi webhook] status update error:', error)
+      return
+    }
+
+    // Dispatch message.status_updated webhook event
+    const { data: msgRow } = await db
+      .from('messages')
+      .select('conversation_id, conversations!inner(account_id, channel, provider)')
+      .eq('message_id', id)
+      .maybeSingle()
+
+    if (msgRow) {
+      const conv = msgRow.conversations as { account_id: string; channel?: string; provider?: string } | null
+      if (conv?.account_id) {
+        await dispatchWebhookEvent(db, conv.account_id, 'message.status_updated', {
+          whatsapp_message_id: id,
+          conversation_id: msgRow.conversation_id,
+          status: dbStatus,
+          channel: conv.channel ?? 'whatsapp',
+          provider: conv.provider ?? 'ryzeapi',
+        })
+      }
     }
   }
 }

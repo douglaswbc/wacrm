@@ -12,6 +12,7 @@ import {
   Tags,
   User,
   UsersRound,
+  Webhook,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -38,6 +39,7 @@ export const SETTINGS_SECTIONS = [
   'members',
   'ai',
   'api',
+  'webhooks',
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
@@ -67,6 +69,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   members: { id: 'members', label: 'Team members', icon: UsersRound, group: 'workspace' },
   ai: { id: 'ai', label: 'AI Assistant', icon: Sparkles, group: 'workspace' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace' },
+  webhooks: { id: 'webhooks', label: 'Webhooks', icon: Webhook, group: 'workspace' },
 };
 
 export const RAIL_GROUPS: { label: string | null; group: SectionMeta['group'] }[] = [

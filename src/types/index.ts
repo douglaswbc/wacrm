@@ -301,6 +301,7 @@ export interface RyzeApiConfig {
   qr_base64?: string;
   qr_expires_at?: string;
   webhook_label?: string;
+  relay_url?: string | null;
   connected_at?: string;
   created_at?: string;
   updated_at?: string;
