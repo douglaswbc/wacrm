@@ -375,6 +375,14 @@ export async function logoutInstance(args: LogoutInstanceArgs): Promise<void> {
   })
 }
 
+// ---- Public API: Delete instance (MCP) ---------------------------------
+
+export async function deleteInstanceViaMcp(args: DeleteInstanceArgs): Promise<void> {
+  await mcpCall(args.apiUrl, args.adminToken, 'ryzeapi_instance_delete', {
+    instance: args.instance,
+  })
+}
+
 // ---- Public API: Webhook config (MCP) ---------------------------------
 
 export interface SetWebhookArgs {
