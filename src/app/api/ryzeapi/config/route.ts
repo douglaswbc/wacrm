@@ -275,11 +275,12 @@ async function handleCreate(
       name: instanceName,
       webhookUrl: webhookUrl || undefined,
       webhookEvents: ['message.exchange', 'message.status'],
+      webhookMediaBase64: true,
     })
     instance = result.instance
   } catch (err) {
-    // createInstance may have created the instance on REST but failed
-    // during MCP webhook_set. Clean up the remote instance if possible.
+    // The REST POST may have created the instance but returned an error.
+    // Clean up the remote instance if possible.
     try {
       await deleteInstance({ apiUrl, adminToken, instance: instanceName })
     } catch {

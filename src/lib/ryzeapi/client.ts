@@ -258,6 +258,7 @@ export interface CreateInstanceArgs {
   name: string
   webhookUrl?: string
   webhookEvents?: string[]
+  webhookMediaBase64?: boolean
 }
 
 export async function createInstance(
@@ -268,25 +269,14 @@ export async function createInstance(
     body.webhookEnabled = true
     body.webhookURL = args.webhookUrl
     body.webhookEvents = args.webhookEvents ?? ['message.exchange', 'message.status']
+    if (args.webhookMediaBase64 !== undefined) {
+      body.webhookMediaBase64 = args.webhookMediaBase64
+    }
   }
-  const result = await restFetch<RyzeApiCreateResult>(
+  return await restFetch<RyzeApiCreateResult>(
     args.apiUrl, args.adminToken, '/api/instance/new',
     { method: 'POST', body: JSON.stringify(body) },
   )
-  // Webhook configuration is MANDATORY — without it, inbound messages
-  // never arrive. Use admin token for MCP auth since the instance token
-  // may have limited scope before the instance is connected.
-  if (args.webhookUrl) {
-    await setWebhook({
-      apiUrl: args.apiUrl,
-      instanceToken: args.adminToken,
-      instance: args.name,
-      enabled: true,
-      url: args.webhookUrl,
-      events: args.webhookEvents ?? ['message.exchange', 'message.status'],
-    })
-  }
-  return result
 }
 
 export interface ConnectInstanceArgs {
@@ -340,9 +330,11 @@ export interface DeleteInstanceArgs {
 }
 
 export async function deleteInstance(args: DeleteInstanceArgs): Promise<void> {
-  await mcpCall(args.apiUrl, args.adminToken, 'ryzeapi_instance_delete', {
-    instance: args.instance,
-  })
+  await restFetch(
+    args.apiUrl, args.adminToken,
+    `/api/instance/delete/${encodeURIComponent(args.instance)}`,
+    { method: 'DELETE' },
+  )
 }
 
 export interface ReconnectInstanceArgs {
