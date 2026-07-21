@@ -78,7 +78,7 @@ async function restFetch<T>(
 ): Promise<T> {
   const url = `${apiUrl.replace(/\/$/, '')}${path}`
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${token}`,
+    'token': token,
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string> | undefined),
   }
@@ -340,23 +340,11 @@ export interface DeleteInstanceArgs {
 }
 
 export async function deleteInstance(args: DeleteInstanceArgs): Promise<void> {
-  const url = `${args.apiUrl.replace(/\/$/, '')}/api/instance/delete/${encodeURIComponent(args.instance)}`
-  const res = await fetch(url, {
-    method: 'DELETE',
-    headers: { 'token': args.adminToken, 'Content-Type': 'application/json' },
-  })
-  if (!res.ok) {
-    let message = `RyzeAPI returned ${res.status}`
-    try {
-      const body = await res.json() as Record<string, unknown>
-      if (body && typeof body === 'object') {
-        const err = body.error as Record<string, unknown> | undefined
-        if (err && typeof err === 'object' && err.message) message = String(err.message)
-        else if (body.message) message = String(body.message)
-      }
-    } catch { /* non-JSON */ }
-    throw new RyzeApiError(message, res.status)
-  }
+  await restFetch(
+    args.apiUrl, args.adminToken,
+    `/api/instance/delete/${encodeURIComponent(args.instance)}`,
+    { method: 'DELETE' },
+  )
 }
 
 export interface ReconnectInstanceArgs {
