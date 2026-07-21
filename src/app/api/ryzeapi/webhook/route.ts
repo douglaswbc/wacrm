@@ -377,6 +377,22 @@ async function processInboundMessage(
     .eq('sender_type', 'customer')
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
+  // Deduplication: if a message with the same message_id already exists
+  // in this conversation, skip the insert. Providers commonly retry
+  // webhooks on non-200 responses, which would otherwise create
+  // duplicate message rows.
+  const { count: existingMsgCount } = await db
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .eq('message_id', messageId)
+  if (existingMsgCount && existingMsgCount > 0) {
+    console.log(
+      `[ryzeapi webhook] deduplicated message ${messageId} in conversation ${conversationId}`
+    )
+    return
+  }
+
   // 4. Insert message.
   const contentType = mapContentType(messageType)
   const text = contentText ?? null
@@ -538,17 +554,29 @@ async function upsertConversation(
   userId: string,
   contactId: string,
 ): Promise<string> {
+  // Find existing conversation — match by account, contact, channel, and
+  // provider. Do NOT filter by status so we reuse closed conversations
+  // (consistent with the Meta webhook behavior).
   const { data: existing } = await db
     .from('conversations')
-    .select('id')
+    .select('id, status')
     .eq('account_id', accountId)
     .eq('contact_id', contactId)
     .eq('channel', 'whatsapp')
     .eq('provider', 'ryzeapi')
-    .eq('status', 'open')
     .maybeSingle()
 
-  if (existing) return existing.id
+  if (existing) {
+    // Re-open the conversation if it was closed — an inbound message is
+    // the strongest "customer is back" signal.
+    if (existing.status === 'closed' || existing.status === 'pending') {
+      await db
+        .from('conversations')
+        .update({ status: 'open', updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+    }
+    return existing.id
+  }
 
   const { data: created, error } = await db
     .from('conversations')

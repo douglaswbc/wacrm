@@ -670,6 +670,22 @@ async function processMessage(
     .eq('sender_type', 'customer')
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
+  // Deduplication: if a message with the same message_id already exists
+  // in this conversation, skip the insert. Providers commonly retry
+  // webhooks on non-200 responses, which would otherwise create
+  // duplicate message rows.
+  const { count: existingMsgCount } = await supabaseAdmin()
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversation.id)
+    .eq('message_id', message.id)
+  if (existingMsgCount && existingMsgCount > 0) {
+    console.log(
+      `[webhook] deduplicated message ${message.id} in conversation ${conversation.id}`
+    )
+    return
+  }
+
   const { error: msgError } = await supabaseAdmin().from('messages').insert({
     account_id: conversation.account_id,
     conversation_id: conversation.id,
@@ -1059,6 +1075,14 @@ async function findOrCreateConversation(
     .maybeSingle()
 
   if (!findError && existing) {
+    // Re-open the conversation if it was closed — an inbound message is
+    // the strongest "customer is back" signal.
+    if (existing.status === 'closed' || existing.status === 'pending') {
+      await supabaseAdmin()
+        .from('conversations')
+        .update({ status: 'open', updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+    }
     return { conversation: existing, created: false }
   }
 
