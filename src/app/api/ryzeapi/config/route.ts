@@ -6,7 +6,7 @@ import {
   createInstance,
   connectInstance,
   listInstances,
-  deleteInstanceViaMcp,
+  deleteInstance,
   logoutInstance,
   reconnectInstance,
   setWebhook,
@@ -190,7 +190,7 @@ export async function DELETE() {
     let remoteDeleted = false
     try {
       const token = decrypt(config.api_token)
-      await deleteInstanceViaMcp({
+      await deleteInstance({
         apiUrl: config.api_url,
         adminToken: token,
         instance: config.instance_name,
@@ -281,7 +281,7 @@ async function handleCreate(
     // createInstance may have created the instance on REST but failed
     // during MCP webhook_set. Clean up the remote instance if possible.
     try {
-      await deleteInstanceViaMcp({ apiUrl, adminToken, instance: instanceName })
+      await deleteInstance({ apiUrl, adminToken, instance: instanceName })
     } catch {
       // best effort
     }
@@ -310,7 +310,7 @@ async function handleCreate(
   } catch (err) {
     // Connection failed but instance was created — clean up the instance.
     try {
-      await deleteInstanceViaMcp({ apiUrl, adminToken, instance: instanceName })
+      await deleteInstance({ apiUrl, adminToken, instance: instanceName })
     } catch {
       // best effort
     }

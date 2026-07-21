@@ -340,11 +340,23 @@ export interface DeleteInstanceArgs {
 }
 
 export async function deleteInstance(args: DeleteInstanceArgs): Promise<void> {
-  await restFetch(
-    args.apiUrl, args.adminToken,
-    `/api/instance/delete/${encodeURIComponent(args.instance)}`,
-    { method: 'DELETE' },
-  )
+  const url = `${args.apiUrl.replace(/\/$/, '')}/api/instance/delete/${encodeURIComponent(args.instance)}`
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'token': args.adminToken, 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) {
+    let message = `RyzeAPI returned ${res.status}`
+    try {
+      const body = await res.json() as Record<string, unknown>
+      if (body && typeof body === 'object') {
+        const err = body.error as Record<string, unknown> | undefined
+        if (err && typeof err === 'object' && err.message) message = String(err.message)
+        else if (body.message) message = String(body.message)
+      }
+    } catch { /* non-JSON */ }
+    throw new RyzeApiError(message, res.status)
+  }
 }
 
 export interface ReconnectInstanceArgs {
@@ -371,14 +383,6 @@ export interface LogoutInstanceArgs {
 
 export async function logoutInstance(args: LogoutInstanceArgs): Promise<void> {
   await mcpCall(args.apiUrl, args.adminToken, 'ryzeapi_instance_logout', {
-    instance: args.instance,
-  })
-}
-
-// ---- Public API: Delete instance (MCP) ---------------------------------
-
-export async function deleteInstanceViaMcp(args: DeleteInstanceArgs): Promise<void> {
-  await mcpCall(args.apiUrl, args.adminToken, 'ryzeapi_instance_delete', {
     instance: args.instance,
   })
 }
