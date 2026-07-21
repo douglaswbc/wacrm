@@ -57,6 +57,26 @@ export interface RyzeApiWebhookConfig {
   mediaBase64?: boolean
 }
 
+export interface RyzeApiGroup {
+  id: string
+  name: string
+  subject?: string
+  description?: string
+  participants?: Array<{
+    id: string
+    admin: boolean
+  }>
+  size?: number
+  owner?: string
+  creation?: number
+}
+
+export interface RyzeApiGroupParticipantAction {
+  action: 'add' | 'approve' | 'reject' | 'remove'
+  identifier: string
+  participants: string[]
+}
+
 // ---- Errors ----------------------------------------------------------
 
 class RyzeApiError extends Error {
@@ -564,4 +584,71 @@ export async function getHealth(apiUrl: string): Promise<RyzeApiHealth> {
   const url = `${apiUrl.replace(/\/$/, '')}/health`
   const res = await fetch(url)
   return res.json() as Promise<RyzeApiHealth>
+}
+
+// ---- Public API: Group management (MCP) -------------------------------
+
+export interface ListGroupsArgs {
+  apiUrl: string
+  instanceToken: string
+  instance: string
+}
+
+export interface ListGroupsResult {
+  groups: RyzeApiGroup[]
+}
+
+export async function listGroups(
+  args: ListGroupsArgs,
+): Promise<ListGroupsResult> {
+  const result = await mcpCall(args.apiUrl, args.instanceToken, 'ryzeapi_group_list', {
+    instance: args.instance,
+    includeMembers: true,
+  })
+  const r = result as Record<string, unknown>
+  const groups = (r?.groups ?? r?.data ?? []) as Array<Record<string, unknown>>
+  return {
+    groups: groups.map((g) => ({
+      id: String(g?.id ?? g?.groupJid ?? ''),
+      name: String(g?.name ?? g?.subject ?? ''),
+      subject: g?.subject ? String(g.subject) : undefined,
+      description: g?.description ? String(g.description) : undefined,
+      participants: Array.isArray(g?.participants)
+        ? (g.participants as Array<Record<string, unknown>>).map((p) => ({
+            id: String(p?.id ?? p?.jid ?? ''),
+            admin: Boolean(p?.admin ?? p?.isAdmin),
+          }))
+        : [],
+      size: typeof g?.size === 'number' ? g.size : undefined,
+      owner: g?.owner ? String(g.owner) : undefined,
+      creation: typeof g?.creation === 'number' ? g.creation : undefined,
+    })),
+  }
+}
+
+export interface ManageParticipantsArgs {
+  apiUrl: string
+  instanceToken: string
+  instance: string
+  action: 'add' | 'approve' | 'reject' | 'remove'
+  identifier: string
+  participants: string[]
+}
+
+export async function manageParticipants(
+  args: ManageParticipantsArgs,
+): Promise<{ success: boolean; action: string; identifier: string; participants: string[] }> {
+  const result = await mcpCall(args.apiUrl, args.instanceToken, 'ryzeapi_group_update_participants', {
+    instance: args.instance,
+    action: args.action,
+    identifier: args.identifier,
+    participants: args.participants,
+  })
+  const r = result as Record<string, unknown>
+  return {
+    success: r?.success !== false,
+    action: args.action,
+    identifier: args.identifier,
+    participants: args.participants,
+  }
 }

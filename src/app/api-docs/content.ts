@@ -888,6 +888,105 @@ const mediaLibraryTagsDelete: EndpointDoc = {
 }`,
 };
 
+const groupsList: EndpointDoc = {
+  method: 'GET',
+  path: '/api/v1/groups',
+  scopes: ['conversations:read'],
+  description: {
+    pt: 'Lista todos os grupos do WhatsApp da instância RyzeAPI conectada, incluindo participantes de cada grupo. Requer RyzeAPI configurado e conectado.',
+    es: 'Lista todos los grupos de WhatsApp de la instancia RyzeAPI conectada, incluyendo participantes de cada grupo. Requiere RyzeAPI configurado y conectado.',
+    en: 'List all WhatsApp groups from the connected RyzeAPI instance, including participants for each group. Requires RyzeAPI configured and connected.',
+  },
+  details: [
+    'Returns groups with full participant lists (id, admin status).',
+    'Each group includes: id (JID), name, description, participants array, size, owner, creation timestamp.',
+    'Only available when RyzeAPI provider is configured and connected.',
+  ],
+  curl: `curl https://your-crm.example.com/api/v1/groups \\
+  -H "Authorization: Bearer wacrm_live_xxx"`,
+  json: `{
+  "data": [
+    {
+      "id": "120363406289005073@g.us",
+      "name": "Team Updates",
+      "description": "Internal team announcements",
+      "participants": [
+        { "id": "5511999999999@s.whatsapp.net", "admin": true },
+        { "id": "5521988888888@s.whatsapp.net", "admin": false }
+      ],
+      "size": 2,
+      "owner": "5511999999999@s.whatsapp.net",
+      "creation": 1625097600
+    }
+  ]
+}`,
+};
+
+const groupsManageParticipants: EndpointDoc = {
+  method: 'POST',
+  path: '/api/v1/groups/{id}/participants',
+  scopes: ['conversations:write'],
+  description: {
+    pt: 'Gerencia participantes de um grupo do WhatsApp. Ações suportadas: add (adicionar), approve (aprovar solicitação), reject (rejeitar solicitação), remove (remover). O {id} é o JID do grupo (ex: 120363406289005073@g.us).',
+    es: 'Gestiona participantes de un grupo de WhatsApp. Acciones soportadas: add (añadir), approve (aprobar solicitud), reject (rechazar solicitud), remove (eliminar). El {id} es el JID del grupo (ej: 120363406289005073@g.us).',
+    en: 'Manage participants in a WhatsApp group. Supported actions: add, approve (approve request), reject (reject request), remove. The {id} is the group JID (e.g. 120363406289005073@g.us).',
+  },
+  details: [
+    'action must be one of: add, approve, reject, remove.',
+    'participants is an array of phone numbers (E.164) or JIDs.',
+    'For add/remove: use phone numbers like "5511999999999".',
+    'For approve/reject: use LIDs like "199789077627112@lid" from pending requests.',
+    'The group identifier {id} must be the full JID (ends with @g.us).',
+  ],
+  curl: `# Add participants
+curl -X POST https://your-crm.example.com/api/v1/groups/120363406289005073%40g.us/participants \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "add",
+    "participants": ["5511999999999", "5521988888888"]
+  }'
+
+# Approve pending requests
+curl -X POST https://your-crm.example.com/api/v1/groups/120363406289005073%40g.us/participants \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "approve",
+    "participants": ["199789077627112@lid"]
+  }'
+
+# Reject pending requests
+curl -X POST https://your-crm.example.com/api/v1/groups/120363406289005073%40g.us/participants \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "reject",
+    "participants": ["5511999999999"]
+  }'
+
+# Remove participants
+curl -X POST https://your-crm.example.com/api/v1/groups/120363406289005073%40g.us/participants \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "remove",
+    "participants": ["5511999999999"]
+  }'`,
+  json: `{
+  "data": {
+    "success": true,
+    "action": "add",
+    "identifier": "120363406289005073@g.us",
+    "participants": ["5511999999999", "5521988888888"]
+  }
+}`,
+  notes: [
+    'Group JID in the URL path must be URL-encoded: @ becomes %40.',
+    'Only available when RyzeAPI provider is configured and connected.',
+  ],
+};
+
 export const endpoints: EndpointDoc[] = [
   me,
   messages,
@@ -921,6 +1020,8 @@ export const endpoints: EndpointDoc[] = [
   mediaLibraryTagsList,
   mediaLibraryTagsCreate,
   mediaLibraryTagsDelete,
+  groupsList,
+  groupsManageParticipants,
 ];
 
 export const statusCodes: string[][] = [
