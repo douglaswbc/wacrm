@@ -15,6 +15,7 @@ import { WhatsAppConfig } from '@/components/settings/whatsapp-config';
 import { InstagramConfig } from '@/components/settings/instagram-config';
 import { RyzeApiConfig } from '@/components/settings/ryzeapi-config';
 import { CalendarConfig } from '@/components/settings/calendar-config';
+import { ZernioConfig } from '@/components/settings/zernio-config';
 import { TemplateManager } from '@/components/settings/template-manager';
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
 import { DealsSettings } from '@/components/settings/deals-settings';
@@ -76,6 +77,7 @@ function SettingsPageContent() {
     instagram: <InstagramConfig />,
     ryzeapi: <RyzeApiConfig />,
     calendar: <CalendarConfig />,
+    social: <ZernioConfig />,
     templates: <TemplateManager />,
     fields: <FieldsAndTagsPanel />,
     deals: <DealsSettings />,
