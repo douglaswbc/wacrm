@@ -163,19 +163,16 @@ async function resolveAccountId(
   zernioAccountId: string,
   zernioProfileId: string,
 ): Promise<string | null> {
-  // Try profileId first (faster — direct mapping)
   const { getAccountId } = await import('@/lib/zernio/store');
   let accountId = await getAccountId(zernioProfileId);
   if (accountId) return accountId;
 
-  // Fallback: search all connections for matching connected account
   const db = supabaseAdmin();
-  const { data } = await db
+  const { data, error } = await db
     .from('zernio_connections')
-    .select('account_id, connected_accounts')
-    .not('connected_accounts', 'is', null);
+    .select('account_id, connected_accounts');
 
-  if (!data) return null;
+  if (error || !data) return null;
 
   for (const row of data) {
     const accounts = row.connected_accounts as SocialAccount[] | null;
@@ -314,7 +311,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     return;
   }
 
-  // Get the config owner (admin) for this account
   const db = supabaseAdmin();
   const { data: profile } = await db
     .from('profiles')
@@ -325,7 +321,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
 
   const userId = profile?.user_id ?? accountId;
 
-  // Map platform to channel
   const channel =
     msg.platform === 'whatsapp'
       ? 'whatsapp'
@@ -335,7 +330,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
 
   const provider = 'zernio';
 
-  // Find or create contact
   const contactOutcome = await findOrCreateContact(
     accountId,
     userId,
@@ -345,7 +339,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
   );
   if (!contactOutcome) return;
 
-  // Find or create conversation
   const convOutcome = await findOrCreateConversation(
     accountId,
     userId,
@@ -355,7 +348,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
   );
   if (!convOutcome) return;
 
-  // Emit conversation.created if new
   if (convOutcome.created) {
     await dispatchWebhookEvent(db, accountId, 'conversation.created', {
       conversation_id: convOutcome.id,
@@ -365,7 +357,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     });
   }
 
-  // Insert message
   const { count: existingMsgCount } = await db
     .from('messages')
     .select('id', { count: 'exact', head: true })
@@ -394,7 +385,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     return;
   }
 
-  // Update conversation
   await db
     .from('conversations')
     .update({
@@ -404,14 +394,15 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     })
     .eq('id', convOutcome.id);
 
-  // Increment unread count
-  const { data: conv } = await db
+  const { data: conv, error: convFetchErr } = await db
     .from('conversations')
     .select('unread_count')
     .eq('id', convOutcome.id)
     .single();
 
-  if (conv) {
+  if (convFetchErr) {
+    console.error('[zernio/webhook] failed to fetch conversation:', convFetchErr);
+  } else if (conv) {
     await db
       .from('conversations')
       .update({
@@ -420,7 +411,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       .eq('id', convOutcome.id);
   }
 
-  // Dispatch flows and automations
   const flowResult = await dispatchInboundToFlows({
     accountId,
     userId,
@@ -441,7 +431,6 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     });
   }
 
-  // Dispatch webhook event
   await dispatchWebhookEvent(db, accountId, 'message.received', {
     conversation_id: convOutcome.id,
     contact_id: contactOutcome.id,
@@ -458,8 +447,7 @@ async function handleConversationStarted(body: ZernioWebhookPayload) {
   const accountId = await resolveAccountId(conv.accountId, '');
   if (!accountId) return;
 
-  const db = supabaseAdmin();
-  await dispatchWebhookEvent(db, accountId, 'conversation.started', {
+  await dispatchWebhookEvent(supabaseAdmin(), accountId, 'conversation.started', {
     zernio_conversation_id: conv.id,
     platform: conv.platform,
     contact_name: conv.contactName,
@@ -478,8 +466,7 @@ async function handleMessageStatus(body: ZernioWebhookPayload) {
   const newStatus = statusMap[body.event];
   if (!newStatus) return;
 
-  const db = supabaseAdmin();
-  await db
+  await supabaseAdmin()
     .from('messages')
     .update({ status: newStatus })
     .eq('message_id', msg.id);
@@ -487,14 +474,11 @@ async function handleMessageStatus(body: ZernioWebhookPayload) {
 
 async function handleAccountConnected(body: ZernioWebhookPayload) {
   const account = body.account!;
-  const db = supabaseAdmin();
 
-  // Find the WACRM account by profileId
   const { getAccountId } = await import('@/lib/zernio/store');
   const accountId = await getAccountId(account.profileId);
   if (!accountId) return;
 
-  // Refresh the account list
   const { refreshSocialAccounts } = await import('@/lib/zernio/store');
   await refreshSocialAccounts(accountId);
 
@@ -505,13 +489,11 @@ async function handleAccountConnected(body: ZernioWebhookPayload) {
 
 async function handleAccountDisconnected(body: ZernioWebhookPayload) {
   const account = body.account!;
-  const db = supabaseAdmin();
 
-  const { getAccountId, updateConnectedAccounts } = await import('@/lib/zernio/store');
+  const { getAccountId } = await import('@/lib/zernio/store');
   const accountId = await getAccountId(account.profileId);
   if (!accountId) return;
 
-  // Refresh to remove the disconnected account
   const { refreshSocialAccounts } = await import('@/lib/zernio/store');
   await refreshSocialAccounts(accountId);
 
@@ -525,5 +507,4 @@ async function handlePostStatus(body: ZernioWebhookPayload) {
   console.log(
     `[zernio/webhook] post ${body.event}: ${post.id} (${post.status})`,
   );
-  // Future: store post status updates in a zernio_posts table
 }
