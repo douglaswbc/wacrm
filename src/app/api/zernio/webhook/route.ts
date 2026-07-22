@@ -170,8 +170,10 @@ async function resolveAccountId(
   const db = supabaseAdmin();
   const { data, error } = await db
     .from('zernio_connections')
-    .select('account_id, connected_accounts')
-    .returns<{ account_id: string; connected_accounts: unknown }[]>();
+    .select('account_id, connected_accounts') as {
+    data: { account_id: string; connected_accounts: unknown }[] | null;
+    error: unknown;
+  };
 
   if (error || !data) return null;
 
@@ -205,13 +207,12 @@ async function findOrCreateContact(
         : null;
 
   if (platformField) {
-    const { data: existing } = await db
+    const { data: existing } = (await db
       .from('contacts')
       .select('id')
       .eq('account_id', accountId)
       .eq(platformField, phoneOrId)
-      .maybeSingle()
-      .returns<{ id: string } | null>();
+      .maybeSingle()) as { data: { id: string } | null };
 
     if (existing) return { id: existing.id, wasCreated: false };
   }
@@ -220,13 +221,12 @@ async function findOrCreateContact(
   if (platform === 'whatsapp') {
     const { normalizePhone } = await import('@/lib/whatsapp/phone-utils');
     const normalized = normalizePhone(phoneOrId);
-    const { data: byPhone } = await db
+    const { data: byPhone } = (await db
       .from('contacts')
       .select('id')
       .eq('account_id', accountId)
       .eq('phone', normalized)
-      .maybeSingle()
-      .returns<{ id: string } | null>();
+      .maybeSingle()) as { data: { id: string } | null };
 
     if (byPhone) return { id: byPhone.id, wasCreated: false };
   }
@@ -250,15 +250,14 @@ async function findOrCreateContact(
     .from('contacts')
     .insert(contactData as any)
     .select('id')
-    .single()
-    .returns<{ id: string }>();
+    .single() as { data: { id: string } | null; error: unknown };
 
   if (error) {
     console.error('[zernio/webhook] failed to create contact:', error);
     return null;
   }
 
-  return { id: newContact.id, wasCreated: true };
+  return { id: newContact!.id, wasCreated: true };
 }
 
 // ─── Conversation Resolution ────────────────────────────────
@@ -279,12 +278,11 @@ async function findOrCreateConversation(
     .eq('contact_id', contactId)
     .eq('channel', channel)
     .eq('provider', provider)
-    .maybeSingle()
-    .returns<{ id: string } | null>();
+    .maybeSingle()) as { data: { id: string } | null };
 
   if (existing) return { id: existing.id, created: false };
 
-  const { data: newConv, error } = await db
+  const { data: newConv, error } = (await db
     .from('conversations')
     .insert({
       account_id: accountId,
@@ -294,15 +292,14 @@ async function findOrCreateConversation(
       provider,
     } as any)
     .select('id')
-    .single()
-    .returns<{ id: string }>();
+    .single()) as { data: { id: string } | null; error: unknown };
 
   if (error) {
     console.error('[zernio/webhook] failed to create conversation:', error);
     return null;
   }
 
-  return { id: newConv.id, created: true };
+  return { id: newConv!.id, created: true };
 }
 
 // ─── Event Handlers ─────────────────────────────────────────
@@ -318,13 +315,12 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
   }
 
   const db = supabaseAdmin();
-  const { data: profile } = await db
+  const { data: profile } = (await db
     .from('profiles')
     .select('user_id')
     .eq('account_id', accountId)
     .limit(1)
-    .maybeSingle()
-    .returns<{ user_id: string } | null>();
+    .maybeSingle()) as { data: { user_id: string } | null };
 
   const userId = profile?.user_id ?? accountId;
 
@@ -364,12 +360,11 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     });
   }
 
-  const { count: existingMsgCount } = await db
+  const { count: existingMsgCount } = (await db
     .from('messages')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', convOutcome.id)
-    .eq('message_id', msg.id)
-    .returns<{ id: string }[]>();
+    .eq('message_id', msg.id)) as { count: number | null };
 
   if (existingMsgCount && existingMsgCount > 0) {
     console.log(`[zernio/webhook] deduplicated message ${msg.id}`);
@@ -402,12 +397,11 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     } as any)
     .eq('id', convOutcome.id);
 
-  const { data: conv, error: convFetchErr } = await db
+  const { data: conv, error: convFetchErr } = (await db
     .from('conversations')
     .select('unread_count')
     .eq('id', convOutcome.id)
-    .single()
-    .returns<{ unread_count: number | null }>();
+    .single()) as { data: { unread_count: number | null } | null; error: unknown };
 
   if (convFetchErr) {
     console.error('[zernio/webhook] failed to fetch conversation:', convFetchErr);
