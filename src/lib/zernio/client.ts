@@ -148,10 +148,15 @@ export async function disconnectSocialAccount(
 export async function getPlatformAuthUrl(args: {
   platform: string;
   profileId: string;
+  redirectUrl?: string;
 }): Promise<{ authUrl: string }> {
-  const { platform, profileId } = args;
+  const { platform, profileId, redirectUrl } = args;
+  let query = `profileId=${encodeURIComponent(profileId)}`;
+  if (redirectUrl) {
+    query += `&redirect_url=${encodeURIComponent(redirectUrl)}`;
+  }
   const data = await zernioFetch<{ authUrl: string }>(
-    `/connect/${platform}?profileId=${encodeURIComponent(profileId)}`,
+    `/connect/${platform}?${query}`,
   );
   return { authUrl: data.authUrl };
 }

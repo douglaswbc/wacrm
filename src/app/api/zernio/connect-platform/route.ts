@@ -49,9 +49,13 @@ export async function GET(request: Request) {
       );
     }
 
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? url.origin;
+    const redirectUrl = `${baseUrl}/zernio/callback`;
+
     const { authUrl } = await getPlatformAuthUrl({
       platform: platform.toLowerCase(),
       profileId,
+      redirectUrl,
     });
 
     return NextResponse.json({ authUrl });
