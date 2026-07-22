@@ -13,6 +13,7 @@ export const WEBHOOK_EVENTS = [
   'message.sent', // an outbound message was sent
   'conversation.created', // a new conversation was opened for a contact
   'conversation.updated', // a conversation status changed (closed, assigned, etc)
+  'conversation.started', // a new conversation was started via Zernio
   'contact.created', // a new contact was created
 ] as const;
 
@@ -26,6 +27,7 @@ export const WEBHOOK_EVENT_DESCRIPTIONS: Record<WebhookEvent, string> = {
   'message.sent': 'An outbound message was sent successfully',
   'conversation.created': 'A new conversation was opened',
   'conversation.updated': 'A conversation was updated (closed, assigned, reopened)',
+  'conversation.started': 'A new conversation was started via Zernio',
   'contact.created': 'A new contact was created',
 };
 
