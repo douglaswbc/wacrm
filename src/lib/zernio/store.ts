@@ -1,93 +1,105 @@
-import { encrypt, decrypt } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
-import type {
-  ZernioConnection,
-  ZernioConnectionPublic,
-  SocialAccount,
-} from '@/types';
+import type { SocialAccount } from '@/types';
 
-export async function storeConnection(
+export interface ZernioConnectionRecord {
+  id: string;
+  account_id: string;
+  zernio_profile_id: string;
+  connected_accounts: SocialAccount[];
+  last_sync_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Create a new Zernio connection record for a WACRM account.
+ * Called after creating a profile in Zernio.
+ */
+export async function createConnection(
   accountId: string,
-  createdBy: string,
-  email: string | null,
-  apiKey: string,
-  profileId: string | null,
-): Promise<ZernioConnection> {
+  zernioProfileId: string,
+): Promise<ZernioConnectionRecord> {
   const db = supabaseAdmin();
-
-  const encryptedApiKey = encrypt(apiKey);
 
   const { data, error } = await db
     .from('zernio_connections')
-    .upsert(
-      {
-        account_id: accountId,
-        created_by: createdBy,
-        email,
-        api_key_encrypted: encryptedApiKey,
-        profile_id: profileId,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'account_id' },
-    )
+    .insert({
+      account_id: accountId,
+      zernio_profile_id: zernioProfileId,
+      connected_accounts: [],
+    })
     .select('*')
     .single();
 
   if (error || !data) {
-    throw new Error('Failed to store Zernio connection');
+    throw new Error(
+      `Failed to create Zernio connection: ${error?.message ?? 'no data returned'}`,
+    );
   }
 
-  return data as unknown as ZernioConnection;
+  return data as unknown as ZernioConnectionRecord;
 }
 
-export async function getConnection(
+/**
+ * Get the Zernio profile ID for a WACRM account.
+ */
+export async function getProfileId(
   accountId: string,
-): Promise<ZernioConnectionPublic | null> {
+): Promise<string | null> {
   const db = supabaseAdmin();
 
   const { data, error } = await db
     .from('zernio_connections')
-    .select(
-      'id, email, profile_id, connected_accounts, last_sync_at, is_active, created_at, updated_at',
-    )
+    .select('zernio_profile_id')
     .eq('account_id', accountId)
-    .eq('is_active', true)
     .maybeSingle();
 
   if (error || !data) return null;
 
-  return data as unknown as ZernioConnectionPublic;
+  return data.zernio_profile_id as string;
 }
 
-export async function getDecryptedApiKey(
+/**
+ * Get the WACRM account ID for a Zernio profile ID.
+ */
+export async function getAccountId(
+  zernioProfileId: string,
+): Promise<string | null> {
+  const db = supabaseAdmin();
+
+  const { data, error } = await db
+    .from('zernio_connections')
+    .select('account_id')
+    .eq('zernio_profile_id', zernioProfileId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return data.account_id as string;
+}
+
+/**
+ * Get the full connection record for a WACRM account.
+ */
+export async function getConnection(
   accountId: string,
-): Promise<{
-  apiKey: string;
-  profileId: string | null;
-  connectionId: string;
-} | null> {
+): Promise<ZernioConnectionRecord | null> {
   const db = supabaseAdmin();
 
   const { data, error } = await db
     .from('zernio_connections')
     .select('*')
     .eq('account_id', accountId)
-    .eq('is_active', true)
     .maybeSingle();
 
   if (error || !data) return null;
 
-  const row = data as unknown as ZernioConnection;
-  const apiKey = decrypt(row.api_key_encrypted);
-
-  return {
-    apiKey,
-    profileId: row.profile_id,
-    connectionId: row.id,
-  };
+  return data as unknown as ZernioConnectionRecord;
 }
 
+/**
+ * Update the list of connected social accounts for a WACRM account.
+ */
 export async function updateConnectedAccounts(
   accountId: string,
   accounts: SocialAccount[],
@@ -101,42 +113,36 @@ export async function updateConnectedAccounts(
       last_sync_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('account_id', accountId)
-    .eq('is_active', true);
+    .eq('account_id', accountId);
 }
 
-export async function disconnect(
+/**
+ * Delete the Zernio connection for a WACRM account.
+ * Note: This does NOT delete the Zernio profile or its accounts.
+ * Call deleteProfileAndAccounts first if you want full cleanup.
+ */
+export async function deleteConnection(
   accountId: string,
 ): Promise<void> {
   const db = supabaseAdmin();
 
-  const { data } = await db
-    .from('zernio_connections')
-    .select('*')
-    .eq('account_id', accountId)
-    .eq('is_active', true)
-    .maybeSingle();
-
-  if (!data) return;
-
   await db
     .from('zernio_connections')
-    .update({
-      is_active: false,
-      connected_accounts: [],
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', (data as unknown as ZernioConnection).id);
+    .delete()
+    .eq('account_id', accountId);
 }
 
+/**
+ * Refresh the list of connected social accounts from Zernio.
+ */
 export async function refreshSocialAccounts(
   accountId: string,
 ): Promise<SocialAccount[]> {
-  const tokens = await getDecryptedApiKey(accountId);
-  if (!tokens) return [];
+  const profileId = await getProfileId(accountId);
+  if (!profileId) return [];
 
   const { listSocialAccounts } = await import('./client');
-  const accounts = await listSocialAccounts(tokens.apiKey, tokens.profileId ?? undefined);
+  const accounts = await listSocialAccounts(profileId);
 
   const socialAccounts: SocialAccount[] = accounts.map((a) => ({
     platform: a.platform,

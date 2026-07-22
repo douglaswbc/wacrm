@@ -776,28 +776,3 @@ export interface SocialAccount {
   displayName: string;
   isActive: boolean;
 }
-
-export interface ZernioConnection {
-  id: string;
-  account_id: string;
-  created_by: string | null;
-  email: string | null;
-  api_key_encrypted: string;
-  profile_id: string | null;
-  connected_accounts: SocialAccount[];
-  last_sync_at: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ZernioConnectionPublic {
-  id: string;
-  email: string | null;
-  profile_id: string | null;
-  connected_accounts: SocialAccount[];
-  last_sync_at: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireRole, toErrorResponse } from '@/lib/auth/account';
-import { getDecryptedApiKey } from '@/lib/zernio/store';
+import { getProfileId } from '@/lib/zernio/store';
 import { getPlatformAuthUrl } from '@/lib/zernio/client';
 
 const SUPPORTED_PLATFORMS = [
@@ -18,6 +18,7 @@ const SUPPORTED_PLATFORMS = [
   'telegram',
   'discord',
   'snapchat',
+  'googlebusiness',
 ];
 
 export async function GET(request: Request) {
@@ -40,25 +41,17 @@ export async function GET(request: Request) {
       );
     }
 
-    const tokens = await getDecryptedApiKey(ctx.accountId);
-    if (!tokens) {
+    const profileId = await getProfileId(ctx.accountId);
+    if (!profileId) {
       return NextResponse.json(
         { error: 'Zernio is not connected. Please connect Zernio first.' },
         { status: 400 },
       );
     }
 
-    if (!tokens.profileId) {
-      return NextResponse.json(
-        { error: 'No Zernio profile found. Please reconnect Zernio.' },
-        { status: 400 },
-      );
-    }
-
     const { authUrl } = await getPlatformAuthUrl({
-      apiKey: tokens.apiKey,
       platform: platform.toLowerCase(),
-      profileId: tokens.profileId,
+      profileId,
     });
 
     return NextResponse.json({ authUrl });
