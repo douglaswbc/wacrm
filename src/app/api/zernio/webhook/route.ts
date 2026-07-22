@@ -329,9 +329,9 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       ? 'whatsapp'
       : msg.platform === 'instagram'
         ? 'instagram'
-        : 'zernio';
+        : undefined;
 
-  const provider = 'zernio';
+  const provider = undefined;
 
   const contactOutcome = await findOrCreateContact(
     accountId,
