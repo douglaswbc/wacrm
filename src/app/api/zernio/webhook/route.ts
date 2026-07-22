@@ -210,7 +210,8 @@ async function findOrCreateContact(
       .select('id')
       .eq('account_id', accountId)
       .eq(platformField, phoneOrId)
-      .maybeSingle();
+      .maybeSingle()
+      .returns<{ id: string } | null>();
 
     if (existing) return { id: existing.id, wasCreated: false };
   }
@@ -224,7 +225,8 @@ async function findOrCreateContact(
       .select('id')
       .eq('account_id', accountId)
       .eq('phone', normalized)
-      .maybeSingle();
+      .maybeSingle()
+      .returns<{ id: string } | null>();
 
     if (byPhone) return { id: byPhone.id, wasCreated: false };
   }
@@ -248,7 +250,8 @@ async function findOrCreateContact(
     .from('contacts')
     .insert(contactData)
     .select('id')
-    .single();
+    .single()
+    .returns<{ id: string }>();
 
   if (error) {
     console.error('[zernio/webhook] failed to create contact:', error);
@@ -276,7 +279,8 @@ async function findOrCreateConversation(
     .eq('contact_id', contactId)
     .eq('channel', channel)
     .eq('provider', provider)
-    .maybeSingle();
+    .maybeSingle()
+    .returns<{ id: string } | null>();
 
   if (existing) return { id: existing.id, created: false };
 
@@ -290,7 +294,8 @@ async function findOrCreateConversation(
       provider,
     })
     .select('id')
-    .single();
+    .single()
+    .returns<{ id: string }>();
 
   if (error) {
     console.error('[zernio/webhook] failed to create conversation:', error);
@@ -318,7 +323,8 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     .select('user_id')
     .eq('account_id', accountId)
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()
+    .returns<{ user_id: string } | null>();
 
   const userId = profile?.user_id ?? accountId;
 
@@ -362,7 +368,8 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     .from('messages')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', convOutcome.id)
-    .eq('message_id', msg.id);
+    .eq('message_id', msg.id)
+    .returns<{ id: string }[]>();
 
   if (existingMsgCount && existingMsgCount > 0) {
     console.log(`[zernio/webhook] deduplicated message ${msg.id}`);
@@ -399,7 +406,8 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     .from('conversations')
     .select('unread_count')
     .eq('id', convOutcome.id)
-    .single();
+    .single()
+    .returns<{ unread_count: number | null }>();
 
   if (convFetchErr) {
     console.error('[zernio/webhook] failed to fetch conversation:', convFetchErr);
