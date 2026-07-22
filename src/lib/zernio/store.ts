@@ -21,13 +21,13 @@ export async function createConnection(
 ): Promise<ZernioConnectionRecord> {
   const db = supabaseAdmin();
 
-  const { data, error } = await db
+  const { data, error } = await (db as any)
     .from('zernio_connections')
     .insert({
       account_id: accountId,
       zernio_profile_id: zernioProfileId,
       connected_accounts: [],
-    } as any)
+    })
     .select('*')
     .single();
 
@@ -106,13 +106,13 @@ export async function updateConnectedAccounts(
 ): Promise<void> {
   const db = supabaseAdmin();
 
-  await db
+  await (db as any)
     .from('zernio_connections')
     .update({
       connected_accounts: accounts,
       last_sync_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('account_id', accountId);
 }
 

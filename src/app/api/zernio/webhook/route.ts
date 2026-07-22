@@ -246,9 +246,9 @@ async function findOrCreateContact(
     contactData.phone = normalizePhone(phoneOrId);
   }
 
-  const { data: newContact, error } = (await db
+  const { data: newContact, error } = (await (db as any)
     .from('contacts')
-    .insert(contactData as any)
+    .insert(contactData)
     .select('id')
     .single()) as { data: { id: string } | null; error: unknown };
 
@@ -282,7 +282,7 @@ async function findOrCreateConversation(
 
   if (existing) return { id: existing.id, created: false };
 
-  const { data: newConv, error } = (await db
+  const { data: newConv, error } = (await (db as any)
     .from('conversations')
     .insert({
       account_id: accountId,
@@ -290,7 +290,7 @@ async function findOrCreateConversation(
       contact_id: contactId,
       channel,
       provider,
-    } as any)
+    })
     .select('id')
     .single()) as { data: { id: string } | null; error: unknown };
 
@@ -371,7 +371,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     return;
   }
 
-  const { error: msgError } = await db.from('messages').insert({
+  const { error: msgError } = await (db as any).from('messages').insert({
     account_id: accountId,
     conversation_id: convOutcome.id,
     sender_type: 'customer',
@@ -381,20 +381,20 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     message_id: msg.id,
     status: 'delivered',
     created_at: msg.createdAt,
-  } as any);
+  });
 
   if (msgError) {
     console.error('[zernio/webhook] failed to insert message:', msgError);
     return;
   }
 
-  await db
+  await (db as any)
     .from('conversations')
     .update({
       last_message_text: msg.text || `[${msg.platform}]`,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('id', convOutcome.id);
 
   const { data: conv, error: convFetchErr } = (await db
@@ -406,11 +406,11 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
   if (convFetchErr) {
     console.error('[zernio/webhook] failed to fetch conversation:', convFetchErr);
   } else if (conv) {
-    await db
+    await (db as any)
       .from('conversations')
       .update({
         unread_count: (conv.unread_count ?? 0) + 1,
-      } as any)
+      })
       .eq('id', convOutcome.id);
   }
 
@@ -469,9 +469,9 @@ async function handleMessageStatus(body: ZernioWebhookPayload) {
   const newStatus = statusMap[body.event];
   if (!newStatus) return;
 
-  await supabaseAdmin()
+  await (supabaseAdmin() as any)
     .from('messages')
-    .update({ status: newStatus } as any)
+    .update({ status: newStatus })
     .eq('message_id', msg.id);
 }
 
