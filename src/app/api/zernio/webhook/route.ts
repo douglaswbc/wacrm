@@ -168,9 +168,9 @@ async function resolveAccountId(
   if (accountId) return accountId;
 
   const db = supabaseAdmin();
-  const { data, error } = await db
+  const { data, error } = (await db
     .from('zernio_connections')
-    .select('account_id, connected_accounts') as {
+    .select('account_id, connected_accounts')) as {
     data: { account_id: string; connected_accounts: unknown }[] | null;
     error: unknown;
   };
@@ -246,11 +246,11 @@ async function findOrCreateContact(
     contactData.phone = normalizePhone(phoneOrId);
   }
 
-  const { data: newContact, error } = await db
+  const { data: newContact, error } = (await db
     .from('contacts')
     .insert(contactData as any)
     .select('id')
-    .single() as { data: { id: string } | null; error: unknown };
+    .single()) as { data: { id: string } | null; error: unknown };
 
   if (error) {
     console.error('[zernio/webhook] failed to create contact:', error);
@@ -271,7 +271,7 @@ async function findOrCreateConversation(
 ): Promise<{ id: string; created: boolean } | null> {
   const db = supabaseAdmin();
 
-  const { data: existing } = await db
+  const { data: existing } = (await db
     .from('conversations')
     .select('id')
     .eq('account_id', accountId)
