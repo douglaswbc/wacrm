@@ -170,7 +170,8 @@ async function resolveAccountId(
   const db = supabaseAdmin();
   const { data, error } = await db
     .from('zernio_connections')
-    .select('account_id, connected_accounts');
+    .select('account_id, connected_accounts')
+    .returns<{ account_id: string; connected_accounts: unknown }[]>();
 
   if (error || !data) return null;
 
