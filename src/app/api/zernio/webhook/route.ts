@@ -196,7 +196,7 @@ async function findOrCreateContact(
   name: string,
   platform: string,
 ): Promise<{ id: string; wasCreated: boolean } | null> {
-  const db = supabaseAdmin();
+  const db = supabaseAdmin() as any;
 
   // Try to find by platform-specific ID
   const platformField =
@@ -266,12 +266,12 @@ async function findOrCreateConversation(
   accountId: string,
   userId: string,
   contactId: string,
-  channel: string,
-  provider: string,
+  channel: string | undefined,
+  provider: string | undefined,
 ): Promise<{ id: string; created: boolean } | null> {
-  const db = supabaseAdmin();
+  const db = supabaseAdmin() as any;
 
-  const { data: existing } = (await db
+  const { data: existing } = (await (db as any)
     .from('conversations')
     .select('id')
     .eq('account_id', accountId)
@@ -282,7 +282,7 @@ async function findOrCreateConversation(
 
   if (existing) return { id: existing.id, created: false };
 
-  const { data: newConv, error } = (await (db as any)
+  const { data: newConv, error } = (await db
     .from('conversations')
     .insert({
       account_id: accountId,
