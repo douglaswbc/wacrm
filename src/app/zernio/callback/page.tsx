@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
-export default function ZernioCallbackPage() {
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -16,7 +16,6 @@ export default function ZernioCallbackPage() {
 
   useEffect(() => {
     const connected = searchParams.get('connected');
-    const platformParam = searchParams.get('platform');
     const usernameParam = searchParams.get('username');
     const errorMsg = searchParams.get('error');
 
@@ -95,5 +94,21 @@ export default function ZernioCallbackPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ZernioCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
   );
 }
