@@ -27,7 +27,7 @@ export async function createConnection(
       account_id: accountId,
       zernio_profile_id: zernioProfileId,
       connected_accounts: [],
-    })
+    } as any)
     .select('*')
     .single();
 
@@ -112,7 +112,7 @@ export async function updateConnectedAccounts(
       connected_accounts: accounts,
       last_sync_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('account_id', accountId);
 }
 

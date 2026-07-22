@@ -248,7 +248,7 @@ async function findOrCreateContact(
 
   const { data: newContact, error } = await db
     .from('contacts')
-    .insert(contactData)
+    .insert(contactData as any)
     .select('id')
     .single()
     .returns<{ id: string }>();
@@ -292,7 +292,7 @@ async function findOrCreateConversation(
       contact_id: contactId,
       channel,
       provider,
-    })
+    } as any)
     .select('id')
     .single()
     .returns<{ id: string }>();
@@ -386,7 +386,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     message_id: msg.id,
     status: 'delivered',
     created_at: msg.createdAt,
-  });
+  } as any);
 
   if (msgError) {
     console.error('[zernio/webhook] failed to insert message:', msgError);
@@ -399,7 +399,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       last_message_text: msg.text || `[${msg.platform}]`,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('id', convOutcome.id);
 
   const { data: conv, error: convFetchErr } = await db
@@ -416,7 +416,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       .from('conversations')
       .update({
         unread_count: (conv.unread_count ?? 0) + 1,
-      })
+      } as any)
       .eq('id', convOutcome.id);
   }
 
@@ -477,7 +477,7 @@ async function handleMessageStatus(body: ZernioWebhookPayload) {
 
   await supabaseAdmin()
     .from('messages')
-    .update({ status: newStatus })
+    .update({ status: newStatus } as any)
     .eq('message_id', msg.id);
 }
 
