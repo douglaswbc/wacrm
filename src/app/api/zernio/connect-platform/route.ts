@@ -60,6 +60,18 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ authUrl });
   } catch (err) {
+    // Catch Zernio API quota/limit errors and show friendly message
+    if (err instanceof Error && err.message.includes('402')) {
+      return NextResponse.json(
+        {
+          error: 'Você atingiu o limite gratuito de 2 contas sociais. ' +
+                 'Adicione um método de pagamento no dashboard do Zernio para conectar mais plataformas.',
+          zernioDashboard: 'https://zernio.com/dashboard',
+          status: 402,
+        },
+        { status: 402 },
+      );
+    }
     return toErrorResponse(err);
   }
 }

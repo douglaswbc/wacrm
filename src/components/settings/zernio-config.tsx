@@ -237,18 +237,23 @@ export function ZernioConfig() {
         const data = await res.json().catch(() => ({}));
         const errorMsg = data.error || '';
 
-        // Friendly message for channel limit
-        if (
+        // Friendly message for channel limit (402)
+        if (res.status === 402) {
+          toast.error(
+            'Você atingiu o limite gratuito de 2 contas sociais. ' +
+            `Adicione um método de pagamento no Zernio: ${data.zernioDashboard || 'https://zernio.com/dashboard'}`,
+            { duration: 10000 },
+          );
+        } else if (
           errorMsg.toLowerCase().includes('limit') ||
           errorMsg.toLowerCase().includes('quota') ||
           errorMsg.toLowerCase().includes('upgrade') ||
-          errorMsg.toLowerCase().includes('too many') ||
-          res.status === 402
+          errorMsg.toLowerCase().includes('too many')
         ) {
           toast.error(
-            'You have reached the maximum number of free social accounts (2). ' +
-            'To connect more, visit your Zernio dashboard to upgrade your plan: ' +
-            'zernio.com/dashboard',
+            'Você atingiu o limite de contas sociais. ' +
+            'Visite o Zernio para conectar mais plataformas: ' +
+            'https://zernio.com/dashboard',
             { duration: 8000 },
           );
         } else {
