@@ -55,7 +55,7 @@ const PLATFORM_INFO: Record<string, { label: string; icon: string }> = {
 };
 
 export function ZernioConfig() {
-  const { accountId, profileLoading, isAdmin } = useAuth();
+  const { accountId, profileLoading, canEditSettings } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -134,7 +134,7 @@ export function ZernioConfig() {
 
   // Fetch webhook config
   const fetchWebhookConfig = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canEditSettings) return;
     setLoadingWebhook(true);
     try {
       const res = await fetch('/api/zernio/webhook-config', { cache: 'no-store' });
@@ -150,13 +150,13 @@ export function ZernioConfig() {
     } finally {
       setLoadingWebhook(false);
     }
-  }, [isAdmin]);
+  }, [canEditSettings]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canEditSettings) {
       void fetchWebhookConfig();
     }
-  }, [isAdmin, fetchWebhookConfig]);
+  }, [canEditSettings, fetchWebhookConfig]);
 
   async function handleConnect() {
     setSaving(true);
@@ -538,7 +538,7 @@ export function ZernioConfig() {
               </div>
 
               {/* Webhook Configuration (Admin Only) */}
-              {isAdmin && isConnected && (
+              {canEditSettings && isConnected && (
                 <Card className="border-primary/20">
                   <CardHeader>
                     <div className="flex items-center justify-between">
