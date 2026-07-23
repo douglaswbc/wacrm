@@ -200,6 +200,64 @@ export interface ZernioPost {
   createdAt: string;
 }
 
+export interface ZernioWebhookConfig {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  createdAt: string;
+  lastDeliveryAt?: string;
+  lastDeliveryStatus?: string;
+  failureCount: number;
+}
+
+// ─── Webhooks ───────────────────────────────────────────────
+
+export async function listWebhooks(): Promise<ZernioWebhookConfig[]> {
+  const data = await zernioFetch<{ webhooks: ZernioWebhookConfig[] }>(
+    '/webhooks/settings',
+  );
+  return data.webhooks;
+}
+
+export async function createWebhook(args: {
+  name: string;
+  url: string;
+  events: string[];
+}): Promise<ZernioWebhookConfig> {
+  const data = await zernioFetch<{ webhook: ZernioWebhookConfig }>(
+    '/webhooks/settings',
+    { method: 'POST', body: args },
+  );
+  return data.webhook;
+}
+
+export async function updateWebhook(args: {
+  id: string;
+  name?: string;
+  url?: string;
+  events?: string[];
+}): Promise<ZernioWebhookConfig> {
+  const { id, ...body } = args;
+  const data = await zernioFetch<{ webhook: ZernioWebhookConfig }>(
+    `/webhooks/settings/${id}`,
+    { method: 'PUT', body },
+  );
+  return data.webhook;
+}
+
+export async function deleteWebhook(id: string): Promise<void> {
+  await zernioFetch(`/webhooks/settings/${id}`, { method: 'DELETE' });
+}
+
+export async function findWacrmWebhook(
+  webhookUrl: string,
+): Promise<ZernioWebhookConfig | null> {
+  const webhooks = await listWebhooks();
+  return webhooks.find((w) => w.url === webhookUrl) ?? null;
+}
+
 export async function createPost(args: {
   content: string;
   platforms: { platform: string; accountId: string; customContent?: string }[];

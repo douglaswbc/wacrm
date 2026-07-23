@@ -10,6 +10,9 @@ import {
   RefreshCw,
   Trash2,
   Plus,
+  Copy,
+  Webhook,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,8 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import type { SocialAccount } from '@/types';
 
 interface ZernioConfigData {
@@ -50,7 +55,7 @@ const PLATFORM_INFO: Record<string, { label: string; icon: string }> = {
 };
 
 export function ZernioConfig() {
-  const { accountId, profileLoading } = useAuth();
+  const { accountId, profileLoading, isAdmin } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,6 +64,33 @@ export function ZernioConfig() {
   const [refreshing, setRefreshing] = useState(false);
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
   const [disconnectingPlatform, setDisconnectingPlatform] = useState<string | null>(null);
+
+  // Webhook state
+  const [webhookConfig, setWebhookConfig] = useState<{
+    configured: boolean;
+    webhook?: {
+      id: string;
+      url: string;
+      name: string;
+      events: string[];
+      isActive: boolean;
+      lastDeliveryAt?: string;
+      lastDeliveryStatus?: string;
+      failureCount: number;
+    };
+  } | null>(null);
+  const [loadingWebhook, setLoadingWebhook] = useState(false);
+  const [savingWebhook, setSavingWebhook] = useState(false);
+  const [selectedEvents, setSelectedEvents] = useState<string[]>([
+    'message.received',
+    'comment.received',
+    'post.platform.published',
+    'post.platform.failed',
+  ]);
+
+  const WEBHOOK_URL = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/zernio/webhook`
+    : '/api/zernio/webhook';
 
   const fetchConfig = useCallback(async () => {
     if (!accountId) return;
@@ -99,6 +131,32 @@ export function ZernioConfig() {
       window.history.replaceState({}, '', window.location.pathname + '?tab=social');
     }
   }, [fetchConfig]);
+
+  // Fetch webhook config
+  const fetchWebhookConfig = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingWebhook(true);
+    try {
+      const res = await fetch('/api/zernio/webhook-config', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setWebhookConfig(data);
+        if (data.webhook?.events) {
+          setSelectedEvents(data.webhook.events);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingWebhook(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      void fetchWebhookConfig();
+    }
+  }, [isAdmin, fetchWebhookConfig]);
 
   async function handleConnect() {
     setSaving(true);
@@ -177,7 +235,25 @@ export function ZernioConfig() {
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || `Failed to get ${platform} auth URL`);
+        const errorMsg = data.error || '';
+
+        // Friendly message for channel limit
+        if (
+          errorMsg.toLowerCase().includes('limit') ||
+          errorMsg.toLowerCase().includes('quota') ||
+          errorMsg.toLowerCase().includes('upgrade') ||
+          errorMsg.toLowerCase().includes('too many') ||
+          res.status === 402
+        ) {
+          toast.error(
+            'You have reached the maximum number of free social accounts (2). ' +
+            'To connect more, visit your Zernio dashboard to upgrade your plan: ' +
+            'zernio.com/dashboard',
+            { duration: 8000 },
+          );
+        } else {
+          toast.error(`${PLATFORM_INFO[platform]?.label ?? platform}: ${errorMsg || 'Failed to get auth URL'}`);
+        }
         setConnectingPlatform(null);
         return;
       }
@@ -212,6 +288,56 @@ export function ZernioConfig() {
     } finally {
       setDisconnectingPlatform(null);
     }
+  }
+
+  // Webhook handlers
+  async function handleSaveWebhook() {
+    setSavingWebhook(true);
+    try {
+      const res = await fetch('/api/zernio/webhook-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ events: selectedEvents }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to configure webhook');
+        setSavingWebhook(false);
+        return;
+      }
+      const data = await res.json();
+      setWebhookConfig(data);
+      toast.success('Webhook registered with Zernio');
+    } catch {
+      toast.error('Could not reach the server');
+    } finally {
+      setSavingWebhook(false);
+    }
+  }
+
+  async function handleDeleteWebhook() {
+    setSavingWebhook(true);
+    try {
+      const res = await fetch('/api/zernio/webhook-config', { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to remove webhook');
+        setSavingWebhook(false);
+        return;
+      }
+      setWebhookConfig(null);
+      toast.success('Webhook removed from Zernio');
+    } catch {
+      toast.error('Could not reach the server');
+    } finally {
+      setSavingWebhook(false);
+    }
+  }
+
+  function toggleEvent(event: string) {
+    setSelectedEvents((prev) =>
+      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event],
+    );
   }
 
   const isConnected = config?.connected ?? false;
@@ -405,6 +531,191 @@ export function ZernioConfig() {
                   Disconnect Zernio
                 </Button>
               </div>
+
+              {/* Webhook Configuration (Admin Only) */}
+              {isAdmin && isConnected && (
+                <Card className="border-primary/20">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-foreground flex items-center gap-2">
+                          <Webhook className="size-4" />
+                          Zernio Webhook
+                        </CardTitle>
+                        <CardDescription className="text-muted-foreground">
+                          Global webhook — routes events to all WACRM users
+                        </CardDescription>
+                      </div>
+                      {webhookConfig?.configured && (
+                        <Badge
+                          variant={webhookConfig.webhook?.isActive ? 'default' : 'destructive'}
+                        >
+                          {webhookConfig.webhook?.isActive ? 'Active' : 'Disabled'}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Webhook URL */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Webhook URL
+                      </label>
+                      <div className="flex gap-2">
+                        <code className="flex-1 text-xs bg-muted px-2 py-1.5 rounded break-all font-mono">
+                          {WEBHOOK_URL}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(WEBHOOK_URL);
+                            toast.success('URL copied');
+                          }}
+                          className="shrink-0"
+                        >
+                          <Copy className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Profile ID */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Profile ID (for reference)
+                      </label>
+                      <div className="flex gap-2">
+                        <code className="flex-1 text-xs bg-muted px-2 py-1.5 rounded font-mono">
+                          {config?.profile_id ?? 'unknown'}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (config?.profile_id) {
+                              navigator.clipboard.writeText(config.profile_id);
+                              toast.success('Profile ID copied');
+                            }
+                          }}
+                          disabled={!config?.profile_id}
+                          className="shrink-0"
+                        >
+                          <Copy className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Events */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Events to receive
+                      </label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {[
+                          { id: 'message.received', label: 'Message Received', desc: 'Inbound messages to inbox' },
+                          { id: 'comment.received', label: 'Comment Received', desc: 'Comments on posts' },
+                          { id: 'post.platform.published', label: 'Post Published', desc: 'Post published on platform' },
+                          { id: 'post.platform.failed', label: 'Post Failed', desc: 'Post publication failed' },
+                        ].map((ev) => (
+                          <div
+                            key={ev.id}
+                            className="flex items-start gap-2 p-2 rounded-lg border border-border"
+                          >
+                            <Checkbox
+                              id={ev.id}
+                              checked={selectedEvents.includes(ev.id)}
+                              onCheckedChange={() => toggleEvent(ev.id)}
+                            />
+                            <div className="flex-1">
+                              <label
+                                htmlFor={ev.id}
+                                className="text-sm font-medium cursor-pointer"
+                              >
+                                {ev.label}
+                              </label>
+                              <p className="text-xs text-muted-foreground">
+                                {ev.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2">
+                      {!webhookConfig?.configured ? (
+                        <Button
+                          onClick={handleSaveWebhook}
+                          disabled={savingWebhook}
+                          className="flex-1"
+                        >
+                          {savingWebhook ? (
+                            <>
+                              <Loader2 className="size-4 animate-spin mr-1.5" />
+                              Registering...
+                            </>
+                          ) : (
+                            <>
+                              <Webhook className="size-4 mr-1.5" />
+                              Register Webhook
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={handleSaveWebhook}
+                            disabled={savingWebhook}
+                            className="flex-1"
+                          >
+                            {savingWebhook ? (
+                              <>
+                                <Loader2 className="size-4 animate-spin mr-1.5" />
+                                Updating...
+                              </>
+                            ) : (
+                              'Update Events'
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={handleDeleteWebhook}
+                            disabled={savingWebhook}
+                            className="text-red-400 border-red-900 hover:bg-red-950/40"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    {webhookConfig?.webhook && (
+                      <div className="space-y-1 pt-2 border-t border-border">
+                        {webhookConfig.webhook.lastDeliveryAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Last delivery:{' '}
+                            {new Date(webhookConfig.webhook.lastDeliveryAt).toLocaleString()}
+                          </p>
+                        )}
+                        {webhookConfig.webhook.failureCount > 0 && (
+                          <p className="text-xs text-amber-500 flex items-center gap-1">
+                            <AlertTriangle className="size-3" />
+                            {webhookConfig.webhook.failureCount} recent failure(s)
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {loadingWebhook && (
+                      <div className="flex items-center justify-center py-2">
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </div>
