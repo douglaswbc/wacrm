@@ -314,7 +314,7 @@ async function findOrCreateConversation(
 async function handleInboundMessage(body: ZernioWebhookPayload) {
   const msg = body.message!;
   const acct = body.account!;
-  const conv = body.conversation!;
+  const zernioConv = body.conversation!;
 
   // Resolve WACRM account from Zernio account/profileId
   const accountId = await resolveAccountId(acct.accountId, acct.profileId);
@@ -402,7 +402,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     message_id: msg.id,
     platform_message_id: msg.platformMessageId ?? null,
     zernio_contact_id: msg.sender.contactId ?? null,
-    zernio_conversation_id: conv.id ?? null,
+    zernio_conversation_id: zernioConv.id ?? null,
     status: 'delivered',
     created_at: msg.sentAt,
   });
