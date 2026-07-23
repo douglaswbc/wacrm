@@ -34,6 +34,13 @@ services:
       - RYZEAPI_API_URL=https://ryzeapi.cloud
       - RYZEAPI_ADMIN_TOKEN=admin_token
 
+      # Zernio Social Media Integration (Settings → Social Accounts)
+      - ZERNIO_API_KEY=sk_your-api-key-here
+
+      # Optional: webhook secret for verifying Zernio webhook deliveries.
+      # Generate any long random string: openssl rand -hex 32
+      - ZERNIO_WEBHOOK_SECRET=generate-a-long-random-string
+
       ## URL pública
       - NEXT_PUBLIC_SITE_URL=https://wacrm.seudominio.com.br
 
