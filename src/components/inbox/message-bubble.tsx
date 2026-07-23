@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   ImageOff,
   CornerDownLeft,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -282,6 +283,12 @@ export function MessageBubble({
             isAgent ? "justify-end" : "justify-start",
           )}
         >
+          {message.zernio_contact_id && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-purple-500/20 px-1 py-0.5 text-[9px] font-medium text-purple-400">
+              <ExternalLink className="h-2.5 w-2.5" />
+              Zernio
+            </span>
+          )}
           <span
             className={cn(
               "text-[10px]",

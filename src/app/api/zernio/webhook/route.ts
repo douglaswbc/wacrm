@@ -82,6 +82,7 @@ interface ZernioWebhookPayload {
   event: string;
   timestamp: string;
   account?: {
+    id: string;
     accountId: string;
     profileId: string;
     platform: string;
@@ -91,22 +92,28 @@ interface ZernioWebhookPayload {
   message?: {
     id: string;
     conversationId: string;
-    accountId: string;
     platform: string;
-    from: string;
-    to: string;
+    platformMessageId: string;
+    direction: 'incoming' | 'outgoing';
     text: string;
-    direction: 'inbound' | 'outbound';
-    createdAt: string;
-    mediaUrl?: string;
-    mediaType?: string;
+    attachments: Array<{ type: string; url: string }>;
+    sender: {
+      id: string;
+      name: string;
+      phoneNumber: string;
+      contactId: string;
+    };
+    sentAt: string;
+    isRead: boolean;
   };
   conversation?: {
     id: string;
-    accountId: string;
-    platform: string;
+    platformConversationId: string;
+    participantId: string;
+    participantName: string;
+    participantUsername: string;
+    status: string;
     contactId: string;
-    contactName: string;
   };
   post?: {
     id: string;
@@ -306,10 +313,14 @@ async function findOrCreateConversation(
 
 async function handleInboundMessage(body: ZernioWebhookPayload) {
   const msg = body.message!;
-  const accountId = await resolveAccountId(msg.accountId, body.account?.profileId ?? '');
+  const acct = body.account!;
+  const conv = body.conversation!;
+
+  // Resolve WACRM account from Zernio account/profileId
+  const accountId = await resolveAccountId(acct.accountId, acct.profileId);
   if (!accountId) {
     console.warn(
-      `[zernio/webhook] no WACRM account found for zernio account ${msg.accountId}`,
+      `[zernio/webhook] no WACRM account found for zernio account ${acct.accountId}`,
     );
     return;
   }
@@ -333,11 +344,13 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
 
   const provider = undefined;
 
+  // Create/find contact using sender info
+  const phoneNumber = msg.sender.phoneNumber.replace('+', '');
   const contactOutcome = await findOrCreateContact(
     accountId,
     userId,
-    msg.from,
-    msg.from,
+    phoneNumber,
+    msg.sender.name,
     msg.platform,
   );
   if (!contactOutcome) return;
@@ -360,6 +373,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     });
   }
 
+  // Dedup by Zernio message ID
   const { count: existingMsgCount } = (await db
     .from('messages')
     .select('id', { count: 'exact', head: true })
@@ -371,16 +385,26 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     return;
   }
 
+  // Determine content type from attachments
+  const hasAttachment = msg.attachments && msg.attachments.length > 0;
+  const contentType = hasAttachment
+    ? msg.attachments[0].type
+    : 'text';
+  const mediaUrl = hasAttachment ? msg.attachments[0].url : null;
+
   const { error: msgError } = await (db as any).from('messages').insert({
     account_id: accountId,
     conversation_id: convOutcome.id,
     sender_type: 'customer',
-    content_type: msg.mediaType ?? 'text',
+    content_type: contentType,
     content_text: msg.text,
-    media_url: msg.mediaUrl ?? null,
+    media_url: mediaUrl,
     message_id: msg.id,
+    platform_message_id: msg.platformMessageId ?? null,
+    zernio_contact_id: msg.sender.contactId ?? null,
+    zernio_conversation_id: conv.id ?? null,
     status: 'delivered',
-    created_at: msg.createdAt,
+    created_at: msg.sentAt,
   });
 
   if (msgError) {
@@ -438,7 +462,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     conversation_id: convOutcome.id,
     contact_id: contactOutcome.id,
     zernio_message_id: msg.id,
-    content_type: msg.mediaType ?? 'text',
+    content_type: contentType,
     text: msg.text,
     channel,
     provider,
@@ -447,13 +471,16 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
 
 async function handleConversationStarted(body: ZernioWebhookPayload) {
   const conv = body.conversation!;
-  const accountId = await resolveAccountId(conv.accountId, '');
+  const acct = body.account;
+  const accountId = acct
+    ? await resolveAccountId(acct.accountId, acct.profileId)
+    : null;
   if (!accountId) return;
 
   await dispatchWebhookEvent(supabaseAdmin(), accountId, 'conversation.started', {
     zernio_conversation_id: conv.id,
-    platform: conv.platform,
-    contact_name: conv.contactName,
+    platform: body.message?.platform ?? 'unknown',
+    contact_name: conv.participantName,
   });
 }
 

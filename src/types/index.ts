@@ -254,6 +254,14 @@ export interface Message {
    * cue (renders with a "↩ button reply" affordance).
    */
   interactive_reply_id?: string;
+  /** Platform-specific message ID (e.g., WhatsApp WAMID, Zernio ID). */
+  platform_message_id?: string;
+  /** Zernio contact ID when message arrived via Zernio webhook. */
+  zernio_contact_id?: string;
+  /** Zernio conversation ID when message arrived via Zernio webhook. */
+  zernio_conversation_id?: string;
+  /** Source of the message: 'meta', 'ryzeapi', 'zernio', etc. */
+  source?: string;
 }
 
 export type ReactionActor = 'customer' | 'agent';
