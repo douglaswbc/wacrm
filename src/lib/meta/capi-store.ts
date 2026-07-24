@@ -1,9 +1,9 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import type { MetaCapiConfig, MetaCapiEventRecord } from '@/types'
+import type { MetaCapiConfig } from '@/types'
 import { decrypt } from '@/lib/whatsapp/encryption'
 
-let _adminClient: ReturnType<typeof createClient> | null = null
+let _adminClient: any = null
 
 function supabaseAdmin() {
   if (!_adminClient) {
@@ -85,7 +85,7 @@ export async function logCapiEvent(params: {
     response_body: params.responseBody || null,
     error_message: params.errorMessage || null,
     success: params.success,
-  } as MetaCapiEventRecord)
+  })
 
   if (error) {
     console.error('[capi-store] Failed to log CAPI event:', error)
