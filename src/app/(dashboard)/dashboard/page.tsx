@@ -10,26 +10,33 @@ import {
   UserPlus,
   DollarSign,
   Send,
+  AlertTriangle,
+  TrendingUp,
+  Clock,
+  Target,
 } from 'lucide-react'
 
 import {
   loadActivity,
   loadConversationsSeries,
-  loadMetrics,
+  loadExtendedMetrics,
   loadPipelineDonut,
   loadResponseTime,
+  loadSystemStatus,
 } from '@/lib/dashboard/queries'
 import type {
   ActivityItem,
   ConversationsSeriesPoint,
-  MetricsBundle,
+  ExtendedMetrics,
   PipelineDonutData,
   ResponseTimeSummary,
+  SystemStatus,
 } from '@/lib/dashboard/types'
 
 import { MetricCard } from '@/components/dashboard/metric-card'
 import { SkeletonCard } from '@/components/dashboard/skeleton'
 import { QuickActions } from '@/components/dashboard/quick-actions'
+import { SystemStatusBar } from '@/components/dashboard/system-status'
 import { ConversationsChart } from '@/components/dashboard/conversations-chart'
 import { PipelineDonut } from '@/components/dashboard/pipeline-donut'
 import { ResponseTimeChart } from '@/components/dashboard/response-time-chart'
@@ -40,13 +47,14 @@ type RangeDays = 7 | 30 | 90
 export default function DashboardPage() {
   const { defaultCurrency } = useAuth()
   const { t } = useLanguage()
-  const [metrics, setMetrics] = useState<MetricsBundle | null>(null)
+
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null)
+  const [systemStatusLoading, setSystemStatusLoading] = useState(true)
+
+  const [metrics, setMetrics] = useState<ExtendedMetrics | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(true)
 
   const [range, setRange] = useState<RangeDays>(30)
-  // Keep a cache per range so switching tabs doesn't re-fetch what we
-  // already have. Ranges the user hasn't opened yet stay null and
-  // trigger a fetch on first view.
   const [series, setSeries] = useState<Record<RangeDays, ConversationsSeriesPoint[] | null>>({
     7: null,
     30: null,
@@ -66,10 +74,12 @@ export default function DashboardPage() {
   const loadAll = useCallback(() => {
     const db = createClient()
 
-    // Kick everything off in parallel. Each block has its own
-    // setState + finally so a slow query doesn't hold up faster
-    // sections — each widget shows its own skeleton independently.
-    void loadMetrics(db)
+    void loadSystemStatus(db)
+      .then((s) => setSystemStatus(s))
+      .catch((err) => console.error('[dashboard] system status failed:', err))
+      .finally(() => setSystemStatusLoading(false))
+
+    void loadExtendedMetrics(db, defaultCurrency)
       .then((m) => setMetrics(m))
       .catch((err) => console.error('[dashboard] metrics failed:', err))
       .finally(() => setMetricsLoading(false))
@@ -89,23 +99,16 @@ export default function DashboardPage() {
       .catch((err) => console.error('[dashboard] response time failed:', err))
       .finally(() => setResponseTimeLoading(false))
 
-    // Fetch up to 50 so the biggest page-size option in the feed
-    // (50 rows) is already in memory — switching sizes then becomes
-    // a pure client-side slice with no extra round trip.
     void loadActivity(db, 50)
       .then((a) => setActivity(a))
       .catch((err) => console.error('[dashboard] activity failed:', err))
       .finally(() => setActivityLoading(false))
-  }, [])
+  }, [defaultCurrency])
 
   useEffect(() => {
     loadAll()
   }, [loadAll])
 
-  // Range switch handler — kept in an event callback (not an effect)
-  // so the setState calls stay out of the react-hooks/set-state-in-effect
-  // rule's way. The cached bucket check means switching back to a
-  // previously-viewed range is instant and doesn't re-fetch.
   const handleRangeChange = useCallback(
     (r: RangeDays) => {
       setRange(r)
@@ -121,19 +124,25 @@ export default function DashboardPage() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{t('dashboard.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('dashboard.subtitle')}
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t('dashboard.title')}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t('dashboard.subtitle')}
+          </p>
+        </div>
+        <QuickActions compact />
       </div>
 
-      {/* Metric cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* System status */}
+      <SystemStatusBar status={systemStatus} loading={systemStatusLoading} />
+
+      {/* Metric cards — 2 rows of 4 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {metricsLoading || !metrics ? (
-          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
             <MetricCard
@@ -150,8 +159,7 @@ export default function DashboardPage() {
               value={metrics.newContactsToday.current.toLocaleString()}
               icon={UserPlus}
               delta={{
-                sign:
-                  metrics.newContactsToday.current - metrics.newContactsToday.previous,
+                sign: metrics.newContactsToday.current - metrics.newContactsToday.previous,
                 label: deltaLabel(
                   metrics.newContactsToday.current - metrics.newContactsToday.previous,
                   t('dashboard.vsYesterday'),
@@ -170,8 +178,7 @@ export default function DashboardPage() {
               value={metrics.messagesSentToday.current.toLocaleString()}
               icon={Send}
               delta={{
-                sign:
-                  metrics.messagesSentToday.current - metrics.messagesSentToday.previous,
+                sign: metrics.messagesSentToday.current - metrics.messagesSentToday.previous,
                 label: deltaLabel(
                   metrics.messagesSentToday.current - metrics.messagesSentToday.previous,
                   t('dashboard.vsYesterday'),
@@ -179,20 +186,44 @@ export default function DashboardPage() {
                 ),
               }}
             />
+            {/* Row 2 — new metrics */}
+            <MetricCard
+              title="Não atribuídas"
+              value={metrics.unassignedConversations.toLocaleString()}
+              icon={AlertTriangle}
+              subtitle={metrics.unassignedConversations > 0 ? 'Precisam de agente' : 'Todas atribuídas'}
+            />
+            <MetricCard
+              title="Ganhos este mês"
+              value={formatCurrency(metrics.wonDealsThisMonth.value, defaultCurrency)}
+              icon={TrendingUp}
+              subtitle={`${metrics.wonDealsThisMonth.count} deal${metrics.wonDealsThisMonth.count !== 1 ? 's' : ''} fechado${metrics.wonDealsThisMonth.count !== 1 ? 's' : ''}`}
+            />
+            <MetricCard
+              title="Tempo de resposta"
+              value={responseTime?.thisWeekAvg != null ? `${Math.round(responseTime.thisWeekAvg)}m` : '—'}
+              icon={Clock}
+              subtitle={
+                responseTime?.thisWeekAvg != null && responseTime?.lastWeekAvg != null
+                  ? deltaLabel(
+                      Math.round(responseTime.lastWeekAvg - responseTime.thisWeekAvg),
+                      'vs semana passada',
+                      'Igual',
+                    )
+                  : 'Sem dados'
+              }
+            />
+            <MetricCard
+              title="Leads qualificados"
+              value={metrics.leadsQualifiedToday.toLocaleString()}
+              icon={Target}
+              subtitle="Hoje com tags"
+            />
           </>
         )}
       </div>
 
-      {/* Quick actions */}
-      <QuickActions />
-
       {/* Charts row */}
-      {/* items-stretch (the grid default) stretches the two columns to
-          match the tallest sibling; adding h-full on each wrapper and
-          on the inner panels makes both cards actually fill that
-          stretched height so their rounded borders line up. Without
-          this, the pipeline card rendered at its natural (shorter)
-          height while the line chart drove the row height. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <div className="h-full lg:col-span-3">
           <ConversationsChart
@@ -219,8 +250,6 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-// ------------------------------------------------------------
 
 function deltaLabel(delta: number, suffix: string, noChange: string): string {
   if (delta === 0) return `${noChange} ${suffix}`

@@ -15,6 +15,21 @@ export interface MetricsBundle {
   messagesSentToday: MetricDelta
 }
 
+export interface ExtendedMetrics extends MetricsBundle {
+  unassignedConversations: number
+  wonDealsThisMonth: { count: number; value: number }
+  responseTimeAvg: number | null
+  leadsQualifiedToday: number
+}
+
+export interface SystemStatus {
+  whatsappConnected: boolean
+  instagramConnected: boolean
+  capiConfigured: boolean
+  activeAutomations: number
+  scheduledBroadcasts: number
+}
+
 export interface ConversationsSeriesPoint {
   day: string // YYYY-MM-DD local
   incoming: number

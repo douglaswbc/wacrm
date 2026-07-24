@@ -10,11 +10,13 @@ import {
 import type {
   ActivityItem,
   ConversationsSeriesPoint,
+  ExtendedMetrics,
   MetricsBundle,
   PipelineDonutData,
   PipelineStageSlice,
   ResponseTimeBucket,
   ResponseTimeSummary,
+  SystemStatus,
 } from './types'
 
 // ------------------------------------------------------------
@@ -395,4 +397,96 @@ export async function loadActivity(db: DB, limit = 20): Promise<ActivityItem[]> 
   return items
     .sort((a, b) => (a.at > b.at ? -1 : a.at < b.at ? 1 : 0))
     .slice(0, limit)
+}
+
+// --- 6. System status ---------------------------------------------------
+
+export async function loadSystemStatus(db: DB): Promise<SystemStatus> {
+  const [
+    whatsapp,
+    instagram,
+    capi,
+    automations,
+    broadcasts,
+  ] = await Promise.all([
+    db
+      .from('whatsapp_config')
+      .select('status')
+      .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('instagram_config')
+      .select('status')
+      .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('meta_capi_configs')
+      .select('pixel_id, access_token')
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('automations')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true),
+    db
+      .from('broadcasts')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'scheduled'),
+  ])
+
+  return {
+    whatsappConnected: whatsapp.data !== null,
+    instagramConnected: instagram.data !== null,
+    capiConfigured: Boolean(
+      capi.data?.pixel_id && capi.data?.access_token,
+    ),
+    activeAutomations: automations.count ?? 0,
+    scheduledBroadcasts: broadcasts.count ?? 0,
+  }
+}
+
+// --- 7. Extended metrics ------------------------------------------------
+
+export async function loadExtendedMetrics(
+  db: DB,
+  currency?: string,
+): Promise<ExtendedMetrics> {
+  const base = await loadMetrics(db)
+
+  const todayStart = startOfLocalDay()
+
+  // First day of current month
+  const monthStart = new Date(
+    todayStart.getFullYear(),
+    todayStart.getMonth(),
+    1,
+  ).toISOString()
+
+  const [unassigned, wonDeals, qualifiedLeads] = await Promise.all([
+    db
+      .from('conversations')
+      .select('id', { count: 'exact', head: true })
+      .is('assigned_agent_id', null)
+      .neq('status', 'closed'),
+    db.from('deals').select('value').eq('status', 'won').gte('updated_at', monthStart),
+    db
+      .from('contacts')
+      .select('id, contact_tags!inner(id)', { count: 'exact', head: true })
+      .gte('created_at', todayStart.toISOString()),
+  ])
+
+  const wonRows = (wonDeals.data ?? []) as { value: number | null }[]
+  const wonValue = wonRows.reduce((sum, d) => sum + (d.value ?? 0), 0)
+
+  return {
+    ...base,
+    unassignedConversations: unassigned.count ?? 0,
+    wonDealsThisMonth: { count: wonRows.length, value: wonValue },
+    responseTimeAvg: null,
+    leadsQualifiedToday: qualifiedLeads.count ?? 0,
+  }
+
+  void currency
 }
