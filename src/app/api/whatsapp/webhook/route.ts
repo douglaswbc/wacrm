@@ -13,6 +13,7 @@ import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
 } from '@/lib/whatsapp/template-webhook'
+import { fireCapiEvent, getCapiConfig } from '@/lib/meta/capi-store'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -585,6 +586,11 @@ async function processMessage(
   if (!contactOutcome) return
   const contactRecord = contactOutcome.contact
 
+  // Fire CAPI Lead event for new contacts created via WhatsApp.
+  if (contactOutcome.wasCreated) {
+    void fireCapiLeadForContact(accountId, contactRecord)
+  }
+
   // Find or create conversation
   const convResult = await findOrCreateConversation(
     accountId,
@@ -1107,4 +1113,35 @@ async function findOrCreateConversation(
   }
 
   return { conversation: newConv, created: true }
+}
+
+async function fireCapiLeadForContact(
+  accountId: string,
+  contact: { id: string; phone?: string | null; name?: string | null },
+) {
+  try {
+    const config = await getCapiConfig(accountId)
+    if (!config?.pixel_id || !config?.access_token) return
+
+    const mapping = config.event_mapping as Record<string, { trigger: string }>
+    if (!mapping?.Lead?.trigger) return
+
+    await fireCapiEvent({
+      accountId,
+      eventName: 'Lead',
+      contactId: contact.id,
+      dealId: null,
+      eventData: {
+        event_name: 'Lead',
+        event_time: Math.floor(Date.now() / 1000),
+        event_source_url: config.event_source_url || undefined,
+        user_data: {
+          external_id: contact.id,
+          ...(contact.phone ? { ph: contact.phone } : {}),
+        },
+      },
+    })
+  } catch (err) {
+    console.error('[capi] Lead event failed for WhatsApp contact:', err)
+  }
 }

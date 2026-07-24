@@ -3,6 +3,8 @@ import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import {
   getDealById,
 } from '@/lib/api/v1/deals';
+import { after } from 'next/server';
+import { fireCapiEvent, getCapiConfig } from '@/lib/meta/capi-store';
 
 const VALID_STATUSES = ['open', 'won', 'lost'] as const;
 
@@ -38,9 +40,67 @@ export async function POST(
       return fail('internal', 'Failed to update deal status', 500);
     }
 
+    if (status === 'won') {
+      after(async () => {
+        try {
+          await fireCapiPurchaseForDeal(ctx.accountId, id);
+        } catch (err) {
+          console.error('[capi] Purchase event failed:', err);
+        }
+      });
+    }
+
     const updated = await getDealById(ctx.supabase, ctx.accountId, id);
     return ok(updated);
   } catch (err) {
     return toApiErrorResponse(err);
   }
+}
+
+async function fireCapiPurchaseForDeal(
+  accountId: string,
+  dealId: string,
+) {
+  const config = await getCapiConfig(accountId);
+  if (!config?.pixel_id || !config?.access_token) return;
+
+  const mapping = config.event_mapping as Record<string, { trigger: string }>;
+  if (!mapping?.Purchase?.trigger) return;
+
+  const { createClient } = await import('@supabase/supabase-js');
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const deal = await getDealById(db, accountId, dealId);
+  if (!deal) return;
+
+  const userData: Record<string, unknown> = {};
+
+  if (deal.contact_id) {
+    userData.external_id = deal.contact_id;
+  }
+  if (deal.contact?.phone) {
+    userData.ph = deal.contact.phone;
+  }
+
+  await fireCapiEvent({
+    accountId,
+    eventName: 'Purchase',
+    contactId: deal.contact_id,
+    dealId,
+    eventData: {
+      event_name: 'Purchase',
+      event_time: Math.floor(Date.now() / 1000),
+      event_source_url: config.event_source_url || undefined,
+      user_data: userData,
+      custom_data: {
+        value: deal.value,
+        currency: deal.currency || 'BRL',
+        content_name: deal.title,
+        order_id: dealId,
+      },
+    },
+  });
 }

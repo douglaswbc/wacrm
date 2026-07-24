@@ -23,6 +23,7 @@ import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { getIgUserProfile } from '@/lib/instagram/meta-api'
+import { fireCapiEvent, getCapiConfig } from '@/lib/meta/capi-store'
 
 // Lazy-initialized to avoid build-time crash when env vars are missing
 let _adminClient: any = null
@@ -373,6 +374,9 @@ async function processMessage(
     }
     contactId = newContact.id
     contactWasCreated = true
+
+    // Fire CAPI Lead event for new Instagram contacts.
+    void fireCapiLeadForInstagramContact(accountId, contactId)
   }
 
   // Fetch Instagram profile to populate name/username if missing.
@@ -848,4 +852,34 @@ interface InstagramConfigRow {
   status: string
   business_name: string | null
   connected_at: string | null
+}
+
+async function fireCapiLeadForInstagramContact(
+  accountId: string,
+  contactId: string,
+) {
+  try {
+    const config = await getCapiConfig(accountId)
+    if (!config?.pixel_id || !config?.access_token) return
+
+    const mapping = config.event_mapping as Record<string, { trigger: string }>
+    if (!mapping?.Lead?.trigger) return
+
+    await fireCapiEvent({
+      accountId,
+      eventName: 'Lead',
+      contactId,
+      dealId: null,
+      eventData: {
+        event_name: 'Lead',
+        event_time: Math.floor(Date.now() / 1000),
+        event_source_url: config.event_source_url || undefined,
+        user_data: {
+          external_id: contactId,
+        },
+      },
+    })
+  } catch (err) {
+    console.error('[capi] Lead event failed for Instagram contact:', err)
+  }
 }

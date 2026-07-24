@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Calendar,
   Camera,
   Coins,
@@ -42,6 +43,7 @@ export const SETTINGS_SECTIONS = [
   'ai',
   'api',
   'webhooks',
+  'meta_capi',
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
@@ -73,6 +75,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   ai: { id: 'ai', label: 'AI Assistant', icon: Sparkles, group: 'workspace' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace' },
   webhooks: { id: 'webhooks', label: 'Webhooks', icon: Webhook, group: 'workspace' },
+  meta_capi: { id: 'meta_capi', label: 'Meta CAPI', icon: BarChart3, group: 'workspace' },
 };
 
 export const RAIL_GROUPS: { label: string | null; group: SectionMeta['group'] }[] = [

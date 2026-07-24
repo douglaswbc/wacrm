@@ -23,6 +23,7 @@ import { MembersTab } from '@/components/settings/members-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { AiConfig } from '@/components/settings/ai-config';
 import { WebhooksSettings } from '@/components/settings/webhooks-settings';
+import { MetaCapiConfig } from '@/components/settings/meta-capi-config';
 import {
   resolveSection,
   type SettingsSection,
@@ -85,6 +86,7 @@ function SettingsPageContent() {
     ai: <AiConfig />,
     api: <ApiKeysSettings />,
     webhooks: <WebhooksSettings />,
+    meta_capi: <MetaCapiConfig />,
   };
 
   return (

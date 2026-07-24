@@ -784,3 +784,47 @@ export interface SocialAccount {
   displayName: string;
   isActive: boolean;
 }
+
+// ============================================================
+// Meta Conversions API — CAPI (migration 052)
+// ============================================================
+
+export interface MetaCapiConfig {
+  id: string;
+  account_id: string;
+  pixel_id: string | null;
+  access_token: string | null;
+  default_action_source: string;
+  event_source_url: string | null;
+  event_mapping: MetaCapiEventMapping;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetaCapiEventMapping {
+  Lead?: {
+    trigger: 'contact_created';
+  };
+  QualifyLead?: {
+    trigger: 'tag_added';
+    tag_ids?: string[];
+  };
+  Purchase?: {
+    trigger: 'deal_won';
+  };
+}
+
+export interface MetaCapiEventRecord {
+  id: string;
+  account_id: string;
+  event_name: string;
+  contact_id: string | null;
+  deal_id: string | null;
+  event_id: string;
+  request_payload: unknown;
+  response_status: number | null;
+  response_body: unknown;
+  error_message: string | null;
+  success: boolean;
+  created_at: string;
+}
