@@ -319,15 +319,27 @@ export async function sendPublicCommentReply(
 ): Promise<{ messageId: string }> {
   const { zernioAccountId, postId, commentId, message } = args;
 
-  const resp = await zernioFetch<{ id: string }>(
-    `/inbox/comments/${postId}`,
-    {
-      method: 'POST',
-      body: { accountId: zernioAccountId, commentId, message },
+  const url = `${ZERNIO_BASE}/inbox/comments/${postId}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${ZERNIO_API_KEY}`,
     },
-  );
+    body: JSON.stringify({ accountId: zernioAccountId, commentId, message }),
+  });
 
-  return { messageId: resp.id };
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const msg = err.data?.error ?? err.error ?? response.statusText;
+    throw new Error(`Zernio API error (${response.status}): ${msg}`);
+  }
+
+  const json = await response.json();
+  // Response may be { data: {...} } or { id: "..." }
+  const data = json.data ?? json;
+  const messageId = (data._id || data.id || data.messageId || '') as string;
+  return { messageId };
 }
 
 // ─── Comment Reply — Private DM to commenter ───────────────
@@ -421,20 +433,39 @@ export async function listExternalPosts(args: {
   const raw: unknown[] = Array.isArray(json.posts) ? json.posts : [];
 
   if (raw.length > 0) {
-    console.log('[zernio] /posts first item keys:', Object.keys(raw[0] as Record<string, unknown>));
-    console.log('[zernio] /posts first item sample:', JSON.stringify(raw[0]).substring(0, 500));
+    const first = raw[0] as Record<string, unknown>;
+    console.log('[zernio] /posts first item keys:', Object.keys(first));
+    console.log('[zernio] /posts platforms[0]:', JSON.stringify((first.platforms as unknown[])?.[0]));
   } else {
     console.log('[zernio] /posts returned 0 items. json keys:', Object.keys(json));
   }
 
   return (raw as Record<string, unknown>[]).map((item) => {
-    const content = (item.content || item.caption || item.text || item.platformTitle || '') as string;
-    const platformPostId = (item.platformPostId as string) || undefined;
-    const zernioId = (item._id as string) || (item.id as string) || '';
+    // Extract platformPostId from the platforms array (e.g. [{ platform, accountId, platformPostId }])
+    const platforms = (item.platforms as Array<Record<string, unknown>>) ?? [];
+    const igPlatform = platforms.find((p) => p.platform === 'instagram');
+    const platformPostId = (igPlatform?.platformPostId as string)
+      || (igPlatform?.postId as string)
+      || (item.platformPostId as string)
+      || undefined;
+
+    // Content: try content field first, then mediaItems captions
+    let content = (item.content as string) ?? '';
+    if (!content) {
+      const mediaItems = (item.mediaItems as Array<Record<string, unknown>>) ?? [];
+      const captions = mediaItems.map((m) => (m.caption || m.altText || m.description) as string).filter(Boolean);
+      content = captions[0] ?? '';
+    }
+
     return {
-      id: platformPostId || zernioId,
+      id: platformPostId || ((item._id as string) || (item.id as string) || ''),
       content,
       platformPostId,
+      platformPostUrl: (igPlatform?.url || item.platformPostUrl) as string || undefined,
+      platforms: platforms as ZernioExternalPost['platforms'] || undefined,
+      createdAt: item.createdAt as string || '',
+    };
+  });
       platformPostUrl: item.platformPostUrl as string || undefined,
       platforms: item.platforms as ZernioExternalPost['platforms'] || undefined,
       createdAt: item.createdAt as string || '',

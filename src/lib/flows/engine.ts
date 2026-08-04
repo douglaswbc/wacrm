@@ -628,6 +628,7 @@ async function advanceFromNodeKey(
           conversationId: run.conversation_id!,
           contactId: run.contact_id!,
           text: interpolateVars(cfg.text, run.vars),
+          reply_mode: (node.config as Record<string, unknown>).reply_mode as 'public' | 'dm' | undefined,
         });
         await logEvent(db, run.id, "message_sent", node.node_key, {
           node_type: "send_message",

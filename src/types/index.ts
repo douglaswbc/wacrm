@@ -542,6 +542,8 @@ export type AutomationTriggerConfig =
 
 export interface SendMessageStepConfig {
   text: string;
+  /** Instagram comment reply mode: 'public' (visible on post) or 'dm' (private). */
+  reply_mode?: 'public' | 'dm';
 }
 
 export interface SendTemplateStepConfig {

@@ -6,6 +6,7 @@ interface SendTextArgs {
   conversationId: string
   contactId: string
   text: string
+  reply_mode?: 'public' | 'dm'
 }
 
 interface SendTemplateArgs {
@@ -36,6 +37,7 @@ export async function engineSendText(args: SendTextArgs): Promise<{ whatsapp_mes
       messageType: 'text',
       contentText: args.text,
       senderType: 'bot',
+      reply_mode: args.reply_mode,
     },
   )
   return { whatsapp_message_id: result.whatsappMessageId }

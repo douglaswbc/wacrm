@@ -428,6 +428,7 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         conversationId,
         contactId: args.contactId,
         text,
+        reply_mode: (step.step_config as Record<string, unknown>).reply_mode as 'public' | 'dm' | undefined,
       })
       return `sent via Meta (${whatsapp_message_id})`
     }
