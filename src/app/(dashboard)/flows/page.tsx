@@ -16,6 +16,7 @@ import {
   Archive,
   HelpCircle,
   UserPlus,
+  Image,
   FileText,
 } from "lucide-react";
 
@@ -81,6 +82,7 @@ const TEMPLATE_ICONS = {
   MessageSquare,
   HelpCircle,
   UserPlus,
+  Image,
 } as const;
 
 export default function FlowsPage() {

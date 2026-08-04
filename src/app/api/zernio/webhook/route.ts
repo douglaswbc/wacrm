@@ -838,13 +838,15 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
 
   if (existingConv) {
     conversation = { id: existingConv.id, created: false };
-    // Update unread
+    // Update unread + store comment metadata for reply routing
     await db.from('conversations').update({
       unread_count: (existingConv.unread_count ?? 0) + 1,
       last_message_text: commentText.substring(0, 512),
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       zernio_account_id: acct.accountId,
+      instagram_post_id: mediaId || null,
+      instagram_comment_id: commentId,
     }).eq('id', existingConv.id);
   } else {
     const { data: newConv, error: convErr } = await db
@@ -856,6 +858,8 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
         channel: 'instagram',
         provider: 'zernio',
         zernio_account_id: acct.accountId,
+        instagram_post_id: mediaId || null,
+        instagram_comment_id: commentId,
         status: 'open',
         unread_count: 1,
         last_message_text: commentText.substring(0, 512),

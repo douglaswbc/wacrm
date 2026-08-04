@@ -767,6 +767,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
               addStepAt={addStepAt}
               deleteStepAt={deleteStepAt}
               moveStepAt={moveStepAt}
+              channel={state.channel}
             />
           </ResourcesProvider>
         </div>
@@ -918,25 +919,27 @@ function KeywordMatchConfig({
   onChange: (c: Record<string, unknown>) => void
 }) {
   const keywords = config?.keywords ?? []
-  // Keep a local draft string so the comma and trailing space aren't
-  // stripped on every keystroke (which made multi-word, comma-separated
-  // entry like "SEO, search engine optimization" impossible to type).
-  // We only parse into the keywords array on blur, then re-display the
-  // cleaned, rejoined form. Seeded once on mount; this component remounts
-  // when the trigger type changes, so the seed stays in sync.
   const [draft, setDraft] = useState(keywords.join(", "))
+  const [posts, setPosts] = useState<{ id: string; content: string }[]>([])
+  const [postsLoading, setPostsLoading] = useState(false)
+  const selectedPostId = config?.instagram_media_ids?.[0] ?? ""
 
-  // Persist the default the <select> displays. The dropdown falls back to
-  // "contains" for display, but leaving it untouched would otherwise omit
-  // match_type from the saved config — and activation validation then
-  // rejected it (trigger.match_type). Seed once on mount; the component
-  // remounts when the trigger type changes, matching the keywords draft.
   useEffect(() => {
     if (config?.match_type == null) {
       onChange({ ...config, match_type: "contains" })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (channel !== 'instagram') return
+    setPostsLoading(true)
+    fetch('/api/zernio/posts?platform=instagram')
+      .then((r) => r.json())
+      .then((json) => setPosts(json.data ?? []))
+      .catch(() => setPosts([]))
+      .finally(() => setPostsLoading(false))
+  }, [channel])
 
   function commit() {
     const parsed = draft
@@ -980,6 +983,36 @@ function KeywordMatchConfig({
           <option value="exact">Exact</option>
         </select>
       </div>
+      {channel === 'instagram' && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            Scope to post (optional)
+          </label>
+          <select
+            value={selectedPostId}
+            onChange={(e) => {
+              const val = e.target.value
+              onChange({ ...config, instagram_media_ids: val ? [val] : undefined })
+            }}
+            disabled={postsLoading}
+            className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:outline-none disabled:opacity-50"
+          >
+            <option value="">Any post</option>
+            {posts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.content.substring(0, 80)}{p.content.length > 80 ? '...' : ''}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {postsLoading
+              ? 'Loading posts...'
+              : posts.length === 0
+                ? 'No posts found. Connect Instagram in Settings > Social and sync posts via Zernio.'
+                : 'Limit this trigger to comments on a specific post.'}
+          </p>
+        </div>
+      )}
 
     </div>
   )
@@ -1275,6 +1308,7 @@ interface StepListProps {
   addStepAt: (parent: ParentScope, index: number, type: AutomationStepType) => void
   deleteStepAt: (path: StepPath) => void
   moveStepAt: (path: StepPath, direction: -1 | 1) => void
+  channel?: 'whatsapp' | 'instagram' | null
 }
 
 function StepList(props: StepListProps) {
@@ -1312,6 +1346,7 @@ function StepRenderer({
   total,
   parentScope,
   parentPath,
+  channel,
   ...props
 }: {
   step: BuilderStep
@@ -1319,7 +1354,8 @@ function StepRenderer({
   total: number
   parentScope: ParentScope
   parentPath: StepPath
-} & Omit<StepListProps, "steps" | "parentPath">) {
+  channel?: 'whatsapp' | 'instagram' | null
+} & Omit<StepListProps, "steps" | "parentPath" | "channel">) {
   const path: StepPath = [
     ...parentPath,
     parentScope.kind === "root"
@@ -1370,6 +1406,7 @@ function StepRenderer({
             <div className="border-t border-border px-4 py-3">
               <StepEditor
                 step={step}
+                channel={channel}
                 onChange={(next) => props.updateStep(path, () => next)}
               />
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
@@ -1634,9 +1671,11 @@ function SendButtonFields({
 
 function StepEditor({
   step,
+  channel,
   onChange,
 }: {
   step: BuilderStep
+  channel?: 'whatsapp' | 'instagram' | null
   onChange: (s: BuilderStep) => void
 }) {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
@@ -1647,14 +1686,31 @@ function StepEditor({
   switch (step.step_type) {
     case "send_message":
       return (
-        <FieldBlock label="Message text">
-          <Textarea
-            value={(cfg.text as string) ?? ""}
-            onChange={(e) => set({ text: e.target.value })}
-            placeholder="Hi! Thanks for reaching out…"
-            className="min-h-24 bg-muted text-foreground"
-          />
-        </FieldBlock>
+        <>
+          <FieldBlock label="Message text">
+            <Textarea
+              value={(cfg.text as string) ?? ""}
+              onChange={(e) => set({ text: e.target.value })}
+              placeholder="Hi! Thanks for reaching out…"
+              className="min-h-24 bg-muted text-foreground"
+            />
+          </FieldBlock>
+          {channel === 'instagram' && (
+            <FieldBlock label="Reply mode">
+              <select
+                value={(cfg.reply_mode as string) ?? "public"}
+                onChange={(e) => set({ reply_mode: e.target.value })}
+                className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+              >
+                <option value="public">Public Reply (on the post)</option>
+                <option value="dm">Private DM</option>
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Public replies are visible to everyone on the post. Private DMs go directly to the commenter.
+              </p>
+            </FieldBlock>
+          )}
+        </>
       )
     case "send_template":
       return (

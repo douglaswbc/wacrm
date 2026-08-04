@@ -66,7 +66,7 @@ export interface FlowTemplate {
   name: string;
   description: string;
   /** Used by the gallery to surface a relevant icon. lucide-react name. */
-  icon: "MessageSquare" | "HelpCircle" | "UserPlus";
+  icon: "MessageSquare" | "HelpCircle" | "UserPlus" | "Image";
   trigger_type: "keyword" | "first_inbound_message" | "manual";
   trigger_config: KeywordTriggerConfig | Record<string, unknown>;
   entry_node_id: string;
@@ -292,6 +292,50 @@ const LEAD_CAPTURE: FlowTemplate = {
 };
 
 // ============================================================
+// 4. Instagram Comment Reply — public reply + DM follow-up
+// ============================================================
+const IG_COMMENT_REPLY: FlowTemplate = {
+  slug: "ig_comment_reply",
+  name: "Instagram Comment Reply",
+  description:
+    "Reply publicly to a comment on your post. Then send a private DM with more details.",
+  icon: "Image",
+  trigger_type: "keyword",
+  trigger_config: { keywords: ["promo", "quero", "info"], match_type: "contains" },
+  entry_node_id: "start",
+  nodes: [
+    {
+      node_key: "start",
+      node_type: "start",
+      config: { next_node_key: "public_reply" },
+    },
+    {
+      node_key: "public_reply",
+      node_type: "send_message",
+      config: {
+        text: "👋 Thanks for your comment! Check your DMs for more info.",
+        reply_mode: "public",
+        next_node_key: "dm_reply",
+      } as SendMessageNodeConfig & { reply_mode?: string },
+    },
+    {
+      node_key: "dm_reply",
+      node_type: "send_message",
+      config: {
+        text: "Hey! Thanks for your interest. Here's everything you need to know...",
+        reply_mode: "dm",
+        next_node_key: "end",
+      } as SendMessageNodeConfig & { reply_mode?: string },
+    },
+    {
+      node_key: "end",
+      node_type: "end",
+      config: {},
+    },
+  ],
+};
+
+// ============================================================
 // Registry
 // ============================================================
 
@@ -299,6 +343,7 @@ const TEMPLATES: Record<string, FlowTemplate> = {
   welcome_menu: WELCOME_MENU,
   faq_bot: FAQ_BOT,
   lead_capture: LEAD_CAPTURE,
+  ig_comment_reply: IG_COMMENT_REPLY,
 };
 
 export function getFlowTemplate(slug: string): FlowTemplate | null {

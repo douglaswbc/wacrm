@@ -10,6 +10,8 @@ export type TemplateSlug =
   | 'out_of_office'
   | 'lead_qualifier'
   | 'follow_up_reminder'
+  | 'ig_comment_public_reply'
+  | 'ig_comment_dm_reply'
 
 export interface TemplateStepSeed {
   step_type: AutomationStepType
@@ -122,6 +124,61 @@ export const AUTOMATION_TEMPLATES: Record<TemplateSlug, AutomationTemplateDefini
           text:
             "Just circling back — did you have any other questions for us? Happy to help!",
         },
+      },
+    ],
+  },
+  ig_comment_public_reply: {
+    slug: 'ig_comment_public_reply',
+    name: 'Instagram Comment Reply (Public)',
+    description: 'When someone comments a keyword on your Instagram post, reply publicly on the post.',
+    trigger_type: 'keyword_match',
+    trigger_config: {
+      keywords: ['promo', 'quero', 'info'],
+      match_type: 'contains',
+    },
+    steps: [
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: '👋 Thanks for your comment! Check the link in our bio for more info.',
+          reply_mode: 'public',
+        },
+      },
+      {
+        step_type: 'add_tag',
+        step_config: { tag_id: '' },
+      },
+    ],
+  },
+  ig_comment_dm_reply: {
+    slug: 'ig_comment_dm_reply',
+    name: 'Instagram Comment to DM',
+    description: 'When someone comments a keyword, send them a private DM with more details.',
+    trigger_type: 'keyword_match',
+    trigger_config: {
+      keywords: ['promo', 'quero', 'info'],
+      match_type: 'contains',
+    },
+    steps: [
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: 'Hey! Thanks for your interest. Here\'s everything you need to know...',
+          reply_mode: 'dm',
+        },
+      },
+      {
+        step_type: 'send_media',
+        step_config: {
+          media_type: 'image',
+          media_url: '',
+          caption: 'Check this out!',
+          filename: '',
+        },
+      },
+      {
+        step_type: 'add_tag',
+        step_config: { tag_id: '' },
       },
     ],
   },

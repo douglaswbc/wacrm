@@ -305,6 +305,102 @@ export async function createInboxConversation(
   };
 }
 
+// ─── Comment Reply — Public (visible on the post) ──────────
+
+export interface SendPublicCommentReplyArgs {
+  zernioAccountId: string;
+  postId: string;
+  commentId: string;
+  message: string;
+}
+
+export async function sendPublicCommentReply(
+  args: SendPublicCommentReplyArgs,
+): Promise<{ messageId: string }> {
+  const { zernioAccountId, postId, commentId, message } = args;
+
+  const resp = await zernioFetch<{ id: string }>(
+    `/inbox/comments/${postId}/${commentId}/reply`,
+    {
+      method: 'POST',
+      body: { accountId: zernioAccountId, message },
+    },
+  );
+
+  return { messageId: resp.id };
+}
+
+// ─── Comment Reply — Private DM to commenter ───────────────
+
+export interface SendPrivateCommentReplyArgs {
+  zernioAccountId: string;
+  postId: string;
+  commentId: string;
+  message?: string;
+  attachmentUrl?: string;
+  attachmentType?: 'image' | 'video' | 'audio';
+  attachmentName?: string;
+  buttons?: Array<{ type: 'postback' | 'url'; title: string; payload?: string }>;
+  quickReplies?: Array<{ title: string; payload: string }>;
+}
+
+export async function sendPrivateCommentReply(
+  args: SendPrivateCommentReplyArgs,
+): Promise<{ messageId: string; conversationId?: string }> {
+  const {
+    zernioAccountId, postId, commentId, message,
+    attachmentUrl, attachmentType, attachmentName,
+    buttons, quickReplies,
+  } = args;
+
+  const body: Record<string, unknown> = { accountId: zernioAccountId };
+  if (message) body.message = message;
+  if (attachmentUrl) body.attachmentUrl = attachmentUrl;
+  if (attachmentType) body.attachmentType = attachmentType;
+  if (attachmentName) body.attachmentName = attachmentName;
+  if (buttons) body.buttons = buttons;
+  if (quickReplies) body.quickReplies = quickReplies;
+
+  const resp = await zernioFetch<{
+    id: string; conversationId?: string;
+  }>(`/inbox/comments/${postId}/${commentId}/private-reply`, {
+    method: 'POST',
+    body,
+  });
+
+  return { messageId: resp.id, conversationId: resp.conversationId };
+}
+
+// ─── List External Posts (synced from platform) ─────────────
+
+export interface ZernioExternalPost {
+  id: string;
+  content: string;
+  platformPostId?: string;
+  platformPostUrl?: string;
+  platforms?: Array<{ platform: string; accountId: string }>;
+  createdAt: string;
+}
+
+export async function listExternalPosts(args: {
+  zernioAccountId: string;
+  platform?: string;
+  search?: string;
+  limit?: number;
+}): Promise<ZernioExternalPost[]> {
+  const params = new URLSearchParams();
+  params.set('source', 'external');
+  params.set('account_id', args.zernioAccountId);
+  if (args.platform) params.set('platform', args.platform);
+  if (args.search) params.set('search', args.search);
+  if (args.limit) params.set('limit', String(args.limit));
+
+  const data = await zernioFetch<{ posts: ZernioExternalPost[] }>(
+    `/posts?${params.toString()}`,
+  );
+  return data.posts;
+}
+
 // ─── Inbox — Reactions ──────────────────────────────────────
 
 export async function sendReaction(args: {

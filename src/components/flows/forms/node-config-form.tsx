@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { uploadAccountMedia, MEDIA_MAX_BYTES } from "@/lib/storage/upload-media";
 import { MediaPicker } from "@/components/media-library/media-picker";
 import { slugify, type BuilderNode } from "../shared";
+import { useFlowEditor } from "../flow-editor-state";
 import { NextNodeRow, NodeKeySelect, TextRow } from "./fields";
 
 interface NodeConfigFormProps {
@@ -64,6 +65,8 @@ export function NodeConfigForm({
   showAdvanced,
   onUpdateConfig,
 }: NodeConfigFormProps) {
+  const editor = useFlowEditor();
+  const flowChannel = editor?.state?.channel;
   const cfg = node.config;
   switch (node.node_type) {
     case "start":
@@ -77,7 +80,7 @@ export function NodeConfigForm({
         />
       );
 
-    case "send_message":
+    case "send_message": {
       return (
         <>
           <TextRow
@@ -85,6 +88,26 @@ export function NodeConfigForm({
             value={(cfg as { text?: string }).text ?? ""}
             onChange={(v) => onUpdateConfig({ text: v })}
           />
+          {flowChannel === 'instagram' && (
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Reply mode</label>
+              <Select
+                value={(cfg as { reply_mode?: string }).reply_mode ?? 'public'}
+                onValueChange={(v) => onUpdateConfig({ reply_mode: v })}
+              >
+                <SelectTrigger className="bg-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Public Reply (on the post)</SelectItem>
+                  <SelectItem value="dm">Private DM</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Public replies are visible to everyone on the post. DMs go directly to the commenter.
+              </p>
+            </div>
+          )}
           <NextNodeRow
             value={(cfg as { next_node_key?: string }).next_node_key ?? ""}
             allNodes={allNodes}
@@ -94,6 +117,7 @@ export function NodeConfigForm({
           />
         </>
       );
+    }
 
     case "send_buttons":
       return (

@@ -19,6 +19,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   sendInboxMessage,
   createInboxConversation,
+  sendPublicCommentReply,
+  sendPrivateCommentReply,
 } from '@/lib/zernio/client';
 import {
   sendText as sendRyzeText,
@@ -87,6 +89,8 @@ export interface SendMessageParams {
   linkPreview?: boolean | null;
   // Sender override for bot messages (automations/flows)
   senderType?: 'agent' | 'bot';
+  /** Instagram comment reply mode: 'public' replies on the post, 'dm' sends a private DM. */
+  reply_mode?: 'public' | 'dm';
 }
 
 export interface SendMessageResult {
@@ -263,7 +267,7 @@ export async function sendMessageToConversation(
   // Conversation + contact + Zernio routing fields, account-scoped.
   const { data: conversation, error: convError } = await db
     .from('conversations')
-    .select('*, contact:contacts(*), provider, zernio_conversation_id, zernio_account_id')
+    .select('*, contact:contacts(*), provider, zernio_conversation_id, zernio_account_id, instagram_post_id, instagram_comment_id')
     .eq('id', conversationId)
     .eq('account_id', accountId)
     .single();
@@ -277,6 +281,8 @@ export async function sendMessageToConversation(
   const provider = conversation.provider;
   const zernioConvId = conversation.zernio_conversation_id as string | null;
   const zernioAcctId = conversation.zernio_account_id as string | null;
+  const instagramPostId = conversation.instagram_post_id as string | null;
+  const instagramCommentId = conversation.instagram_comment_id as string | null;
 
   // ── RyzeAPI provider ──────────────────────────────────────
   if (provider === 'ryzeapi') {
@@ -293,7 +299,7 @@ export async function sendMessageToConversation(
     provider === 'meta' ||
     (!provider && channel === 'instagram')
   ) {
-    return sendZernioMessage(db, accountId, conversationId, contact, zernioConvId, zernioAcctId, params);
+    return sendZernioMessage(db, accountId, conversationId, contact, zernioConvId, zernioAcctId, instagramPostId, instagramCommentId, params);
   }
 
   // ── No provider set — try Zernio connection first, then RyzeAPI ──
@@ -304,7 +310,7 @@ export async function sendMessageToConversation(
     .maybeSingle();
 
   if (zernioConn) {
-    return sendZernioMessage(db, accountId, conversationId, contact, zernioConvId, zernioAcctId, params);
+    return sendZernioMessage(db, accountId, conversationId, contact, zernioConvId, zernioAcctId, instagramPostId, instagramCommentId, params);
   }
 
   if (!contact?.phone) {
@@ -534,6 +540,8 @@ async function sendZernioMessage(
   contact: any,
   zernioConvId: string | null,
   zernioAcctId: string | null,
+  instagramPostId: string | null,
+  instagramCommentId: string | null,
   params: SendMessageParams,
 ): Promise<SendMessageResult> {
   const {
@@ -600,6 +608,70 @@ async function sendZernioMessage(
       'No Zernio account connected for this channel. Connect via Settings > Social.',
       400,
     );
+  }
+
+  // ── Comment reply routing ──────────────────────────────────
+  // Instagram comments have no inbox conversation; replies go through
+  // Zernio's public-reply (visible on post) or private-reply (DM) endpoints.
+  if (channel === 'instagram' && instagramPostId && instagramCommentId) {
+    if (!resolvedAcctId) {
+      throw new SendMessageError(
+        'zernio_not_configured',
+        'No Zernio account connected for this channel.',
+        400,
+      );
+    }
+
+    const replyMode = params.reply_mode ?? 'public';
+    const mediaKinds = ['image', 'video', 'audio', 'document'];
+    const isMedia = mediaKinds.includes(messageType);
+
+    // Media always goes as DM — public comment replies don't support attachments
+    const effectiveMode = isMedia ? 'dm' : replyMode;
+
+    try {
+      let resultMsgId: string;
+      let resultConvId: string | undefined;
+
+      if (effectiveMode === 'dm') {
+        const r = await sendPrivateCommentReply({
+          zernioAccountId: resolvedAcctId,
+          postId: instagramPostId,
+          commentId: instagramCommentId,
+          message: isMedia ? undefined : (contentText || undefined),
+          attachmentUrl: isMedia ? (mediaUrl || undefined) : undefined,
+          attachmentType: isMedia ? (messageType as 'image' | 'video' | 'audio') : undefined,
+          attachmentName: messageType === 'document' ? (filename || 'file') : undefined,
+        });
+        resultMsgId = r.messageId;
+        resultConvId = r.conversationId;
+      } else {
+        const r = await sendPublicCommentReply({
+          zernioAccountId: resolvedAcctId,
+          postId: instagramPostId,
+          commentId: instagramCommentId,
+          message: contentText || '',
+        });
+        resultMsgId = r.messageId;
+      }
+
+      if (resultConvId) {
+        await db
+          .from('conversations')
+          .update({
+            zernio_conversation_id: resultConvId,
+            zernio_account_id: resolvedAcctId,
+            provider: 'zernio',
+          })
+          .eq('id', conversationId);
+      }
+
+      return persistSentMessage(db, accountId, conversationId, contact, resultMsgId, params, 'zernio');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown Zernio error';
+      console.error('[send-message] Zernio comment reply failed:', message);
+      throw new SendMessageError('zernio_error', `Zernio error: ${message}`, 502);
+    }
   }
 
   // Instagram does NOT support createInboxConversation — the customer must

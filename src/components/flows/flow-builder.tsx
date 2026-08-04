@@ -266,6 +266,29 @@ function TriggerPanel({
   setState: React.Dispatch<React.SetStateAction<BuilderState>>;
   triggerIssues: ValidationIssue[];
 }) {
+  const [igPosts, setIgPosts] = useState<{ id: string; content: string }[]>([]);
+  const [igPostsLoading, setIgPostsLoading] = useState(false);
+  const igSelectedPostId =
+    (state.trigger_config as Record<string, unknown>)?.instagram_media_ids?.[0] ?? '';
+
+  useEffect(() => {
+    if (state.channel !== 'instagram') return;
+    let cancelled = false;
+    const loadPosts = async () => {
+      setIgPostsLoading(true);
+      try {
+        const r = await fetch('/api/zernio/posts?platform=instagram');
+        const json = await r.json();
+        if (!cancelled) setIgPosts(json.data ?? []);
+      } catch {
+        if (!cancelled) setIgPosts([]);
+      } finally {
+        if (!cancelled) setIgPostsLoading(false);
+      }
+    };
+    loadPosts();
+    return () => { cancelled = true; };
+  }, [state.channel]);
   return (
     <section className="border-border bg-card rounded-lg border p-4">
       <h2 className="text-foreground mb-3 text-sm font-semibold">Trigger</h2>
@@ -322,6 +345,46 @@ function TriggerPanel({
           </div>
         )}
       </div>
+
+      {state.trigger_type === 'keyword' && state.channel === 'instagram' && (
+        <div className="mt-3">
+          <label className="text-muted-foreground mb-1 block text-xs">
+            Scope to post (optional)
+          </label>
+          <Select
+            value={igSelectedPostId}
+            onValueChange={(v) =>
+              setState((s) => ({
+                ...s,
+                trigger_config: {
+                  ...s.trigger_config,
+                  instagram_media_ids: v ? [v] : undefined,
+                },
+              }))
+            }
+            disabled={igPostsLoading}
+          >
+            <SelectTrigger className="bg-muted w-full md:w-64">
+              <SelectValue placeholder="Any post" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Any post</SelectItem>
+              {igPosts.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.content.substring(0, 60)}{p.content.length > 60 ? '...' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {igPostsLoading
+              ? 'Loading posts...'
+              : igPosts.length === 0
+                ? 'No posts found. Connect Instagram in Settings > Social.'
+                : 'Limit this trigger to comments on a specific post.'}
+          </p>
+        </div>
+      )}
 
       <div className="mt-3">
         <label className="text-muted-foreground mb-1 block text-xs">
