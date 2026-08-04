@@ -320,10 +320,10 @@ export async function sendPublicCommentReply(
   const { zernioAccountId, postId, commentId, message } = args;
 
   const resp = await zernioFetch<{ id: string }>(
-    `/inbox/comments/${postId}/${commentId}/reply`,
+    `/inbox/comments/${postId}`,
     {
       method: 'POST',
-      body: { accountId: zernioAccountId, message },
+      body: { accountId: zernioAccountId, commentId, message },
     },
   );
 
@@ -389,16 +389,71 @@ export async function listExternalPosts(args: {
   limit?: number;
 }): Promise<ZernioExternalPost[]> {
   const params = new URLSearchParams();
-  params.set('source', 'external');
-  params.set('account_id', args.zernioAccountId);
   if (args.platform) params.set('platform', args.platform);
   if (args.search) params.set('search', args.search);
   if (args.limit) params.set('limit', String(args.limit));
 
-  const data = await zernioFetch<{ posts: ZernioExternalPost[] }>(
-    `/posts?${params.toString()}`,
+  const path = `/posts?${params.toString()}`;
+
+  // Don't use zernioFetch here — the /posts endpoint can return
+  // { data: [...] } (paginated array) which zernioFetch's auto-unwrap
+  // skips (arrays are not objects). We parse the response manually.
+  const url = `${ZERNIO_BASE}${path}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${ZERNIO_API_KEY}`,
+    },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const msg = err.data?.error ?? err.error ?? response.statusText;
+    throw new Error(`Zernio API error (${response.status}): ${msg}`);
+  }
+
+  const json = await response.json();
+
+  // Handle multiple possible response shapes from the /posts endpoint
+  let raw: unknown[] = [];
+  if (Array.isArray(json.data)) {
+    raw = json.data;
+  } else if (json.data && Array.isArray(json.data.posts)) {
+    raw = json.data.posts;
+  } else if (Array.isArray(json.posts)) {
+    raw = json.posts;
+  } else if (Array.isArray(json)) {
+    raw = json;
+  }
+
+  return raw.map((item: Record<string, unknown>) => ({
+    id: item._id as string || item.id as string || '',
+    content: item.content as string || '',
+    platformPostId: item.platformPostId as string || undefined,
+    platformPostUrl: item.platformPostUrl as string || undefined,
+    platforms: item.platforms as ZernioExternalPost['platforms'] || undefined,
+    createdAt: item.createdAt as string || '',
+  }));
+}
+
+// ─── Sync External Post (register a platform post in Zernio) ─
+
+export async function syncExternalPost(args: {
+  zernioAccountId: string;
+  postId: string;
+}): Promise<{ id: string }> {
+  const { zernioAccountId, postId } = args;
+
+  const resp = await zernioFetch<{ id: string }>(
+    '/posts/sync-external',
+    {
+      method: 'POST',
+      body: { accountId: zernioAccountId, postId },
+    },
   );
-  return data.posts;
+
+  return { id: resp.id };
 }
 
 // ─── Inbox — Reactions ──────────────────────────────────────

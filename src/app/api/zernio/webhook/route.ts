@@ -786,6 +786,18 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
     return;
   }
 
+  // Sync the post to Zernio in the background so it appears in the post picker.
+  // Not required for reply functionality — Zernio endpoints accept the Instagram
+  // platformPostId (media ID) directly. Failure is non-blocking.
+  if (mediaId) {
+    import('@/lib/zernio/client').then(({ syncExternalPost }) =>
+      syncExternalPost({
+        zernioAccountId: acct.accountId,
+        postId: mediaId,
+      }).catch(() => { /* best-effort, don't block comment processing */ })
+    );
+  }
+
   // Find or create contact by instagram_id
   let contact: { id: string; wasCreated: boolean } | null = null;
   const { data: existingContact } = await db
