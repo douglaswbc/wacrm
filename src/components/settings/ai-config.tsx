@@ -26,6 +26,14 @@ import {
 } from '@/components/ui/select';
 import { SettingsPanelHead } from './settings-panel-head';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
+import {
+  CHAT_MODELS,
+  AUDIO_MODELS,
+  VISION_MODELS,
+  CHAT_DEFAULTS,
+  AUDIO_DEFAULTS,
+  VISION_DEFAULTS,
+} from '@/lib/ai/models';
 import type { AiProvider } from '@/lib/ai/types';
 
 const MASKED_KEY = '••••••••••••••••';
@@ -139,11 +147,13 @@ export function AiConfig() {
   const handleProviderChange = (next: AiProvider) => {
     setProvider(next);
     const isDefaultModel =
-      model === AI_PROVIDER_DEFAULT_MODEL.openai ||
-      model === AI_PROVIDER_DEFAULT_MODEL.anthropic ||
-      model === AI_PROVIDER_DEFAULT_MODEL.groq ||
-      model.trim() === '';
-    if (isDefaultModel) setModel(AI_PROVIDER_DEFAULT_MODEL[next]);
+      !model.trim() ||
+      Object.values(AI_PROVIDER_DEFAULT_MODEL).includes(model);
+    if (isDefaultModel) setModel(CHAT_DEFAULTS[next]);
+    if (transcriptionEnabled) {
+      setAudioModel(AUDIO_DEFAULTS[next]);
+      setVisionModel(VISION_DEFAULTS[next]);
+    }
   };
 
   const keyPayload = () => (keyEdited ? apiKey.trim() : undefined);
@@ -298,14 +308,27 @@ export function AiConfig() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ai-model">Model</Label>
-                <Input
-                  id="ai-model"
+                <Label>Model</Label>
+                <Select
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
+                  onValueChange={setModel}
                   disabled={disabled}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={CHAT_DEFAULTS[provider]} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHAT_MODELS[provider].map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                    {model.trim() &&
+                      !CHAT_MODELS[provider].some((m) => m.value === model) && (
+                        <SelectItem value={model}>{model} (custom)</SelectItem>
+                      )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -538,44 +561,65 @@ export function AiConfig() {
             {transcriptionEnabled && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="ai-audio-model">Audio model</Label>
-                  <Input
-                    id="ai-audio-model"
-                    value={audioModel}
-                    onChange={(e) => setAudioModel(e.target.value)}
-                    placeholder={
-                      provider === 'openai'
-                        ? 'whisper-1'
-                        : provider === 'groq'
-                          ? 'whisper-large-v3-turbo'
-                          : 'Not supported'
-                    }
-                    disabled={disabled || provider === 'anthropic'}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {provider === 'anthropic'
-                      ? 'Anthropic does not support audio transcription.'
-                      : provider === 'openai'
-                        ? 'Supported: whisper-1, gpt-4o-transcribe'
-                        : 'Supported: whisper-large-v3-turbo, distil-whisper-large-v3-en'}
-                  </p>
+                  <Label>Audio model</Label>
+                  {provider === 'anthropic' ? (
+                    <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                      Not supported — Anthropic does not provide audio transcription.
+                    </div>
+                  ) : (
+                    <Select
+                      value={audioModel}
+                      onValueChange={setAudioModel}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={AUDIO_DEFAULTS[provider]} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AUDIO_MODELS[provider].map((m) => (
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                        {audioModel.trim() &&
+                          !AUDIO_MODELS[provider].some(
+                            (m) => m.value === audioModel,
+                          ) && (
+                            <SelectItem value={audioModel}>
+                              {audioModel} (custom)
+                            </SelectItem>
+                          )}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ai-vision-model">Vision model</Label>
-                  <Input
-                    id="ai-vision-model"
+                  <Label>Vision model</Label>
+                  <Select
                     value={visionModel}
-                    onChange={(e) => setVisionModel(e.target.value)}
-                    placeholder={
-                      provider === 'openai'
-                        ? 'gpt-4o-mini'
-                        : provider === 'groq'
-                          ? 'llama-4-maverick-128k'
-                          : 'claude-haiku-4-5-20251001'
-                    }
+                    onValueChange={setVisionModel}
                     disabled={disabled}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={VISION_DEFAULTS[provider]} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VISION_MODELS[provider].map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                      {visionModel.trim() &&
+                        !VISION_MODELS[provider].some(
+                          (m) => m.value === visionModel,
+                        ) && (
+                          <SelectItem value={visionModel}>
+                            {visionModel} (custom)
+                          </SelectItem>
+                        )}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground">
                     Used to describe images. The text is injected into the
                     conversation context.

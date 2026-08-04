@@ -270,6 +270,13 @@ export interface Message {
   zernio_conversation_id?: string;
   /** Source of the message: 'meta', 'ryzeapi', 'zernio', etc. */
   source?: string;
+  /** AI-generated transcription of audio/image/video content. Shown to
+   *  human agents in the inbox so they can read voice notes and image
+   *  descriptions without playing/listening. */
+  transcription_text?: string | null;
+  transcription_model?: string | null;
+  transcription_provider?: string | null;
+  transcribed_at?: string | null;
 }
 
 export type ReactionActor = 'customer' | 'agent';

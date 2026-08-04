@@ -38,11 +38,14 @@ const PRICING: Record<string, Record<string, ModelPricing>> = {
     'claude-opus-4-6':           { chat: { input: 15.00, output: 75.00 }, vision: { input: 15.00, output: 75.00 } },
   },
   groq: {
-    'llama-4-maverick-128k':          { chat: { input: 0.20, output: 0.80 }, vision: { input: 0.20, output: 0.80 } },
-    'llama-4-scout-17b-16e':          { chat: { input: 0.10, output: 0.40 }, vision: { input: 0.10, output: 0.40 } },
-    'deepseek-r1-distill-llama-70b':  { chat: { input: 0.75, output: 0.99 } },
-    'whisper-large-v3-turbo':         { audio: { audioPerMinute: 0.0024 } },
-    'distil-whisper-large-v3-en':     { audio: { audioPerMinute: 0.0024 } },
+    'llama-3.1-8b-instant':       { chat: { input: 0.05, output: 0.08 } },
+    'llama-3.3-70b-versatile':    { chat: { input: 0.59, output: 0.79 } },
+    'openai/gpt-oss-20b':         { chat: { input: 0.075, output: 0.30 }, vision: { input: 0.075, output: 0.30 } },
+    'openai/gpt-oss-120b':        { chat: { input: 0.15, output: 0.60 }, vision: { input: 0.15, output: 0.60 } },
+    'qwen/qwen3.6-27b':           { chat: { input: 0.60, output: 3.00 }, vision: { input: 0.60, output: 3.00 } },
+    'whisper-large-v3-turbo':     { audio: { audioPerMinute: 0.0024 } },
+    'whisper-large-v3':           { audio: { audioPerMinute: 0.0056 } },
+    'distil-whisper-large-v3-en': { audio: { audioPerMinute: 0.0024 } },
   },
 }
 

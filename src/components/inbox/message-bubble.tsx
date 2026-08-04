@@ -139,6 +139,11 @@ function MessageContent({ message }: { message: Message }) {
               {message.content_text}
             </p>
           )}
+          {message.transcription_text && (
+            <p className="mt-1 rounded bg-amber-50/40 px-2 py-1 text-xs text-muted-foreground italic dark:bg-amber-950/20">
+              {message.transcription_text}
+            </p>
+          )}
         </div>
       );
 
@@ -159,6 +164,11 @@ function MessageContent({ message }: { message: Message }) {
               {message.content_text}
             </p>
           )}
+          {message.transcription_text && (
+            <p className="mt-1 rounded bg-amber-50/40 px-2 py-1 text-xs text-muted-foreground italic dark:bg-amber-950/20">
+              {message.transcription_text}
+            </p>
+          )}
         </div>
       );
 
@@ -169,6 +179,11 @@ function MessageContent({ message }: { message: Message }) {
             <audio src={message.media_url} controls className="max-w-60" />
           ) : (
             <MediaUnavailable label="Audio" />
+          )}
+          {message.transcription_text && (
+            <p className="mt-1 rounded bg-amber-50/40 px-2 py-1 text-xs text-muted-foreground italic dark:bg-amber-950/20">
+              {message.transcription_text}
+            </p>
           )}
         </div>
       );
