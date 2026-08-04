@@ -269,7 +269,7 @@ function TriggerPanel({
   const [igPosts, setIgPosts] = useState<{ id: string; content: string }[]>([]);
   const [igPostsLoading, setIgPostsLoading] = useState(false);
   const igSelectedPostId =
-    (state.trigger_config as Record<string, unknown>)?.instagram_media_ids?.[0] ?? '';
+    ((state.trigger_config as Record<string, unknown>)?.instagram_media_ids as string[] | undefined)?.[0] ?? '';
 
   useEffect(() => {
     if (state.channel !== 'instagram') return;
