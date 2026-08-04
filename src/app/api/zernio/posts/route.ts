@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle()) as { data: { account_id: string } | null }
-      accountId = profile?.account_id || undefined
+      accountId = profile?.account_id || null
     }
   }
 
