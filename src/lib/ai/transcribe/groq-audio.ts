@@ -18,7 +18,7 @@ export async function transcribeGroqAudio(args: TranscribeAudioArgs): Promise<Tr
   const { apiKey, model, audioBuffer, mimeType, timeoutMs } = args
 
   const formData = new FormData()
-  const blob = new Blob([audioBuffer], { type: mimeType })
+  const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType })
   formData.append('file', blob, `audio.${mimeType.split('/')[1] ?? 'ogg'}`)
   formData.append('model', model)
   formData.append('response_format', 'json')

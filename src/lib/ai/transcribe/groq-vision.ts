@@ -1,5 +1,4 @@
-import { AiError, type ChatMessage } from '../types'
-import { mergeConsecutive } from '../providers/shared'
+import { AiError } from '../types'
 import type { TranscribeResult, TranscribeVisionArgs } from './openai-vision'
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'

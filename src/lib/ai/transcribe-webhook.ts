@@ -65,5 +65,5 @@ async function downloadMediaBuffer(url: string): Promise<Buffer> {
   const res = await fetch(url, { signal: AbortSignal.timeout(30_000) })
   if (!res.ok) throw new Error(`Failed to download media: ${res.status}`)
   const arrayBuffer = await res.arrayBuffer()
-  return Buffer.from(arrayBuffer)
+  return new Uint8Array(arrayBuffer) as Buffer
 }
