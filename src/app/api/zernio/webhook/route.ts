@@ -841,7 +841,7 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
     // Update unread
     await db.from('conversations').update({
       unread_count: (existingConv.unread_count ?? 0) + 1,
-      last_message_text: `Comment: ${commentText}`.substring(0, 512),
+      last_message_text: commentText.substring(0, 512),
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       zernio_account_id: acct.accountId,
@@ -858,7 +858,7 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
         zernio_account_id: acct.accountId,
         status: 'open',
         unread_count: 1,
-        last_message_text: `Comment: ${commentText}`.substring(0, 512),
+        last_message_text: commentText.substring(0, 512),
         last_message_at: new Date().toISOString(),
       })
       .select('id')
@@ -894,13 +894,12 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
   }
 
   // Insert the comment as an inbound message
-  const contentText = `Comment: ${commentText}`;
   const { error: msgErr } = await db.from('messages').insert({
     account_id: accountId,
     conversation_id: conversation.id,
     sender_type: 'customer',
     content_type: 'text',
-    content_text: contentText,
+    content_text: commentText,
     message_id: msgId,
     instagram_comment_id: commentId,
     instagram_media_id: mediaId,
@@ -926,7 +925,18 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
   });
 
   if (!flowResult.consumed) {
-    // Dispatch to automations (keyword_match trigger with instagram_media_id context)
+    runAutomationsForTrigger({
+      accountId,
+      triggerType: 'new_message_received',
+      contactId: contact.id,
+      channel: 'instagram',
+      context: {
+        message_text: commentText,
+        conversation_id: conversation.id,
+        instagram_media_id: mediaId,
+      },
+    }).catch((err) => console.error('[zernio comment automations] new_message_received dispatch failed:', err));
+
     runAutomationsForTrigger({
       accountId,
       triggerType: 'keyword_match',
@@ -937,9 +947,31 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
         conversation_id: conversation.id,
         instagram_media_id: mediaId,
       },
-    }).catch((err) => console.error('[zernio comment automations] dispatch failed:', err));
+    }).catch((err) => console.error('[zernio comment automations] keyword_match dispatch failed:', err));
 
-    // AI auto-reply
+    if (contact.wasCreated) {
+      runAutomationsForTrigger({
+        accountId,
+        triggerType: 'first_inbound_message',
+        contactId: contact.id,
+        channel: 'instagram',
+        context: {
+          message_text: commentText,
+          conversation_id: conversation.id,
+        },
+      }).catch((err) => console.error('[zernio comment automations] first_inbound dispatch failed:', err));
+
+      runAutomationsForTrigger({
+        accountId,
+        triggerType: 'new_contact_created',
+        contactId: contact.id,
+        channel: 'instagram',
+        context: {
+          conversation_id: conversation.id,
+        },
+      }).catch((err) => console.error('[zernio comment automations] new_contact dispatch failed:', err));
+    }
+
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,

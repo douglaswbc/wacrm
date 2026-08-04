@@ -35,6 +35,7 @@ import {
   BrainCircuit,
   ScanText,
   PlusCircle,
+  FolderOpen,
   X,
 } from "lucide-react"
 
@@ -59,6 +60,7 @@ import type {
 } from "@/types"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { MediaPicker } from "@/components/media-library/media-picker"
 
 // ------------------------------------------------------------
 // Types (builder-local — mirror the flattened rows we POST)
@@ -81,8 +83,8 @@ export interface BuilderInitial {
   is_active: boolean
   /** Channel scope — NULL = both. */
   channel?: 'whatsapp' | 'instagram' | null
-  /** WhatsApp provider scope — NULL = both (Meta + RyzeAPI). */
-  provider?: 'meta' | 'ryzeapi' | null
+  /** WhatsApp provider scope — NULL = both (Zernio + RyzeAPI). */
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | null
   steps: BuilderStep[]
 }
 
@@ -166,6 +168,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { template_name: "", language: "en_US" }
     case "send_button":
       return { text: "", buttons: [] }
+    case "send_media":
+      return { media_type: "image", media_url: "", caption: "", filename: "" }
     case "add_tag":
     case "remove_tag":
       return { tag_id: "" }
@@ -788,11 +792,11 @@ function TriggerCard({
   type: AutomationTriggerType
   config: Record<string, unknown>
   channel?: 'whatsapp' | 'instagram' | null
-  provider?: 'meta' | 'ryzeapi' | null
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | null
   onTypeChange: (t: AutomationTriggerType) => void
   onConfigChange: (c: Record<string, unknown>) => void
   onChannelChange: (ch: 'whatsapp' | 'instagram' | null) => void
-  onProviderChange: (p: 'meta' | 'ryzeapi' | null) => void
+  onProviderChange: (p: 'meta' | 'ryzeapi' | 'zernio' | null) => void
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -856,25 +860,23 @@ function TriggerCard({
                 Limit this automation to a specific channel, or leave on &quot;Both&quot;.
               </p>
             </div>
-            {(!channel || channel === 'whatsapp') && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  WhatsApp Provider
-                </label>
-                <select
-                  value={provider ?? ''}
-                  onChange={(e) => onProviderChange((e.target.value || null) as 'meta' | 'ryzeapi' | null)}
-                  className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
-                >
-                  <option value="">Both (Meta + RyzeAPI)</option>
-                  <option value="meta">Meta only</option>
-                  <option value="ryzeapi">RyzeAPI only</option>
-                </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Which WhatsApp provider this automation should fire for. &quot;Both&quot; fires regardless of provider.
-                </p>
-              </div>
-            )}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Provider
+              </label>
+              <select
+                value={provider ?? ''}
+                onChange={(e) => onProviderChange((e.target.value || null) as 'meta' | 'ryzeapi' | 'zernio' | null)}
+                className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+              >
+                <option value="">Both (Zernio + RyzeAPI)</option>
+                <option value="zernio">Zernio (WhatsApp + Instagram)</option>
+                <option value="ryzeapi">RyzeAPI only</option>
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Which provider this automation should fire for. &quot;Both&quot; fires regardless of provider.
+              </p>
+            </div>
             {type === "keyword_match" && (
               <KeywordMatchConfig
                 config={config as unknown as KeywordMatchTriggerConfig}
@@ -1637,6 +1639,7 @@ function StepEditor({
   step: BuilderStep
   onChange: (s: BuilderStep) => void
 }) {
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const cfg = step.step_config
   const set = (patch: Record<string, unknown>) =>
     onChange({ ...step, step_config: { ...cfg, ...patch } })
@@ -1679,12 +1682,24 @@ function StepEditor({
             </select>
           </FieldBlock>
           <FieldBlock label="Media URL">
-            <Input
-              value={(cfg.media_url as string) ?? ""}
-              onChange={(e) => set({ media_url: e.target.value })}
-              placeholder="https://example.com/photo.jpg"
-              className="bg-muted text-foreground"
-            />
+            <div className="space-y-2">
+              <Input
+                value={(cfg.media_url as string) ?? ""}
+                onChange={(e) => set({ media_url: e.target.value })}
+                placeholder="https://example.com/photo.jpg"
+                className="bg-muted text-foreground"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => setMediaPickerOpen(true)}
+              >
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                Browse Media Library
+              </Button>
+            </div>
           </FieldBlock>
           <FieldBlock label="Caption (optional)">
             <Input
@@ -1702,6 +1717,18 @@ function StepEditor({
               className="bg-muted text-foreground"
             />
           </FieldBlock>
+          <MediaPicker
+            open={mediaPickerOpen}
+            onOpenChange={setMediaPickerOpen}
+            onSelect={(asset) => {
+              set({
+                media_url: asset.media_url,
+                media_type: asset.media_type,
+                caption: asset.caption ?? (cfg.caption as string) ?? "",
+                filename: asset.name,
+              })
+            }}
+          />
         </>
       )
     case "add_tag":

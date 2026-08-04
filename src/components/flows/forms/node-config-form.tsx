@@ -31,6 +31,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  FolderOpen,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -46,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { uploadAccountMedia, MEDIA_MAX_BYTES } from "@/lib/storage/upload-media";
+import { MediaPicker } from "@/components/media-library/media-picker";
 import { slugify, type BuilderNode } from "../shared";
 import { NextNodeRow, NodeKeySelect, TextRow } from "./fields";
 
@@ -964,6 +966,7 @@ function SendMediaForm({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
 
   const mediaType = cfg.media_type ?? "image";
   const isDocument = mediaType === "document";
@@ -981,11 +984,7 @@ function SendMediaForm({
       }
       setUploading(true);
       try {
-        // Account-scoped upload (path `account-<id>/...`) — see
-        // uploadAccountMedia + migration 020's flow-media RLS policy.
         const { publicUrl } = await uploadAccountMedia(FLOW_MEDIA_BUCKET, file);
-        // Patch all fields in one call so the form doesn't re-render
-        // with a half-uploaded state.
         onUpdateConfig({
           media_url: publicUrl,
           filename: file.name,
@@ -1012,9 +1011,6 @@ function SendMediaForm({
         <Select
           value={mediaType}
           onValueChange={(v) => {
-            // Changing type clears the existing file — the bucket
-            // accepts different MIME sets per type and a previously
-            // uploaded PDF can't be sent as an image.
             onUpdateConfig({
               media_type: v as NonNullable<SendMediaCfg["media_type"]>,
               media_url: "",
@@ -1060,24 +1056,36 @@ function SendMediaForm({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-card px-3 py-4 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Uploading…
-              </>
-            ) : (
-              <>
-                <Upload className="h-3.5 w-3.5" />
-                Click to upload (max 16 MB)
-              </>
-            )}
-          </button>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-card px-3 py-4 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-3.5 w-3.5" />
+                  Click to upload (max 16 MB)
+                </>
+              )}
+            </button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => setMediaPickerOpen(true)}
+            >
+              <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+              Browse Media Library
+            </Button>
+          </div>
         )}
         <input
           ref={fileInputRef}
@@ -1087,7 +1095,6 @@ function SendMediaForm({
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void handleFile(f);
-            // Reset so picking the same file twice still fires onChange.
             e.target.value = "";
           }}
         />
@@ -1120,6 +1127,19 @@ function SendMediaForm({
         currentKey={currentKey}
         onChange={(v) => onUpdateConfig({ next_node_key: v })}
         label="After sending, advance to"
+      />
+
+      <MediaPicker
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        onSelect={(asset) => {
+          onUpdateConfig({
+            media_url: asset.media_url,
+            media_type: asset.media_type,
+            caption: asset.caption ?? cfg.caption ?? "",
+            filename: asset.name,
+          })
+        }}
       />
     </>
   );
