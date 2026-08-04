@@ -173,6 +173,14 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
     case 'close_conversation':
       // No config required.
       break
+    case 'send_media':
+      if (!nonEmpty(c.media_url)) {
+        issues.push({ path: `${path}.media_url`, message: 'media URL is required' })
+      }
+      if (!['image', 'video', 'document', 'audio'].includes(String(c.media_type))) {
+        issues.push({ path: `${path}.media_type`, message: 'media type must be image, video, document, or audio' })
+      }
+      break
     case 'ai_condition':
       if (!nonEmpty(c.prompt)) {
         issues.push({ path: `${path}.prompt`, message: 'classification prompt is required' })

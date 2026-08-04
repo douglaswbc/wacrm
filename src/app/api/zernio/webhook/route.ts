@@ -760,6 +760,14 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
   const comment = body.comment!;
   const acct = body.account!;
 
+  // Skip comments from our own account — public replies on Instagram
+  // echo back as new comment.received events. We must not process these
+  // or they would trigger automations in an infinite loop.
+  if (comment.author?.username === acct.username) {
+    console.log('[zernio/webhook] skipping own comment by', acct.username);
+    return;
+  }
+
   const accountId = await resolveAccountId(acct.accountId, acct.profileId);
   if (!accountId) {
     console.warn('[zernio/webhook] no WACRM account found for comment', acct.accountId);
