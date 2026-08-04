@@ -972,12 +972,9 @@ async function handleCommentReceived(body: ZernioWebhookPayload) {
       }).catch((err) => console.error('[zernio comment automations] new_contact dispatch failed:', err));
     }
 
-    await dispatchInboundToAiReply({
-      accountId,
-      conversationId: conversation.id,
-      contactId: contact.id,
-      configOwnerUserId: userId,
-    });
+    // NOTE: AI auto-reply is intentionally skipped for Instagram comments
+    // because there is no Zernio inbox conversation to reply through.
+    // Instagram requires an existing DM conversation (customer messaged first).
   }
 
   await dispatchWebhookEvent(db, accountId, 'comment.received', {

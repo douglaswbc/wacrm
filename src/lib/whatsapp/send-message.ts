@@ -562,18 +562,20 @@ async function sendZernioMessage(
     );
   }
 
+  // Always fetch the conversation channel early — needed to decide whether
+  // createInboxConversation is allowed (Instagram does NOT support it).
+  const { data: convData } = await db
+    .from('conversations')
+    .select('channel')
+    .eq('id', conversationId)
+    .single();
+  const channel = convData?.channel || 'whatsapp';
+
   // Look up Zernio routing info if not on conversation
   let resolvedConvId = zernioConvId;
   let resolvedAcctId = zernioAcctId;
 
   if (!resolvedConvId || !resolvedAcctId) {
-    const channel = (await db
-      .from('conversations')
-      .select('channel')
-      .eq('id', conversationId)
-      .single()
-    ).data?.channel || 'whatsapp';
-
     const { data: conn } = await db
       .from('zernio_connections')
       .select('connected_accounts')
@@ -600,10 +602,43 @@ async function sendZernioMessage(
     );
   }
 
+  // Instagram does NOT support createInboxConversation — the customer must
+  // message first. If there's no existing Zernio conversation ID, we cannot
+  // send anything (text, media, template, etc.).
+  if (channel === 'instagram' && !resolvedConvId) {
+    throw new SendMessageError(
+      'instagram_no_conversation',
+      'Cannot send messages to Instagram contacts without an existing conversation. The customer must message you first via Instagram DM.',
+      400,
+    );
+  }
+
   let zernioMsgId: string;
   let zernioConvResultId: string | undefined;
 
   try {
+    // For WhatsApp, buttons/list/media without an existing conversation need
+    // one created first via a template. createInboxConversation is WhatsApp-only.
+    if (!resolvedConvId
+      && ['buttons', 'list', 'image', 'video', 'audio', 'document'].includes(messageType)) {
+      const phone = contact?.phone || '';
+      if (!phone) {
+        throw new SendMessageError(
+          'bad_request',
+          'Cannot send message: no phone number for this contact.',
+          400,
+        );
+      }
+      const createResult = await createInboxConversation({
+        zernioAccountId: resolvedAcctId,
+        participantId: phone,
+        templateName: 'hello_world',
+        templateLanguage: 'en_US',
+      });
+      resolvedConvId = createResult.conversationId;
+      zernioConvResultId = createResult.conversationId;
+    }
+
     const paddedParams = messageType === 'template' && templateName
       ? await padTemplateParams(db, templateName, templateLanguage || 'en_US', templateParams)
       : []
