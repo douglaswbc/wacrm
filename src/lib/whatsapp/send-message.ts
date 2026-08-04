@@ -629,6 +629,13 @@ async function sendZernioMessage(
     // Media always goes as DM — public comment replies don't support attachments
     const effectiveMode = isMedia ? 'dm' : replyMode;
 
+    console.log('[send-message] comment reply sending:', {
+      effectiveMode,
+      postId: instagramPostId,
+      commentId: instagramCommentId,
+      accountId: resolvedAcctId,
+    });
+
     try {
       let resultMsgId: string;
       let resultConvId: string | undefined;
@@ -654,6 +661,8 @@ async function sendZernioMessage(
         });
         resultMsgId = r.messageId;
       }
+
+      console.log('[send-message] Zernio comment reply OK:', { messageId: resultMsgId, effectiveMode });
 
       if (resultConvId) {
         await db

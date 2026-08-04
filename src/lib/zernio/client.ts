@@ -420,6 +420,13 @@ export async function listExternalPosts(args: {
   // The /posts endpoint with source=external returns { posts: [...], pagination: {...} }
   const raw: unknown[] = Array.isArray(json.posts) ? json.posts : [];
 
+  if (raw.length > 0) {
+    console.log('[zernio] /posts first item keys:', Object.keys(raw[0] as Record<string, unknown>));
+    console.log('[zernio] /posts first item sample:', JSON.stringify(raw[0]).substring(0, 500));
+  } else {
+    console.log('[zernio] /posts returned 0 items. json keys:', Object.keys(json));
+  }
+
   return (raw as Record<string, unknown>[]).map((item) => {
     const content = (item.content || item.caption || item.text || item.platformTitle || '') as string;
     const platformPostId = (item.platformPostId as string) || undefined;
