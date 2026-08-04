@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,11 @@ export function AiConfig() {
   const [transcriptionEnabled, setTranscriptionEnabled] = useState(false);
   const [audioModel, setAudioModel] = useState('');
   const [visionModel, setVisionModel] = useState('');
+  const [usageData, setUsageData] = useState<{
+    totals: { cost_usd: number; total_tokens: number; requests: number }
+    by_provider: Record<string, { cost: number; requests: number }>
+    by_operation: Record<string, { cost: number; requests: number }>
+  } | null>(null);
 
   // Guard keyed on the account (not a bare boolean) so an in-place
   // account switch — ownership transfer, multi-account membership —
@@ -107,11 +112,27 @@ export function AiConfig() {
     }
   }, []);
 
+  const fetchUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ai/usage?limit=1000');
+      if (res.ok) {
+        const data = await res.json();
+        setUsageData(data);
+      }
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
   useEffect(() => {
     if (!accountId || loadedAccountIdRef.current === accountId) return;
     loadedAccountIdRef.current = accountId;
     void fetchConfig();
   }, [accountId, fetchConfig]);
+
+  useEffect(() => {
+    if (configured) void fetchUsage();
+  }, [configured, fetchUsage]);
 
   // Swap the model default when the provider changes, unless the user
   // typed a custom model.
@@ -561,6 +582,56 @@ export function AiConfig() {
                   </p>
                 </div>
               </>
+            )}
+          </CardContent>
+        </Card>
+        )}
+
+        {configured && usageData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-4 w-4 text-primary" /> Usage & Costs
+            </CardTitle>
+            <CardDescription>
+              Estimated AI costs (computed from token counts and provider
+              pricing). All values in USD.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-md border border-border p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  ${usageData.totals.cost_usd.toFixed(4)}
+                </p>
+                <p className="text-xs text-muted-foreground">Total cost</p>
+              </div>
+              <div className="rounded-md border border-border p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {usageData.totals.total_tokens.toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">Total tokens</p>
+              </div>
+              <div className="rounded-md border border-border p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {usageData.totals.requests}
+                </p>
+                <p className="text-xs text-muted-foreground">Requests</p>
+              </div>
+            </div>
+
+            {Object.keys(usageData.by_provider).length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">By provider</p>
+                {Object.entries(usageData.by_provider).map(([prov, data]) => (
+                  <div key={prov} className="flex items-center justify-between text-sm">
+                    <span className="capitalize">{prov}</span>
+                    <span className="text-muted-foreground">
+                      ${data.cost.toFixed(5)} ({data.requests} req)
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

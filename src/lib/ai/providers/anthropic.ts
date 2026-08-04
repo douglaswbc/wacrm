@@ -5,6 +5,7 @@ import {
   providerHttpError,
   toNetworkError,
   type ProviderArgs,
+  type ProviderResult,
 } from './shared'
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
@@ -12,15 +13,12 @@ const ANTHROPIC_VERSION = '2023-06-01'
 
 interface AnthropicResponse {
   content?: { type?: string; text?: string }[]
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+  }
 }
 
-/**
- * Anthropic's Messages API requires strictly alternating roles that
- * begin with `user`. Merge consecutive turns, then drop any leading
- * assistant turns (an agent greeting before the customer said anything)
- * so the transcript always starts on the customer. Guarantees a valid,
- * non-empty payload.
- */
 function normalizeForAnthropic(messages: ChatMessage[]): ChatMessage[] {
   const merged = mergeConsecutive(messages)
   while (merged.length > 0 && merged[0].role === 'assistant') {
@@ -32,12 +30,7 @@ function normalizeForAnthropic(messages: ChatMessage[]): ChatMessage[] {
   return merged
 }
 
-/**
- * Call Anthropic's Messages endpoint with the caller's own key.
- * Returns the raw assistant text (handoff parsing happens in
- * `generateReply`).
- */
-export async function generateAnthropic(args: ProviderArgs): Promise<string> {
+export async function generateAnthropic(args: ProviderArgs): Promise<ProviderResult> {
   const { apiKey, model, systemPrompt, messages, timeoutMs } = args
 
   let res: Response
@@ -76,5 +69,11 @@ export async function generateAnthropic(args: ProviderArgs): Promise<string> {
       code: 'empty_response',
     })
   }
-  return text
+  return {
+    text,
+    usage: data?.usage ? {
+      input_tokens: data.usage.input_tokens,
+      output_tokens: data.usage.output_tokens,
+    } : undefined,
+  }
 }

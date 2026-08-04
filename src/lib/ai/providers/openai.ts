@@ -5,20 +5,21 @@ import {
   providerHttpError,
   toNetworkError,
   type ProviderArgs,
+  type ProviderResult,
 } from './shared'
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
 
 interface OpenAiResponse {
   choices?: { message?: { content?: string } }[]
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
 }
 
-/**
- * Call OpenAI's Chat Completions endpoint with the caller's own key.
- * Returns the raw assistant text (handoff parsing happens in
- * `generateReply`).
- */
-export async function generateOpenAi(args: ProviderArgs): Promise<string> {
+export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult> {
   const { apiKey, model, systemPrompt, messages, timeoutMs } = args
 
   let res: Response
@@ -54,5 +55,11 @@ export async function generateOpenAi(args: ProviderArgs): Promise<string> {
       code: 'empty_response',
     })
   }
-  return text
+  return {
+    text,
+    usage: data?.usage ? {
+      input_tokens: data.usage.prompt_tokens,
+      output_tokens: data.usage.completion_tokens,
+    } : undefined,
+  }
 }

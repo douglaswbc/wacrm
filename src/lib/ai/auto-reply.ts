@@ -3,6 +3,7 @@ import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
+import { recordUsage } from './usage-tracker'
 import { engineSendText } from '@/lib/flows/meta-send'
 
 interface DispatchArgs {
@@ -97,11 +98,24 @@ export async function dispatchInboundToAiReply(
       mode: 'auto_reply',
     })
 
-    const { text, handoff } = await generateReply({
+    const { text, handoff, usage } = await generateReply({
       config,
       systemPrompt,
       messages,
     })
+
+    if (usage) {
+      recordUsage({
+        db,
+        accountId,
+        provider: config.provider,
+        model: config.model,
+        operationType: 'chat',
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+        conversationId,
+      }).catch((err) => console.error('[ai usage] failed to record:', err))
+    }
 
     if (handoff || !text) {
       // The model can't (or shouldn't) answer — stop auto-replying on

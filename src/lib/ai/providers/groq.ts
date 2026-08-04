@@ -5,15 +5,21 @@ import {
   providerHttpError,
   toNetworkError,
   type ProviderArgs,
+  type ProviderResult,
 } from './shared'
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
 interface GroqResponse {
   choices?: { message?: { content?: string } }[]
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
 }
 
-export async function generateGroq(args: ProviderArgs): Promise<string> {
+export async function generateGroq(args: ProviderArgs): Promise<ProviderResult> {
   const { apiKey, model, systemPrompt, messages, timeoutMs } = args
 
   let res: Response
@@ -49,5 +55,11 @@ export async function generateGroq(args: ProviderArgs): Promise<string> {
       code: 'empty_response',
     })
   }
-  return text
+  return {
+    text,
+    usage: data?.usage ? {
+      input_tokens: data.usage.prompt_tokens,
+      output_tokens: data.usage.completion_tokens,
+    } : undefined,
+  }
 }

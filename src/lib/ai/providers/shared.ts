@@ -12,6 +12,14 @@ export interface ProviderArgs {
   timeoutMs: number
 }
 
+export interface ProviderResult {
+  text: string
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+  }
+}
+
 /** Map a fetch rejection (timeout / DNS / offline) to a typed AiError. */
 export function toNetworkError(err: unknown): AiError {
   if (err instanceof DOMException && err.name === 'TimeoutError') {

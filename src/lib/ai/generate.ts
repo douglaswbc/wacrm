@@ -3,20 +3,14 @@ import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
 import { generateGroq } from './providers/groq'
+import type { ProviderResult } from './providers/shared'
 
 export interface GenerateArgs {
   config: AiConfig
-  /** Fully-built system prompt (see `buildSystemPrompt`). */
   systemPrompt: string
-  /** Recent conversation turns, oldest first. */
   messages: ChatMessage[]
 }
 
-/**
- * Generate the next reply from the account's configured provider.
- * Dispatches to the right adapter, then parses the handoff sentinel out
- * of the raw text. Throws `AiError` on any provider/network failure.
- */
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
   const { config, systemPrompt, messages } = args
   const timeoutMs = aiRequestTimeoutMs()
@@ -28,16 +22,16 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     timeoutMs,
   }
 
-  let raw: string
+  let result: ProviderResult
   switch (config.provider) {
     case 'openai':
-      raw = await generateOpenAi(providerArgs)
+      result = await generateOpenAi(providerArgs)
       break
     case 'anthropic':
-      raw = await generateAnthropic(providerArgs)
+      result = await generateAnthropic(providerArgs)
       break
     case 'groq':
-      raw = await generateGroq(providerArgs)
+      result = await generateGroq(providerArgs)
       break
     default:
       throw new AiError(`Unsupported AI provider: ${config.provider}`, {
@@ -46,14 +40,11 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       })
   }
 
-  return parseGeneration(raw)
+  const parsed = parseGeneration(result.text)
+  parsed.usage = result.usage
+  return parsed
 }
 
-/**
- * Split the raw model output into `{ text, handoff }`. The sentinel can
- * appear alone or trailing a partial reply; either way we treat the
- * turn as a handoff and strip the marker from any remaining text.
- */
 export function parseGeneration(raw: string): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
   const text = raw.split(HANDOFF_SENTINEL).join('').trim()

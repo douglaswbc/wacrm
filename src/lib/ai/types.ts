@@ -40,6 +40,11 @@ export interface GenerateResult {
   text: string
   /** True when the model asked to hand off to a human (auto-reply mode). */
   handoff: boolean
+  /** Token usage reported by the provider. */
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+  }
 }
 
 /**
