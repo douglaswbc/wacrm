@@ -420,14 +420,19 @@ export async function listExternalPosts(args: {
   // The /posts endpoint with source=external returns { posts: [...], pagination: {...} }
   const raw: unknown[] = Array.isArray(json.posts) ? json.posts : [];
 
-  return (raw as Record<string, unknown>[]).map((item) => ({
-    id: item._id as string || item.id as string || '',
-    content: item.content as string || '',
-    platformPostId: item.platformPostId as string || undefined,
-    platformPostUrl: item.platformPostUrl as string || undefined,
-    platforms: item.platforms as ZernioExternalPost['platforms'] || undefined,
-    createdAt: item.createdAt as string || '',
-  }));
+  return (raw as Record<string, unknown>[]).map((item) => {
+    const content = (item.content || item.caption || item.text || item.platformTitle || '') as string;
+    const platformPostId = (item.platformPostId as string) || undefined;
+    const zernioId = (item._id as string) || (item.id as string) || '';
+    return {
+      id: platformPostId || zernioId,
+      content,
+      platformPostId,
+      platformPostUrl: item.platformPostUrl as string || undefined,
+      platforms: item.platforms as ZernioExternalPost['platforms'] || undefined,
+      createdAt: item.createdAt as string || '',
+    };
+  });
 }
 
 // ─── Sync External Post (register a platform post in Zernio) ─

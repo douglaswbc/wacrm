@@ -75,8 +75,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       data: posts.map((p) => ({
         id: p.platformPostId || p.id,
-        content: p.content,
-        platformPostUrl: p.platformPostUrl,
+        content: p.content || '',
+        platformPostUrl: p.platformPostUrl || undefined,
         createdAt: p.createdAt,
       })),
     })
