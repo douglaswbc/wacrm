@@ -613,10 +613,17 @@ async function sendZernioMessage(
   // ── Comment reply routing ──────────────────────────────────
   // Instagram comments have no inbox conversation; replies go through
   // Zernio's public-reply (visible on post) or private-reply (DM) endpoints.
-  // Media goes through a 2-step flow: reply for conversation → inbox message
-  // with attachment. Buttons are passed directly to private-reply.
+  // Once a conversation is established (via the first private-reply),
+  // subsequent messages go through the normal inbox path below.
   if (channel === 'instagram' && instagramPostId && instagramCommentId) {
-    if (!resolvedAcctId) {
+    // If a Zernio conversation was already created by an earlier step
+    // in this automation run, skip the comment-reply path. Instagram
+    // only allows ONE private-reply per comment — further messages
+    // must use the inbox conversation that was just opened.
+    if (resolvedConvId) {
+      // fall through to normal inbox sending below
+    } else {
+      if (!resolvedAcctId) {
       throw new SendMessageError(
         'zernio_not_configured',
         'No Zernio account connected for this channel.',
@@ -737,6 +744,7 @@ async function sendZernioMessage(
       console.error('[send-message] Zernio comment reply failed:', message);
       throw new SendMessageError('zernio_error', `Zernio error: ${message}`, 502);
     }
+    } // end else (no existing conversation)
   }
 
   // Instagram does NOT support createInboxConversation — the customer must
