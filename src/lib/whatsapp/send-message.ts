@@ -613,6 +613,8 @@ async function sendZernioMessage(
   // ── Comment reply routing ──────────────────────────────────
   // Instagram comments have no inbox conversation; replies go through
   // Zernio's public-reply (visible on post) or private-reply (DM) endpoints.
+  // Media goes through a 2-step flow: reply for conversation → inbox message
+  // with attachment. Buttons are passed directly to private-reply.
   if (channel === 'instagram' && instagramPostId && instagramCommentId) {
     if (!resolvedAcctId) {
       throw new SendMessageError(
@@ -625,45 +627,108 @@ async function sendZernioMessage(
     const replyMode = params.reply_mode ?? 'public';
     const mediaKinds = ['image', 'video', 'audio', 'document'];
     const isMedia = mediaKinds.includes(messageType);
-
-    // Media always goes as DM — public comment replies don't support attachments
-    const effectiveMode = isMedia ? 'dm' : replyMode;
+    const isButtons = messageType === 'buttons' || messageType === 'list';
 
     try {
       let resultMsgId: string;
-      let resultConvId: string | undefined;
 
-      if (effectiveMode === 'dm') {
+      if (isMedia) {
+        // ── Mídia: 2 steps ──────────────────────────────────
+        // Step 1: initiate the DM thread via private-reply
+        const replyCap = contentText || '📎';
+        const replyRes = await sendPrivateCommentReply({
+          zernioAccountId: resolvedAcctId,
+          postId: instagramPostId,
+          commentId: instagramCommentId,
+          message: replyCap,
+        });
+
+        const dmConversationId = replyRes.conversationId;
+        if (!dmConversationId) {
+          throw new SendMessageError('zernio_error', 'private-reply did not return a conversationId', 502);
+        }
+
+        // Save the conversation ID so future replies use the inbox
+        await db
+          .from('conversations')
+          .update({
+            zernio_conversation_id: dmConversationId,
+            zernio_account_id: resolvedAcctId,
+            provider: 'zernio',
+          })
+          .eq('id', conversationId);
+
+        // Step 2: send the media attachment through the inbox
+        const mediaRes = await sendInboxMessage({
+          zernioConversationId: dmConversationId,
+          zernioAccountId: resolvedAcctId,
+          text: replyCap !== '📎' ? replyCap : undefined,
+          attachmentUrl: mediaUrl!,
+          attachmentType: messageType as 'image' | 'video' | 'audio',
+          attachmentName: messageType === 'document' ? (filename || 'file') : undefined,
+          voiceNote: messageType === 'audio' ? true : undefined,
+        });
+
+        resultMsgId = mediaRes.messageId;
+      } else if (isButtons) {
+        // ── Botões / Lista: private-reply com buttons ──────────
+        const buttonList = (buttons ?? []).map((b) => ({
+          type: 'postback' as const,
+          title: b.title,
+          payload: b.id,
+        }));
+
         const r = await sendPrivateCommentReply({
           zernioAccountId: resolvedAcctId,
           postId: instagramPostId,
           commentId: instagramCommentId,
-          message: isMedia ? '' : (contentText || ''),
-          attachmentUrl: isMedia ? (mediaUrl || undefined) : undefined,
-          attachmentType: isMedia ? (messageType as 'image' | 'video' | 'audio') : undefined,
-          attachmentName: messageType === 'document' ? (filename || 'file') : undefined,
+          message: contentText || buttonLabel || 'Choose an option',
+          buttons: buttonList,
         });
+
         resultMsgId = r.messageId;
-        resultConvId = r.conversationId;
+
+        if (r.conversationId) {
+          await db
+            .from('conversations')
+            .update({
+              zernio_conversation_id: r.conversationId,
+              zernio_account_id: resolvedAcctId,
+              provider: 'zernio',
+            })
+            .eq('id', conversationId);
+        }
+      } else if (replyMode === 'dm') {
+        // ── Texto DM: private-reply direto ────────────────────
+        const r = await sendPrivateCommentReply({
+          zernioAccountId: resolvedAcctId,
+          postId: instagramPostId,
+          commentId: instagramCommentId,
+          message: contentText || '',
+        });
+
+        resultMsgId = r.messageId;
+
+        if (r.conversationId) {
+          await db
+            .from('conversations')
+            .update({
+              zernio_conversation_id: r.conversationId,
+              zernio_account_id: resolvedAcctId,
+              provider: 'zernio',
+            })
+            .eq('id', conversationId);
+        }
       } else {
+        // ── Texto público: reply no post ─────────────────────
         const r = await sendPublicCommentReply({
           zernioAccountId: resolvedAcctId,
           postId: instagramPostId,
           commentId: instagramCommentId,
           message: contentText || '',
         });
-        resultMsgId = r.messageId;
-      }
 
-      if (resultConvId) {
-        await db
-          .from('conversations')
-          .update({
-            zernio_conversation_id: resultConvId,
-            zernio_account_id: resolvedAcctId,
-            provider: 'zernio',
-          })
-          .eq('id', conversationId);
+        resultMsgId = r.messageId;
       }
 
       return persistSentMessage(db, accountId, conversationId, contact, resultMsgId, params, 'zernio');

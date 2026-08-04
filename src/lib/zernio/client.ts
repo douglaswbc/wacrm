@@ -348,39 +348,42 @@ export interface SendPrivateCommentReplyArgs {
   zernioAccountId: string;
   postId: string;
   commentId: string;
-  message?: string;
-  attachmentUrl?: string;
-  attachmentType?: 'image' | 'video' | 'audio';
-  attachmentName?: string;
+  message: string;
   buttons?: Array<{ type: 'postback' | 'url'; title: string; payload?: string }>;
-  quickReplies?: Array<{ title: string; payload: string }>;
 }
 
 export async function sendPrivateCommentReply(
   args: SendPrivateCommentReplyArgs,
 ): Promise<{ messageId: string; conversationId?: string }> {
-  const {
-    zernioAccountId, postId, commentId, message,
-    attachmentUrl, attachmentType, attachmentName,
-    buttons, quickReplies,
-  } = args;
+  const { zernioAccountId, postId, commentId, message, buttons } = args;
 
-  const body: Record<string, unknown> = { accountId: zernioAccountId };
-  if (message) body.message = message;
-  if (attachmentUrl) body.attachmentUrl = attachmentUrl;
-  if (attachmentType) body.attachmentType = attachmentType;
-  if (attachmentName) body.attachmentName = attachmentName;
-  if (buttons) body.buttons = buttons;
-  if (quickReplies) body.quickReplies = quickReplies;
+  const body: Record<string, unknown> = { accountId: zernioAccountId, message };
+  if (buttons?.length) body.buttons = buttons;
 
-  const resp = await zernioFetch<{
-    id: string; conversationId?: string;
-  }>(`/inbox/comments/${postId}/${commentId}/private-reply`, {
+  // Use raw fetch — zernioFetch auto-unwraps { data: {...} } which drops
+  // the conversationId field from private-reply responses.
+  const url = `${ZERNIO_BASE}/inbox/comments/${postId}/${commentId}/private-reply`;
+  const response = await fetch(url, {
     method: 'POST',
-    body,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${ZERNIO_API_KEY}`,
+    },
+    body: JSON.stringify(body),
   });
 
-  return { messageId: resp.id, conversationId: resp.conversationId };
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const msg = err.data?.error ?? err.error ?? response.statusText;
+    throw new Error(`Zernio API error (${response.status}): ${msg}`);
+  }
+
+  const json = await response.json();
+  const data = json.data ?? json;
+  return {
+    messageId: (data._id || data.id || data.messageId || '') as string,
+    conversationId: (data.conversationId as string) || undefined,
+  };
 }
 
 // ─── List External Posts (synced from platform) ─────────────
