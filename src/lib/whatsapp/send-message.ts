@@ -638,7 +638,7 @@ async function sendZernioMessage(
           zernioAccountId: resolvedAcctId,
           postId: instagramPostId,
           commentId: instagramCommentId,
-          message: isMedia ? undefined : (contentText || undefined),
+          message: isMedia ? '' : (contentText || ''),
           attachmentUrl: isMedia ? (mediaUrl || undefined) : undefined,
           attachmentType: isMedia ? (messageType as 'image' | 'video' | 'audio') : undefined,
           attachmentName: messageType === 'document' ? (filename || 'file') : undefined,

@@ -631,6 +631,8 @@ export interface AiConditionStepConfig {
 export interface AiReplyStepConfig {
   /** Instruction for generating the reply. Supports {{ vars.* }} / {{ message.text }}. */
   prompt: string;
+  /** Instagram comment reply mode: 'public' (visible on post) or 'dm' (private). */
+  reply_mode?: 'public' | 'dm';
 }
 
 export interface AiExtractField {

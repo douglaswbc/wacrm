@@ -1984,6 +1984,18 @@ function StepEditor({
               className="min-h-20 bg-muted text-foreground"
             />
           </FieldBlock>
+          {channel === 'instagram' && (
+            <FieldBlock label="Reply mode">
+              <select
+                value={(cfg.reply_mode as string) ?? "public"}
+                onChange={(e) => set({ reply_mode: e.target.value })}
+                className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+              >
+                <option value="public">Public Reply (on the post)</option>
+                <option value="dm">Private DM</option>
+              </select>
+            </FieldBlock>
+          )}
           <p className="text-xs text-muted-foreground">
             The model will generate and send a reply based on the conversation history.
             Supports <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.*}}'}</code> and <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{message.text}}'}</code>.
