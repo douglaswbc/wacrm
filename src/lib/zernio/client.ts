@@ -432,36 +432,36 @@ export async function listExternalPosts(args: {
   // The /posts endpoint with source=external returns { posts: [...], pagination: {...} }
   const raw: unknown[] = Array.isArray(json.posts) ? json.posts : [];
 
-  if (raw.length > 0) {
-    const first = raw[0] as Record<string, unknown>;
-    console.log('[zernio] /posts first item keys:', Object.keys(first));
-    console.log('[zernio] /posts platforms[0]:', JSON.stringify((first.platforms as unknown[])?.[0]));
-  } else {
-    console.log('[zernio] /posts returned 0 items. json keys:', Object.keys(json));
-  }
-
   return (raw as Record<string, unknown>[]).map((item) => {
     // Extract platformPostId from the platforms array (e.g. [{ platform, accountId, platformPostId }])
     const platforms = (item.platforms as Array<Record<string, unknown>>) ?? [];
     const igPlatform = platforms.find((p) => p.platform === 'instagram');
     const platformPostId = (igPlatform?.platformPostId as string)
-      || (igPlatform?.postId as string)
       || (item.platformPostId as string)
       || undefined;
 
-    // Content: try content field first, then mediaItems captions
+    const platformPostUrl = (igPlatform?.platformPostUrl as string)
+      || (item.platformPostUrl as string)
+      || undefined;
+
+    // Content: try content field, then media items caption, then platformPostUrl
     let content = (item.content as string) ?? '';
     if (!content) {
       const mediaItems = (item.mediaItems as Array<Record<string, unknown>>) ?? [];
-      const captions = mediaItems.map((m) => (m.caption || m.altText || m.description) as string).filter(Boolean);
+      const captions = mediaItems.map((m) =>
+        (m.caption || m.altText || m.description || m.title) as string
+      ).filter(Boolean);
       content = captions[0] ?? '';
+    }
+    if (!content && platformPostUrl) {
+      content = platformPostUrl;
     }
 
     return {
       id: platformPostId || ((item._id as string) || (item.id as string) || ''),
       content,
       platformPostId,
-      platformPostUrl: (igPlatform?.url || item.platformPostUrl) as string || undefined,
+      platformPostUrl,
       platforms: platforms as ZernioExternalPost['platforms'] || undefined,
       createdAt: item.createdAt as string || '',
     };
