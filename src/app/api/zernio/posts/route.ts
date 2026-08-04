@@ -29,12 +29,12 @@ export async function GET(request: Request) {
     const supa = await createClient()
     const { data: { user } } = await supa.auth.getUser()
     if (user) {
-      const { data: profile } = await db
+      const { data: profile } = (await db
         .from('profiles')
         .select('account_id')
         .eq('user_id', user.id)
         .limit(1)
-        .maybeSingle()
+        .maybeSingle()) as { data: { account_id: string } | null }
       accountId = profile?.account_id || undefined
     }
   }
@@ -43,11 +43,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'account_id is required or user must be authenticated' }, { status: 400 })
   }
 
-  const { data: conn } = await db
+  const { data: conn } = (await db
     .from('zernio_connections')
     .select('connected_accounts')
     .eq('account_id', accountId)
-    .maybeSingle()
+    .maybeSingle()) as { data: { connected_accounts: unknown } | null }
 
   if (!conn?.connected_accounts) {
     return NextResponse.json({ data: [] })
