@@ -6,7 +6,7 @@
 // whether the account is on OpenAI or Anthropic.
 // ============================================================
 
-export type AiProvider = 'openai' | 'anthropic'
+export type AiProvider = 'openai' | 'anthropic' | 'groq'
 
 /**
  * Account AI setup, decrypted and ready to use. Produced by
@@ -23,6 +23,9 @@ export interface AiConfig {
   autoReplyMaxPerConversation: number
   autoReplyPauseMode: 'manual' | 'timed'
   autoReplyPauseMinutes: number
+  transcriptionEnabled: boolean
+  transcriptionAudioModel: string | null
+  transcriptionVisionModel: string | null
 }
 
 /** A single conversation turn in the shape both providers accept. */

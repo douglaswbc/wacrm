@@ -33,11 +33,13 @@ const MASKED_KEY = '••••••••••••••••';
 const PROVIDER_LABEL: Record<AiProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
+  groq: 'Groq (Llama)',
 };
 
 const KEY_PLACEHOLDER: Record<AiProvider, string> = {
   openai: 'sk-...',
   anthropic: 'sk-ant-...',
+  groq: 'gsk_...',
 };
 
 export function AiConfig() {
@@ -62,6 +64,9 @@ export function AiConfig() {
   const [maxPerConversation, setMaxPerConversation] = useState(3);
   const [pauseMode, setPauseMode] = useState<'manual' | 'timed'>('manual');
   const [pauseMinutes, setPauseMinutes] = useState(60);
+  const [transcriptionEnabled, setTranscriptionEnabled] = useState(false);
+  const [audioModel, setAudioModel] = useState('');
+  const [visionModel, setVisionModel] = useState('');
 
   // Guard keyed on the account (not a bare boolean) so an in-place
   // account switch — ownership transfer, multi-account membership —
@@ -88,6 +93,9 @@ export function AiConfig() {
         setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
         setPauseMode(data.auto_reply_pause_mode ?? 'manual');
         setPauseMinutes(data.auto_reply_pause_minutes ?? 60);
+        setTranscriptionEnabled(data.transcription_enabled ?? false);
+        setAudioModel(data.transcription_audio_model ?? '');
+        setVisionModel(data.transcription_vision_model ?? '');
         setHasStoredKey(Boolean(data.has_key));
         setApiKey(data.has_key ? MASKED_KEY : '');
         setKeyEdited(false);
@@ -112,6 +120,7 @@ export function AiConfig() {
     const isDefaultModel =
       model === AI_PROVIDER_DEFAULT_MODEL.openai ||
       model === AI_PROVIDER_DEFAULT_MODEL.anthropic ||
+      model === AI_PROVIDER_DEFAULT_MODEL.groq ||
       model.trim() === '';
     if (isDefaultModel) setModel(AI_PROVIDER_DEFAULT_MODEL[next]);
   };
@@ -128,6 +137,9 @@ export function AiConfig() {
     auto_reply_max_per_conversation: maxPerConversation,
     auto_reply_pause_mode: pauseMode,
     auto_reply_pause_minutes: pauseMinutes,
+    transcription_enabled: transcriptionEnabled,
+    transcription_audio_model: audioModel.trim() || null,
+    transcription_vision_model: visionModel.trim() || null,
   });
 
   const handleTest = async () => {
@@ -220,7 +232,7 @@ export function AiConfig() {
     <div>
       <SettingsPanelHead
         title="AI Assistant"
-        description="Bring your own OpenAI or Anthropic key. wacrm calls the provider directly with your key — no per-seat AI fees, and your data stays yours. Powers AI-drafted replies in the inbox and an optional auto-reply bot."
+        description="Bring your own OpenAI, Anthropic, or Groq key. wacrm calls the provider directly with your key — no per-seat AI fees, and your data stays yours. Powers AI-drafted replies in the inbox and an optional auto-reply bot."
       />
 
       {!canEdit && (
@@ -256,6 +268,9 @@ export function AiConfig() {
                     <SelectItem value="openai">{PROVIDER_LABEL.openai}</SelectItem>
                     <SelectItem value="anthropic">
                       {PROVIDER_LABEL.anthropic}
+                    </SelectItem>
+                    <SelectItem value="groq">
+                      {PROVIDER_LABEL.groq}
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -470,6 +485,86 @@ export function AiConfig() {
             )}
           </CardContent>
         </Card>
+
+        {autoReplyEnabled && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Transcription</CardTitle>
+            <CardDescription>
+              Automatically transcribe audio messages and describe images when
+              they arrive. Transcribed text feeds the auto-reply bot so it can
+              understand voice notes and images.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Transcribe audio & images
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Uses the provider&apos;s Whisper model for audio and vision
+                  model for images. Costs are billed to your provider key.
+                </p>
+              </div>
+              <Switch
+                checked={transcriptionEnabled}
+                onCheckedChange={setTranscriptionEnabled}
+                disabled={disabled}
+              />
+            </div>
+
+            {transcriptionEnabled && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="ai-audio-model">Audio model</Label>
+                  <Input
+                    id="ai-audio-model"
+                    value={audioModel}
+                    onChange={(e) => setAudioModel(e.target.value)}
+                    placeholder={
+                      provider === 'openai'
+                        ? 'whisper-1'
+                        : provider === 'groq'
+                          ? 'whisper-large-v3-turbo'
+                          : 'Not supported'
+                    }
+                    disabled={disabled || provider === 'anthropic'}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {provider === 'anthropic'
+                      ? 'Anthropic does not support audio transcription.'
+                      : provider === 'openai'
+                        ? 'Supported: whisper-1, gpt-4o-transcribe'
+                        : 'Supported: whisper-large-v3-turbo, distil-whisper-large-v3-en'}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ai-vision-model">Vision model</Label>
+                  <Input
+                    id="ai-vision-model"
+                    value={visionModel}
+                    onChange={(e) => setVisionModel(e.target.value)}
+                    placeholder={
+                      provider === 'openai'
+                        ? 'gpt-4o-mini'
+                        : provider === 'groq'
+                          ? 'llama-4-maverick-128k'
+                          : 'claude-haiku-4-5-20251001'
+                    }
+                    disabled={disabled}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used to describe images. The text is injected into the
+                    conversation context.
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        )}
 
         <div className="flex items-center justify-between">
           {configured ? (

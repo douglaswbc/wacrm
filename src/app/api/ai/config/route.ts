@@ -29,7 +29,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, auto_reply_pause_mode, auto_reply_pause_minutes, api_key',
+        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, auto_reply_pause_mode, auto_reply_pause_minutes, transcription_enabled, transcription_audio_model, transcription_vision_model, api_key',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -70,8 +70,8 @@ export async function POST(request: Request) {
     if (!body || typeof body !== 'object') return bad('Invalid request body')
 
     const provider = body.provider as AiProvider
-    if (provider !== 'openai' && provider !== 'anthropic') {
-      return bad('provider must be "openai" or "anthropic"')
+    if (provider !== 'openai' && provider !== 'anthropic' && provider !== 'groq') {
+      return bad('provider must be "openai", "anthropic", or "groq"')
     }
     const model = typeof body.model === 'string' ? body.model.trim() : ''
     if (!model) return bad('model is required')
@@ -92,6 +92,14 @@ export async function POST(request: Request) {
     let pauseMinutes = Number(body.auto_reply_pause_minutes)
     if (!Number.isFinite(pauseMinutes)) pauseMinutes = 60
     pauseMinutes = Math.min(10080, Math.max(1, Math.floor(pauseMinutes)))
+
+    const transcriptionEnabled = body.transcription_enabled === true
+    const transcriptionAudioModel = typeof body.transcription_audio_model === 'string' && body.transcription_audio_model.trim()
+      ? body.transcription_audio_model.trim()
+      : null
+    const transcriptionVisionModel = typeof body.transcription_vision_model === 'string' && body.transcription_vision_model.trim()
+      ? body.transcription_vision_model.trim()
+      : null
 
     const rawKey = typeof body.api_key === 'string' ? body.api_key.trim() : ''
 
@@ -137,6 +145,9 @@ export async function POST(request: Request) {
           autoReplyMaxPerConversation: maxPer,
           autoReplyPauseMode: pauseMode,
           autoReplyPauseMinutes: pauseMinutes,
+          transcriptionEnabled,
+          transcriptionAudioModel,
+          transcriptionVisionModel,
         })
       } catch (err) {
         if (err instanceof AiError) {
@@ -160,6 +171,9 @@ export async function POST(request: Request) {
       auto_reply_max_per_conversation: maxPer,
       auto_reply_pause_mode: pauseMode,
       auto_reply_pause_minutes: pauseMinutes,
+      transcription_enabled: transcriptionEnabled,
+      transcription_audio_model: transcriptionAudioModel,
+      transcription_vision_model: transcriptionVisionModel,
     }
 
     if (existing) {

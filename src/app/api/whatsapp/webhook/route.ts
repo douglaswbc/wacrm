@@ -8,6 +8,7 @@ import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { transcribeInboundMedia } from '@/lib/ai/transcribe-webhook'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import {
   handleTemplateWebhookChange,
@@ -829,7 +830,18 @@ async function processMessage(
   // the account has enabled it. Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video'
+  if (!flowConsumed && !interactiveReplyId && (inboundText.trim() || isMediaType)) {
+    if (isMediaType) {
+      await transcribeInboundMedia({
+        db: supabaseAdmin(),
+        accountId,
+        messageId: message.id,
+        content_type: contentType,
+        media_url: mediaUrl,
+      })
+    }
+
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
@@ -851,6 +863,7 @@ async function processMessage(
     whatsapp_message_id: message.id,
     content_type: contentType,
     text: contentText,
+    media_url: mediaUrl,
     channel: 'whatsapp',
     provider: 'meta',
     ...(interactiveReplyId ? { interactive_reply_id: interactiveReplyId } : {}),

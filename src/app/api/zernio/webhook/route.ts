@@ -5,6 +5,7 @@ import { normalizeZernioPayload } from '@/lib/zernio/normalize';
 import { runAutomationsForTrigger } from '@/lib/automations/engine';
 import { dispatchInboundToFlows } from '@/lib/flows/engine';
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply';
+import { transcribeInboundMedia } from '@/lib/ai/transcribe-webhook';
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver';
 import type { SocialAccount } from '@/types';
 
@@ -547,6 +548,17 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       }).catch((err) => console.error('[zernio automations] new_contact dispatch failed:', err));
     }
 
+    const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video'
+    if (isMediaType) {
+      await transcribeInboundMedia({
+        db,
+        accountId,
+        messageId: msg.id,
+        content_type: contentType,
+        media_url: mediaUrl,
+      })
+    }
+
     await dispatchInboundToAiReply({
       accountId,
       conversationId: convOutcome.id,
@@ -561,6 +573,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     zernio_message_id: msg.id,
     content_type: contentType,
     text: msg.text,
+    media_url: mediaUrl,
     channel,
     provider,
   });

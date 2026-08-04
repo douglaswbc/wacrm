@@ -3,7 +3,7 @@ import { decrypt } from '@/lib/whatsapp/encryption'
 import type { AiConfig } from './types'
 
 interface AiConfigRow {
-  provider: 'openai' | 'anthropic'
+  provider: 'openai' | 'anthropic' | 'groq'
   model: string
   api_key: string
   system_prompt: string | null
@@ -12,10 +12,13 @@ interface AiConfigRow {
   auto_reply_max_per_conversation: number
   auto_reply_pause_mode: 'manual' | 'timed'
   auto_reply_pause_minutes: number
+  transcription_enabled: boolean
+  transcription_audio_model: string | null
+  transcription_vision_model: string | null
 }
 
 const CONFIG_COLUMNS =
-  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, auto_reply_pause_mode, auto_reply_pause_minutes'
+  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, auto_reply_pause_mode, auto_reply_pause_minutes, transcription_enabled, transcription_audio_model, transcription_vision_model'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -58,5 +61,8 @@ export async function loadAiConfig(
     autoReplyMaxPerConversation: row.auto_reply_max_per_conversation,
     autoReplyPauseMode: row.auto_reply_pause_mode,
     autoReplyPauseMinutes: row.auto_reply_pause_minutes,
+    transcriptionEnabled: row.transcription_enabled,
+    transcriptionAudioModel: row.transcription_audio_model,
+    transcriptionVisionModel: row.transcription_vision_model,
   }
 }
