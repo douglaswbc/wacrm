@@ -27,9 +27,9 @@ export async function POST(request: Request) {
     }
 
     const provider = body.provider as AiProvider
-    if (provider !== 'openai' && provider !== 'anthropic') {
+    if (provider !== 'openai' && provider !== 'anthropic' && provider !== 'groq') {
       return NextResponse.json(
-        { error: 'provider must be "openai" or "anthropic"' },
+        { error: 'provider must be "openai", "anthropic", or "groq"' },
         { status: 400 },
       )
     }
@@ -73,6 +73,9 @@ export async function POST(request: Request) {
         autoReplyMaxPerConversation: 3,
         autoReplyPauseMode: 'manual',
         autoReplyPauseMinutes: 60,
+        transcriptionEnabled: false,
+        transcriptionAudioModel: null,
+        transcriptionVisionModel: null,
       })
     } catch (err) {
       if (err instanceof AiError) {
