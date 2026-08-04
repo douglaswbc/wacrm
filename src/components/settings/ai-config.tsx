@@ -311,7 +311,7 @@ export function AiConfig() {
                 <Label>Model</Label>
                 <Select
                   value={model}
-                  onValueChange={setModel}
+                  onValueChange={(v) => setModel(v ?? '')}
                   disabled={disabled}
                 >
                   <SelectTrigger>
@@ -569,7 +569,7 @@ export function AiConfig() {
                   ) : (
                     <Select
                       value={audioModel}
-                      onValueChange={setAudioModel}
+                      onValueChange={(v) => setAudioModel(v ?? '')}
                       disabled={disabled}
                     >
                       <SelectTrigger>
@@ -598,7 +598,7 @@ export function AiConfig() {
                   <Label>Vision model</Label>
                   <Select
                     value={visionModel}
-                    onValueChange={setVisionModel}
+                    onValueChange={(v) => setVisionModel(v ?? '')}
                     disabled={disabled}
                   >
                     <SelectTrigger>
