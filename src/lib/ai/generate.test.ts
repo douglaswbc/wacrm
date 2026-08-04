@@ -13,6 +13,9 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     autoReplyMaxPerConversation: 3,
     autoReplyPauseMode: 'manual',
     autoReplyPauseMinutes: 60,
+    transcriptionEnabled: false,
+    transcriptionAudioModel: null,
+    transcriptionVisionModel: null,
     ...overrides,
   }
 }
