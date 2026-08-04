@@ -389,6 +389,8 @@ export async function listExternalPosts(args: {
   limit?: number;
 }): Promise<ZernioExternalPost[]> {
   const params = new URLSearchParams();
+  params.set('source', 'external');
+  params.set('account_id', args.zernioAccountId);
   if (args.platform) params.set('platform', args.platform);
   if (args.search) params.set('search', args.search);
   if (args.limit) params.set('limit', String(args.limit));
@@ -415,46 +417,8 @@ export async function listExternalPosts(args: {
 
   const json = await response.json();
 
-  // Debug: log the response shape so we can fix parsing
-  console.log('[zernio] /posts response top keys:', Object.keys(json));
-  if (json.data !== undefined) {
-    console.log('[zernio] /posts data type:', typeof json.data, Array.isArray(json.data) ? `array[${json.data.length}]` : Object.keys(json.data || {}));
-  }
-
-  // Handle multiple possible response shapes from the /posts endpoint
-  let raw: unknown[] = [];
-  if (Array.isArray(json.data)) {
-    raw = json.data;
-  } else if (json.data && Array.isArray(json.data.posts)) {
-    raw = json.data.posts;
-  } else if (Array.isArray(json.posts)) {
-    raw = json.posts;
-  } else if (Array.isArray(json)) {
-    raw = json;
-  }
-
-  // If still empty, try iterating the first array-valued key we find
-  if (raw.length === 0 && typeof json === 'object' && json !== null) {
-    for (const [key, val] of Object.entries(json as Record<string, unknown>)) {
-      if (Array.isArray(val) && val.length > 0) {
-        console.log('[zernio] /posts found array at key:', key, 'length:', val.length);
-        raw = val;
-        break;
-      }
-      if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-        for (const [subKey, subVal] of Object.entries(val as Record<string, unknown>)) {
-          if (Array.isArray(subVal) && subVal.length > 0) {
-            console.log('[zernio] /posts found array at data.', subKey, 'length:', subVal.length);
-            raw = subVal;
-            break;
-          }
-        }
-      }
-      if (raw.length > 0) break;
-    }
-  }
-
-  console.log('[zernio] /posts parsed count:', raw.length);
+  // The /posts endpoint with source=external returns { posts: [...], pagination: {...} }
+  const raw: unknown[] = Array.isArray(json.posts) ? json.posts : [];
 
   return (raw as Record<string, unknown>[]).map((item) => ({
     id: item._id as string || item.id as string || '',
