@@ -466,11 +466,6 @@ export async function listExternalPosts(args: {
       createdAt: item.createdAt as string || '',
     };
   });
-      platformPostUrl: item.platformPostUrl as string || undefined,
-      platforms: item.platforms as ZernioExternalPost['platforms'] || undefined,
-      createdAt: item.createdAt as string || '',
-    };
-  });
 }
 
 // ─── Sync External Post (register a platform post in Zernio) ─
