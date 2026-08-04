@@ -427,7 +427,7 @@ export async function listExternalPosts(args: {
     raw = json;
   }
 
-  return raw.map((item: Record<string, unknown>) => ({
+  return (raw as Record<string, unknown>[]).map((item) => ({
     id: item._id as string || item.id as string || '',
     content: item.content as string || '',
     platformPostId: item.platformPostId as string || undefined,
