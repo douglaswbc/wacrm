@@ -830,7 +830,7 @@ async function processMessage(
   // the account has enabled it. Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video'
+  const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video' || contentType === 'document'
   if (!flowConsumed && !interactiveReplyId && (inboundText.trim() || isMediaType)) {
     if (isMediaType) {
       await transcribeInboundMedia({

@@ -1,6 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import pdfParse from 'pdf-parse'
 import { loadAiConfig } from './config'
 import { transcribe } from './transcribe/index'
+
+const PDF_MAX_SIZE = 5 * 1024 * 1024 // 5 MB
 
 export async function transcribeInboundMedia(args: {
   db: SupabaseClient
@@ -12,7 +15,13 @@ export async function transcribeInboundMedia(args: {
   const { db, accountId, messageId, content_type, media_url } = args
 
   if (!media_url) return
-  if (content_type !== 'audio' && content_type !== 'image' && content_type !== 'video') return
+  if (
+    content_type !== 'audio' &&
+    content_type !== 'image' &&
+    content_type !== 'video' &&
+    content_type !== 'document'
+  )
+    return
 
   const config = await loadAiConfig(db, accountId)
   if (!config || !config.autoReplyEnabled || !config.transcriptionEnabled) return
@@ -55,17 +64,28 @@ export async function transcribeInboundMedia(args: {
         imageUrl: visionUrl,
       })
       text = result.text
+    } else if (content_type === 'document') {
+      // PDF text extraction — local, no AI provider needed.
+      // Skip if > 5 MB or not a PDF (magic bytes %PDF).
+      const buf = await downloadMediaBuffer(media_url)
+      if (buf.length <= PDF_MAX_SIZE && isPdf(buf)) {
+        const extracted = await pdfParse(buf)
+        text = extracted.text?.trim() || null
+      }
     }
 
     if (text) {
+      const transModel: string | null =
+        content_type === 'audio'
+          ? config.transcriptionAudioModel
+          : content_type === 'document'
+            ? 'pdf-parse'
+            : config.transcriptionVisionModel
       await db
         .from('messages')
         .update({
           transcription_text: text,
-          transcription_model:
-            content_type === 'audio'
-              ? config.transcriptionAudioModel
-              : config.transcriptionVisionModel,
+          transcription_model: transModel,
           transcription_provider: config.provider,
           transcribed_at: new Date().toISOString(),
         })
@@ -102,6 +122,16 @@ function mimeFromBuffer(buf: Uint8Array): string {
   if (buf[0] === 0x47 && buf[1] === 0x49) return 'image/gif'
   if (buf[0] === 0x52 && buf[1] === 0x49) return 'image/webp'
   return 'image/jpeg'
+}
+
+function isPdf(buf: Uint8Array): boolean {
+  return (
+    buf.length >= 5 &&
+    buf[0] === 0x25 && // %
+    buf[1] === 0x50 && // P
+    buf[2] === 0x44 && // D
+    buf[3] === 0x46    // F
+  )
 }
 
 const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY

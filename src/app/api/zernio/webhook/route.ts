@@ -553,7 +553,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       }).catch((err) => console.error('[zernio automations] new_contact dispatch failed:', err));
     }
 
-    const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video'
+    const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video' || contentType === 'document'
     if (isMediaType) {
       // Pass the raw URL so server-side transcription can add the
       // Zernio Bearer auth header (the proxy URL is browser-only).
