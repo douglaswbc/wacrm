@@ -41,7 +41,7 @@ export async function transcribeInboundMedia(args: {
         try {
           const buf = await downloadMediaBuffer(media_url)
           const mime = mimeFromBuffer(buf)
-          const b64 = buf.toString('base64')
+          const b64 = Buffer.from(buf).toString('base64')
           visionUrl = `data:${mime};base64,${b64}`
         } catch {
           console.error('[ai transcribe] failed to download vision media')
