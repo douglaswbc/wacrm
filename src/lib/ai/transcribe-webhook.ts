@@ -33,11 +33,26 @@ export async function transcribeInboundMedia(args: {
       text = result.text
     } else if (content_type === 'image' || content_type === 'video') {
       if (!config.transcriptionVisionModel) return
+      // Zernio WhatsApp media URLs need auth. OpenAI/Groq accept data
+      // URIs as image_url, so download locally and convert to base64.
+      // Anthropic requires a different base64 format — skip for now.
+      let visionUrl = media_url
+      if (isZernioMediaUrl(media_url) && config.provider !== 'anthropic') {
+        try {
+          const buf = await downloadMediaBuffer(media_url)
+          const mime = mimeFromBuffer(buf)
+          const b64 = buf.toString('base64')
+          visionUrl = `data:${mime};base64,${b64}`
+        } catch {
+          console.error('[ai transcribe] failed to download vision media')
+          return
+        }
+      }
       const result = await transcribe({
         provider: config.provider,
         apiKey: config.apiKey,
         visionModel: config.transcriptionVisionModel,
-        imageUrl: media_url,
+        imageUrl: visionUrl,
       })
       text = result.text
     }
@@ -62,8 +77,31 @@ export async function transcribeInboundMedia(args: {
 }
 
 async function downloadMediaBuffer(url: string): Promise<Buffer> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) })
+  const headers: Record<string, string> = {}
+  if (isZernioMediaUrl(url)) {
+    headers.Authorization = `Bearer ${ZERNIO_API_KEY}`
+  }
+  const res = await fetch(url, {
+    headers,
+    signal: AbortSignal.timeout(30_000),
+  })
   if (!res.ok) throw new Error(`Failed to download media: ${res.status}`)
   const arrayBuffer = await res.arrayBuffer()
   return new Uint8Array(arrayBuffer) as Buffer
 }
+
+const ZERNIO_MEDIA_PATTERN = /^https:\/\/zernio\.com\/api\/v1\/(whatsapp|instagram|facebook|telegram)\/media\//
+
+function isZernioMediaUrl(url: string): boolean {
+  return ZERNIO_MEDIA_PATTERN.test(url)
+}
+
+function mimeFromBuffer(buf: Uint8Array): string {
+  if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg'
+  if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png'
+  if (buf[0] === 0x47 && buf[1] === 0x49) return 'image/gif'
+  if (buf[0] === 0x52 && buf[1] === 0x49) return 'image/webp'
+  return 'image/jpeg'
+}
+
+const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY

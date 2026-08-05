@@ -7,6 +7,7 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine';
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply';
 import { transcribeInboundMedia } from '@/lib/ai/transcribe-webhook';
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver';
+import { toProxyUrl } from '@/lib/zernio/media';
 import type { SocialAccount } from '@/types';
 
 export const maxDuration = 60;
@@ -441,7 +442,11 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
   const contentType = hasAttachment
     ? msg.attachments[0].type
     : 'text';
-  const mediaUrl = hasAttachment ? msg.attachments[0].url : null;
+  const rawMediaUrl = hasAttachment ? msg.attachments[0].url : null;
+  // Rewrite Zernio WhatsApp media URLs to the internal proxy path
+  // so the browser can display them without auth. Raw URL is kept
+  // for server-side transcription which adds the Bearer header.
+  const proxyMediaUrl = toProxyUrl(rawMediaUrl);
 
   const { error: msgError } = await (db as any).from('messages').insert({
     account_id: accountId,
@@ -449,7 +454,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     sender_type: 'customer',
     content_type: contentType,
     content_text: msg.text,
-    media_url: mediaUrl,
+    media_url: proxyMediaUrl,
     message_id: msg.id,
     platform_message_id: msg.platformMessageId ?? null,
     zernio_contact_id: msg.sender.contactId ?? null,
@@ -550,12 +555,14 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
 
     const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video'
     if (isMediaType) {
+      // Pass the raw URL so server-side transcription can add the
+      // Zernio Bearer auth header (the proxy URL is browser-only).
       await transcribeInboundMedia({
         db,
         accountId,
         messageId: msg.id,
         content_type: contentType,
-        media_url: mediaUrl,
+        media_url: rawMediaUrl,
       })
     }
 
@@ -573,7 +580,7 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
     zernio_message_id: msg.id,
     content_type: contentType,
     text: msg.text,
-    media_url: mediaUrl,
+    media_url: proxyMediaUrl,
     channel,
     provider,
   });

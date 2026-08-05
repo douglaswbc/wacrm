@@ -63,7 +63,7 @@ function MediaImage({ url, alt }: { url: string; alt: string }) {
     if (!url) return;
 
     // Proxy URLs need auth fetch to create blob URL
-    if (url.startsWith("/api/whatsapp/media/")) {
+    if (url.startsWith("/api/whatsapp/media/") || url.startsWith("/api/zernio/media")) {
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to load media");
