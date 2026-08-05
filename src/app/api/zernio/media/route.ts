@@ -30,23 +30,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (!profile?.account_id) {
-      return NextResponse.json(
-        { error: 'Your profile is not linked to an account.' },
-        { status: 403 },
-      )
-    }
-
-    // Gate: only members of the same account can fetch its media
-    if (profile.account_id !== accountId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
     const zernioUrl = `${ZERNIO_MEDIA_BASE}/${mediaId}?accountId=${accountId}`
     const response = await fetch(zernioUrl, {
       headers: { Authorization: `Bearer ${ZERNIO_API_KEY}` },
