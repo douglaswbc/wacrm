@@ -9,6 +9,7 @@ export type TemplateSlug =
   | 'welcome_message'
   | 'out_of_office'
   | 'lead_qualifier'
+  | 'lead_triage'
   | 'follow_up_reminder'
   | 'ig_comment_public_reply'
   | 'ig_comment_dm_reply'
@@ -123,6 +124,44 @@ export const AUTOMATION_TEMPLATES: Record<TemplateSlug, AutomationTemplateDefini
         step_config: {
           text:
             "Just circling back — did you have any other questions for us? Happy to help!",
+        },
+      },
+    ],
+  },
+  lead_triage: {
+    slug: 'lead_triage',
+    name: 'Lead Triage',
+    description: 'Classify inbound leads (hot/warm/cold) with AI, tag the outcome, and create or update the deal.',
+    trigger_type: 'keyword_match',
+    trigger_config: {
+      keywords: ['pricing', 'quote', 'buy'],
+      match_type: 'contains',
+    },
+    steps: [
+      {
+        step_type: 'ai_classify',
+        step_config: {
+          prompt:
+            'Assess purchase intent from the message. HOT = ready to buy now, WARM = interested but comparing, COLD = just browsing.',
+          labels: ['hot', 'warm', 'cold'],
+          store_var: 'lead_tier',
+          fallback: 'cold',
+        },
+      },
+      {
+        step_type: 'update_deal',
+        step_config: {
+          stage_id: '',
+          title: 'Lead from keyword',
+          create_if_missing: true,
+          value: 0,
+        },
+      },
+      {
+        step_type: 'send_message',
+        step_config: {
+          text:
+            'Thanks for reaching out! Noted as {{ vars.lead_tier }} — a specialist will follow up shortly.',
         },
       },
     ],

@@ -120,6 +120,34 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
         issues.push({ path: `${path}.title`, message: 'title is required' })
       }
       break
+    case 'update_deal':
+      if (c.status != null && !['open', 'won', 'lost'].includes(String(c.status))) {
+        issues.push({ path: `${path}.status`, message: 'status must be open, won, or lost' })
+      }
+      if (c.create_if_missing) {
+        if (!nonEmpty(c.pipeline_id)) {
+          issues.push({ path: `${path}.pipeline_id`, message: 'pipeline is required when creating a missing deal' })
+        }
+        if (!nonEmpty(c.stage_id)) {
+          issues.push({ path: `${path}.stage_id`, message: 'stage is required when creating a missing deal' })
+        }
+        if (!nonEmpty(c.title)) {
+          issues.push({ path: `${path}.title`, message: 'title is required when creating a missing deal' })
+        }
+      } else if (
+        !nonEmpty(c.deal_id) &&
+        !nonEmpty(c.stage_id) &&
+        c.status == null &&
+        c.value === undefined
+      ) {
+        issues.push({ path, message: 'update_deal needs at least one field to update' })
+      }
+      break
+    case 'calendar_update_status':
+      if (c.status == null || !['scheduled', 'cancelled', 'tentative'].includes(String(c.status))) {
+        issues.push({ path: `${path}.status`, message: 'status must be scheduled, cancelled, or tentative' })
+      }
+      break
     case 'wait':
       if (typeof c.amount !== 'number' || !Number.isFinite(c.amount) || c.amount <= 0) {
         issues.push({ path: `${path}.amount`, message: 'wait amount must be greater than 0' })
@@ -207,6 +235,16 @@ function validateOne(step: StepLike, path: string, issues: ValidationIssue[]): v
             issues.push({ path: `${path}.fields[${fi}].description`, message: 'field description is required' })
           }
         }
+      }
+      break
+    case 'ai_classify':
+      if (!nonEmpty(c.prompt)) {
+        issues.push({ path: `${path}.prompt`, message: 'classification prompt is required' })
+      }
+      if (!Array.isArray(c.labels) || c.labels.length === 0) {
+        issues.push({ path: `${path}.labels`, message: 'at least one label is required' })
+      } else if ((c.labels as unknown[]).some((l) => !nonEmpty(l))) {
+        issues.push({ path: `${path}.labels`, message: 'labels cannot be empty strings' })
       }
       break
     default:

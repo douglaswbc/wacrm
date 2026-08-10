@@ -6,6 +6,9 @@ import type {
   AiConditionStepConfig,
   AiReplyStepConfig,
   AiExtractStepConfig,
+  AiClassifyStepConfig,
+  UpdateDealStepConfig,
+  CalendarUpdateStatusStepConfig,
   ConditionStepConfig,
   KeywordMatchTriggerConfig,
   SendMessageStepConfig,
@@ -637,6 +640,124 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       return 'deal created'
     }
 
+    case 'update_deal': {
+      const cfg = step.step_config as UpdateDealStepConfig
+      if (!args.contactId && !cfg.deal_id) {
+        throw new Error('update_deal needs a contact or deal_id')
+      }
+      if (cfg.status && !['open', 'won', 'lost'].includes(cfg.status)) {
+        throw new Error('update_deal status must be open, won, or lost')
+      }
+      if (cfg.create_if_missing) {
+        if (!cfg.pipeline_id || !cfg.stage_id || !cfg.title) {
+          throw new Error('update_deal create_if_missing needs pipeline + stage + title')
+        }
+      } else if (!cfg.deal_id && !cfg.stage_id && !cfg.status && cfg.value === undefined) {
+        throw new Error('update_deal needs at least one field to update')
+      }
+
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      if (cfg.pipeline_id) patch.pipeline_id = cfg.pipeline_id
+      if (cfg.stage_id) patch.stage_id = cfg.stage_id
+      if (cfg.status) patch.status = cfg.status
+      if (cfg.value !== undefined) patch.value = cfg.value
+
+      let dealId = cfg.deal_id
+      if (!dealId) {
+        // Target the contact's most recently created deal. Scope to the
+        // account so the service-role client can't be used as a
+        // cross-tenant read oracle.
+        const { data: deal } = await db
+          .from('deals')
+          .select('id')
+          .eq('account_id', args.automation.account_id)
+          .eq('contact_id', args.contactId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        dealId = deal?.id as string | undefined
+      }
+
+      if (dealId) {
+        // Defense in depth: the service-role client bypasses RLS, so
+        // confirm the deal belongs to this account before updating.
+        const { data: owned } = await db
+          .from('deals')
+          .select('id')
+          .eq('id', dealId)
+          .eq('account_id', args.automation.account_id)
+          .maybeSingle()
+        if (!owned) return 'update_deal skipped: deal not found in account'
+        await db.from('deals').update(patch).eq('id', dealId).eq('account_id', args.automation.account_id)
+        return `deal updated (${dealId})`
+      }
+
+      if (cfg.create_if_missing) {
+        const { data: acct } = await db
+          .from('accounts')
+          .select('default_currency')
+          .eq('id', args.automation.account_id)
+          .maybeSingle()
+        await db.from('deals').insert({
+          account_id: args.automation.account_id,
+          user_id: args.automation.user_id,
+          pipeline_id: cfg.pipeline_id,
+          stage_id: cfg.stage_id,
+          contact_id: args.contactId,
+          title: interpolate(cfg.title ?? "", args),
+          value: cfg.value ?? 0,
+          currency: acct?.default_currency ?? 'USD',
+          status: cfg.status ?? 'open',
+        })
+        return 'deal created from update_deal'
+      }
+
+      return 'update_deal skipped: no matching deal'
+    }
+
+    case 'calendar_update_status': {
+      const cfg = step.step_config as CalendarUpdateStatusStepConfig
+      if (!cfg.status) throw new Error('calendar_update_status needs status')
+      if (!['scheduled', 'cancelled', 'tentative'].includes(cfg.status)) {
+        throw new Error('calendar_update_status status must be scheduled, cancelled, or tentative')
+      }
+
+      let eventId = cfg.event_id
+      if (!eventId) {
+        if (!args.contactId) {
+          throw new Error('calendar_update_status needs a contact or event_id')
+        }
+        // Pick the contact's next upcoming event. Scope to the account for
+        // the same cross-tenant protection as update_deal.
+        const { data: event } = await db
+          .from('calendar_events')
+          .select('id')
+          .eq('account_id', args.automation.account_id)
+          .eq('contact_id', args.contactId)
+          .gte('start_at', new Date().toISOString())
+          .order('start_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        eventId = event?.id as string | undefined
+      }
+
+      if (!eventId) return 'calendar_update_status skipped: no matching event'
+      // Defense in depth: confirm the event belongs to this account.
+      const { data: owned } = await db
+        .from('calendar_events')
+        .select('id')
+        .eq('id', eventId)
+        .eq('account_id', args.automation.account_id)
+        .maybeSingle()
+      if (!owned) return 'calendar_update_status skipped: event not found in account'
+      await db
+        .from('calendar_events')
+        .update({ status: cfg.status, updated_at: new Date().toISOString() })
+        .eq('id', eventId)
+        .eq('account_id', args.automation.account_id)
+      return `event ${eventId} set to ${cfg.status}`
+    }
+
     case 'send_webhook': {
       const cfg = step.step_config as SendWebhookStepConfig
       if (!cfg.url) throw new Error('send_webhook needs url')
@@ -709,6 +830,33 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
         args.context.vars[key] = value
       }
       return `ai_extract: ${Object.keys(parsed).join(', ')}`
+    }
+
+    case 'ai_classify': {
+      const clsCfg = step.step_config as AiClassifyStepConfig
+      const labels = (clsCfg.labels ?? []).map((l) => l.trim()).filter(Boolean)
+      if (labels.length === 0) throw new Error('ai_classify needs at least one label')
+      const providerConfig = await loadAiConfigSafe(db, args.automation.account_id)
+      const messageText = args.context.message_text ?? ''
+      if (!messageText.trim()) {
+        const fallback = clsCfg.fallback ?? labels[0]
+        if (!args.context.vars) args.context.vars = {}
+        args.context.vars[clsCfg.store_var ?? 'classification'] = fallback
+        return `ai_classify: ${fallback} (empty message)`
+      }
+      const systemPrompt = `You are a text classifier. Classify the user's message into EXACTLY ONE of the following categories: ${labels.join(', ')}.\n\nAnswer ONLY with the category label. No explanation, no punctuation.\n\n${clsCfg.prompt}`
+      const messages: ChatMessage[] = [{ role: 'user', content: messageText }]
+      const result = await generateReply({ config: providerConfig, systemPrompt, messages })
+      const raw = result.text.trim()
+      const normalized = raw.toUpperCase()
+      const matched =
+        labels.find((l) => normalized === l.toUpperCase()) ??
+        labels.find((l) => normalized.includes(l.toUpperCase())) ??
+        labels.find((l) => l.toUpperCase().includes(normalized))
+      const label = matched ?? clsCfg.fallback ?? labels[0]
+      if (!args.context.vars) args.context.vars = {}
+      args.context.vars[clsCfg.store_var ?? 'classification'] = label
+      return `ai_classify: ${label}`
     }
 
     default:

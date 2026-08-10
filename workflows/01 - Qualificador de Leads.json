@@ -1,0 +1,947 @@
+{
+  "name": "01 — Qualificador de Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qualificador-leads",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "02cd0057-9d31-4d14-9e57-3a43b7eb1926",
+      "name": "Webhook — Lead Entrante",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        432,
+        224
+      ],
+      "webhookId": "qualificador-leads"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "v-lead-nome",
+              "name": "lead_nome",
+              "value": "={{ $json.body.nome || $json.body.name || $json.nome || $json.name || 'NOME_DO_LEAD' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-email",
+              "name": "lead_email",
+              "value": "={{ $json.body.email || $json.email || 'lead@email.com' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-telefone",
+              "name": "lead_telefone",
+              "value": "={{ $json.body.telefone || $json.body.phone || $json.telefone || $json.phone || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-empresa",
+              "name": "lead_empresa",
+              "value": "={{ $json.body.empresa || $json.body.company || $json.empresa || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-origem",
+              "name": "lead_origem",
+              "value": "={{ $json.body.origem || $json.body.source || $json.origem || 'formulario' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-mensagem",
+              "name": "lead_mensagem",
+              "value": "={{ $json.body.mensagem || $json.body.message || $json.mensagem || $json.message || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-interesse",
+              "name": "lead_interesse",
+              "value": "={{ $json.body.interesse || $json.body.interest || $json.interesse || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-id",
+              "name": "lead_id",
+              "value": "={{ $json.body.id || $json.body.lead_id || $json.id || $now.toFormat('yyyyMMddHHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "v-lead-recebido-em",
+              "name": "lead_recebido_em",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "v-negocio-nome",
+              "name": "negocio_nome",
+              "value": "SUA_CLINICA_OU_EMPRESA",
+              "type": "string"
+            },
+            {
+              "id": "v-negocio-nicho",
+              "name": "negocio_nicho",
+              "value": "clinica",
+              "type": "string"
+            },
+            {
+              "id": "v-classificacao",
+              "name": "classificacao",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "v-score",
+              "name": "score",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "v-motivo-classificacao",
+              "name": "motivo_classificacao",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "v-proxima-acao",
+              "name": "proxima_acao",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "v-followup-horas",
+              "name": "followup_horas",
+              "value": 48,
+              "type": "number"
+            },
+            {
+              "id": "v-alerta-email",
+              "name": "alerta_email_destino",
+              "value": "alerta@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "v-email-remetente-nome",
+              "name": "email_remetente_nome",
+              "value": "Atendimento",
+              "type": "string"
+            },
+            {
+              "id": "v-assunto-quente",
+              "name": "email_assunto_quente",
+              "value": "Recebemos seu contato — vamos agilizar",
+              "type": "string"
+            },
+            {
+              "id": "v-assunto-morno",
+              "name": "email_assunto_morno",
+              "value": "Obrigado pelo contato — próximos passos",
+              "type": "string"
+            },
+            {
+              "id": "v-assunto-frio",
+              "name": "email_assunto_frio",
+              "value": "Material e informações que pediu",
+              "type": "string"
+            },
+            {
+              "id": "v-assunto-followup",
+              "name": "email_assunto_followup",
+              "value": "Ainda faz sentido conversarmos?",
+              "type": "string"
+            },
+            {
+              "id": "v-crm-url",
+              "name": "crm_webhook_url",
+              "value": "https://SEU_CRM_OU_WEBHOOK_AQUI.com/leads",
+              "type": "string"
+            },
+            {
+              "id": "v-crm-api-key",
+              "name": "crm_api_key",
+              "value": "SUA_API_KEY_CRM",
+              "type": "string"
+            },
+            {
+              "id": "v-openai-url",
+              "name": "openai_api_url",
+              "value": "https://api.openai.com/v1/chat/completions",
+              "type": "string"
+            },
+            {
+              "id": "v-openai-model",
+              "name": "openai_model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "v-openai-key",
+              "name": "openai_api_key",
+              "value": "SUA_OPENAI_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "v-prompt-sistema",
+              "name": "prompt_sistema",
+              "value": "Você é um classificador de leads B2B/B2C para pequenos negócios. Classifique o lead como quente, morno ou frio. Responda APENAS JSON válido, sem markdown, no formato: {\"classificacao\":\"quente|morno|frio\",\"score\":0-100,\"motivo\":\"texto curto\",\"proxima_acao\":\"texto curto\"}. Critérios: quente = intenção clara de comprar/agendar, urgência, orçamento ou pedido direto; morno = interesse real mas sem urgência; frio = só curiosidade, contatos incompletos ou mensagem genérica.",
+              "type": "string"
+            },
+            {
+              "id": "v-status-crm",
+              "name": "status_crm",
+              "value": "novo",
+              "type": "string"
+            },
+            {
+              "id": "v-payload-bruto",
+              "name": "payload_bruto",
+              "value": "={{ JSON.stringify($json.body || $json) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "198cb78c-f56d-4538-b76d-ef690fe5bea5",
+      "name": "Edit Fields — Variáveis do Fluxo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        224
+      ],
+      "notes": "ÚNICO ponto de configuração do fluxo. Substitua placeholders e mapeie campos do webhook. Todas as variáveis usadas depois saem daqui."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-email",
+              "leftValue": "={{ $json.lead_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cond-email-valido",
+              "leftValue": "={{ $json.lead_email }}",
+              "rightValue": "lead@email.com",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8d04afe7-9ae9-43e5-8a4a-1292df5f7d52",
+      "name": "IF — Lead tem e-mail válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        992,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.openai_api_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.openai_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": {{ JSON.stringify($json.openai_model) }},\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": {{ JSON.stringify($json.prompt_sistema) }}\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify('Nicho: ' + $json.negocio_nicho + '\\nNegócio: ' + $json.negocio_nome + '\\nLead: ' + $json.lead_nome + '\\nE-mail: ' + $json.lead_email + '\\nTelefone: ' + $json.lead_telefone + '\\nEmpresa: ' + $json.lead_empresa + '\\nOrigem: ' + $json.lead_origem + '\\nInteresse: ' + $json.lead_interesse + '\\nMensagem: ' + $json.lead_mensagem) }}\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "e549b9af-c4fd-4760-804f-bd275151c7a3",
+      "name": "HTTP — AI Agent classifica",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        128
+      ],
+      "notes": "Classifica quente / morno / frio. Troque openai_api_key e modelo no Edit Fields."
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Edit Fields — Variáveis do Fluxo').item.json;\nconst ai = $input.first().json;\n\nlet raw = '';\ntry {\n  raw = ai.choices?.[0]?.message?.content\n    || ai.output\n    || ai.message\n    || (typeof ai === 'string' ? ai : JSON.stringify(ai));\n} catch (e) {\n  raw = '';\n}\n\nraw = String(raw).trim();\n// remove ```json fences se a IA mandar\nraw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/,'');\n\nlet parsed = {\n  classificacao: 'morno',\n  score: 50,\n  motivo: 'Fallback: não foi possível parsear a IA',\n  proxima_acao: 'Revisar lead manualmente'\n};\n\ntry {\n  const obj = JSON.parse(raw);\n  const c = String(obj.classificacao || obj.classification || 'morno').toLowerCase();\n  parsed.classificacao = ['quente', 'morno', 'frio'].includes(c) ? c : 'morno';\n  parsed.score = Number(obj.score ?? 50);\n  parsed.motivo = String(obj.motivo || obj.reason || '');\n  parsed.proxima_acao = String(obj.proxima_acao || obj.next_action || '');\n} catch (e) {\n  const lower = raw.toLowerCase();\n  if (lower.includes('quente') || lower.includes('hot')) parsed.classificacao = 'quente';\n  else if (lower.includes('frio') || lower.includes('cold')) parsed.classificacao = 'frio';\n  parsed.motivo = 'Parse parcial do texto da IA';\n}\n\nreturn [{\n  json: {\n    ...prev,\n    classificacao: parsed.classificacao,\n    score: parsed.score,\n    motivo_classificacao: parsed.motivo,\n    proxima_acao: parsed.proxima_acao,\n    ai_raw: raw\n  }\n}];"
+      },
+      "id": "44c62fbf-6efb-4c0e-8611-209380f31932",
+      "name": "Code — Parse classificação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r-classificacao",
+              "name": "classificacao",
+              "value": "={{ $json.classificacao }}",
+              "type": "string"
+            },
+            {
+              "id": "r-score",
+              "name": "score",
+              "value": "={{ $json.score }}",
+              "type": "number"
+            },
+            {
+              "id": "r-motivo",
+              "name": "motivo_classificacao",
+              "value": "={{ $json.motivo_classificacao }}",
+              "type": "string"
+            },
+            {
+              "id": "r-proxima",
+              "name": "proxima_acao",
+              "value": "={{ $json.proxima_acao }}",
+              "type": "string"
+            },
+            {
+              "id": "r-status",
+              "name": "status_crm",
+              "value": "={{ $json.classificacao === 'quente' ? 'prioridade' : ($json.classificacao === 'morno' ? 'nutricao' : 'frio') }}",
+              "type": "string"
+            },
+            {
+              "id": "r-assunto-lead",
+              "name": "email_assunto_lead",
+              "value": "={{ $json.classificacao === 'quente' ? $json.email_assunto_quente : ($json.classificacao === 'morno' ? $json.email_assunto_morno : $json.email_assunto_frio) }}",
+              "type": "string"
+            },
+            {
+              "id": "r-corpo-lead",
+              "name": "email_corpo_lead",
+              "value": "={{ 'Olá ' + $json.lead_nome + ',\\n\\nRecebemos seu contato em ' + $json.negocio_nome + '.\\n\\n' + ($json.classificacao === 'quente' ? 'Vamos priorizar seu atendimento. Em breve alguém da equipe entra em contato para avançar.' : ($json.classificacao === 'morno' ? 'Obrigado pelo interesse. Seguem os próximos passos e estamos à disposição para tirar dúvidas.' : 'Enviamos informações úteis. Quando fizer sentido, responda este e-mail que seguimos juntos.')) + '\\n\\nAbraço,\\n' + $json.email_remetente_nome + ' — ' + $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "r-assunto-alerta",
+              "name": "email_assunto_alerta",
+              "value": "={{ '[Lead ' + $json.classificacao.toUpperCase() + '] ' + $json.lead_nome + ' — score ' + $json.score }}",
+              "type": "string"
+            },
+            {
+              "id": "r-corpo-alerta",
+              "name": "email_corpo_alerta",
+              "value": "={{ 'Novo lead classificado como ' + $json.classificacao + ' (score ' + $json.score + ').\\n\\nNome: ' + $json.lead_nome + '\\nE-mail: ' + $json.lead_email + '\\nTelefone: ' + $json.lead_telefone + '\\nEmpresa: ' + $json.lead_empresa + '\\nOrigem: ' + $json.lead_origem + '\\nMensagem: ' + $json.lead_mensagem + '\\n\\nMotivo IA: ' + $json.motivo_classificacao + '\\nPróxima ação: ' + $json.proxima_acao }}",
+              "type": "string"
+            },
+            {
+              "id": "r-corpo-followup",
+              "name": "email_corpo_followup",
+              "value": "={{ 'Olá ' + $json.lead_nome + ',\\n\\nPassando para saber se ainda faz sentido conversarmos sobre o que você pediu.\\n\\nSe quiser, responda este e-mail com o melhor horário.\\n\\n' + $json.email_remetente_nome + ' — ' + $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-nome",
+              "name": "lead_nome",
+              "value": "={{ $json.lead_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-email",
+              "name": "lead_email",
+              "value": "={{ $json.lead_email }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-telefone",
+              "name": "lead_telefone",
+              "value": "={{ $json.lead_telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-empresa",
+              "name": "lead_empresa",
+              "value": "={{ $json.lead_empresa }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-origem",
+              "name": "lead_origem",
+              "value": "={{ $json.lead_origem }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-mensagem",
+              "name": "lead_mensagem",
+              "value": "={{ $json.lead_mensagem }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-id",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "r-lead-recebido",
+              "name": "lead_recebido_em",
+              "value": "={{ $json.lead_recebido_em }}",
+              "type": "string"
+            },
+            {
+              "id": "r-negocio",
+              "name": "negocio_nome",
+              "value": "={{ $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "r-alerta-dest",
+              "name": "alerta_email_destino",
+              "value": "={{ $json.alerta_email_destino }}",
+              "type": "string"
+            },
+            {
+              "id": "r-crm-url",
+              "name": "crm_webhook_url",
+              "value": "={{ $json.crm_webhook_url }}",
+              "type": "string"
+            },
+            {
+              "id": "r-crm-key",
+              "name": "crm_api_key",
+              "value": "={{ $json.crm_api_key }}",
+              "type": "string"
+            },
+            {
+              "id": "r-followup-h",
+              "name": "followup_horas",
+              "value": "={{ $json.followup_horas }}",
+              "type": "number"
+            },
+            {
+              "id": "r-assunto-fu",
+              "name": "email_assunto_followup",
+              "value": "={{ $json.email_assunto_followup }}",
+              "type": "string"
+            },
+            {
+              "id": "r-remetente",
+              "name": "email_remetente_nome",
+              "value": "={{ $json.email_remetente_nome }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c683f3f3-2fc9-4f0f-8356-e0cd20001f80",
+      "name": "Edit Fields — Pós-classificação",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1760,
+        128
+      ],
+      "notes": "Consolida variáveis após a IA: classificação, textos de e-mail e status de CRM."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-quente",
+                    "leftValue": "={{ $json.classificacao }}",
+                    "rightValue": "quente",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "quente"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-morno",
+                    "leftValue": "={{ $json.classificacao }}",
+                    "rightValue": "morno",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "morno"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-frio",
+                    "leftValue": "={{ $json.classificacao }}",
+                    "rightValue": "frio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "frio"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "6e8612ec-829f-4bab-a8f6-295f34692bbb",
+      "name": "Switch — quente / morno / frio",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2032,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@suaempresa.com.br",
+        "toEmail": "={{ $json.lead_email }}",
+        "subject": "={{ $json.email_assunto_lead }}",
+        "options": {}
+      },
+      "id": "c9649f85-7b97-438c-8463-1574ac2b52d4",
+      "name": "E-mail — Resposta ao lead",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2304,
+        0
+      ],
+      "webhookId": "6008a63f-11e3-401b-9e14-a1cb28441dec",
+      "notes": "Configure credencial SMTP/Gmail no n8n. Ajuste fromEmail."
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@suaempresa.com.br",
+        "toEmail": "={{ $json.alerta_email_destino }}",
+        "subject": "={{ $json.email_assunto_alerta }}",
+        "options": {}
+      },
+      "id": "fb1d40d6-e432-4243-ba57-04a3dea5b151",
+      "name": "E-mail — Alerta equipe",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2544,
+        0
+      ],
+      "webhookId": "1cc60f26-3fa3-4c85-8db4-aa62e3189349"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.crm_webhook_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.crm_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": {{ JSON.stringify($json.lead_id) }},\n  \"nome\": {{ JSON.stringify($json.lead_nome) }},\n  \"email\": {{ JSON.stringify($json.lead_email) }},\n  \"telefone\": {{ JSON.stringify($json.lead_telefone) }},\n  \"empresa\": {{ JSON.stringify($json.lead_empresa) }},\n  \"origem\": {{ JSON.stringify($json.lead_origem) }},\n  \"mensagem\": {{ JSON.stringify($json.lead_mensagem) }},\n  \"classificacao\": {{ JSON.stringify($json.classificacao) }},\n  \"score\": {{ $json.score }},\n  \"motivo\": {{ JSON.stringify($json.motivo_classificacao) }},\n  \"proxima_acao\": {{ JSON.stringify($json.proxima_acao) }},\n  \"status\": {{ JSON.stringify($json.status_crm) }},\n  \"recebido_em\": {{ JSON.stringify($json.lead_recebido_em) }},\n  \"negocio\": {{ JSON.stringify($json.negocio_nome) }}\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "0e4acee4-8b80-474a-b653-af6881681cc7",
+      "name": "HTTP — CRM (criar/atualizar lead)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2784,
+        0
+      ],
+      "notes": "Aponte crm_webhook_url no Edit Fields para seu CRM (Pipedrive, RD, webhook n8n, Sheets via Make, etc.)."
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Edit Fields — Pós-classificação').item.json.followup_horas }}",
+        "unit": "hours"
+      },
+      "id": "158951d7-5540-4d20-989f-cb749c724483",
+      "name": "Wait — Follow-up 48h",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3024,
+        128
+      ],
+      "webhookId": "wait-followup-48h",
+      "notes": "Usa followup_horas do Edit Fields (padrão 48)."
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@suaempresa.com.br",
+        "toEmail": "={{ $('Edit Fields — Pós-classificação').item.json.lead_email }}",
+        "subject": "={{ $('Edit Fields — Pós-classificação').item.json.email_assunto_followup }}",
+        "options": {}
+      },
+      "id": "189993dc-129a-4a9d-92cb-3e62800e5625",
+      "name": "E-mail — Follow-up 48h",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3264,
+        128
+      ],
+      "webhookId": "488f0487-cb9b-410d-ba41-e8d26530658c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Edit Fields — Pós-classificação').item.json.crm_webhook_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Edit Fields — Pós-classificação').item.json.crm_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": {{ JSON.stringify($('Edit Fields — Pós-classificação').item.json.lead_id) }},\n  \"evento\": \"followup_48h_enviado\",\n  \"classificacao\": {{ JSON.stringify($('Edit Fields — Pós-classificação').item.json.classificacao) }},\n  \"enviado_em\": {{ JSON.stringify($now.toISO()) }}\n}",
+        "options": {}
+      },
+      "id": "acfcd922-3c19-45a4-a4b0-c5f32c81236e",
+      "name": "HTTP — CRM (log follow-up)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3504,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, lead_id: $('Edit Fields — Pós-classificação').item.json.lead_id, classificacao: $('Edit Fields — Pós-classificação').item.json.classificacao, score: $('Edit Fields — Pós-classificação').item.json.score }) }}",
+        "options": {}
+      },
+      "id": "67e82497-013b-4ef6-bb4f-b7c4995c0948",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2304,
+        240
+      ],
+      "notes": "Responde o webhook logo após a classificação (antes do Wait de 48h)."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": false, \"erro\": \"Lead sem e-mail válido. Preencha lead_email no payload ou no Edit Fields.\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "aea04782-fa21-447e-8e8f-ac41eaf46091",
+      "name": "Respond — Erro validação",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1264,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 01 — Qualificador de Leads\n\n**Fluxo (playbook):** Webhook → Edit Fields → IF → AI classifica → Switch (quente/morno/frio) → E-mail + alerta → CRM → Follow-up 48h\n\n### Como usar\n1. Abra **Edit Fields — Variáveis do Fluxo** e troque os placeholders\n2. Configure credenciais de **e-mail** nos nodes E-mail\n3. Ative o workflow e copie a URL do Webhook\n4. Envie POST JSON, ex.:\n```json\n{\n  \"nome\": \"Maria\",\n  \"email\": \"maria@email.com\",\n  \"telefone\": \"11999999999\",\n  \"mensagem\": \"Quero agendar esta semana\",\n  \"origem\": \"instagram\"\n}\n```\n\n### Edit Fields\n- **Variáveis do Fluxo**: config + mapeamento de entrada\n- **Pós-classificação**: saída da IA + templates de e-mail\n",
+        "height": 696,
+        "width": 476
+      },
+      "id": "74f0a147-b5d0-49a9-ba7e-34a835e58ff4",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -160
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook — Lead Entrante": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Variáveis do Fluxo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Variáveis do Fluxo": {
+      "main": [
+        [
+          {
+            "node": "IF — Lead tem e-mail válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Lead tem e-mail válido?": {
+      "main": [
+        [
+          {
+            "node": "HTTP — AI Agent classifica",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Erro validação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — AI Agent classifica": {
+      "main": [
+        [
+          {
+            "node": "Code — Parse classificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Parse classificação": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Pós-classificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Pós-classificação": {
+      "main": [
+        [
+          {
+            "node": "Switch — quente / morno / frio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch — quente / morno / frio": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Resposta ao lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Resposta ao lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Resposta ao lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Resposta ao lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Resposta ao lead": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Alerta equipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Alerta equipe": {
+      "main": [
+        [
+          {
+            "node": "HTTP — CRM (criar/atualizar lead)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — CRM (criar/atualizar lead)": {
+      "main": [
+        [
+          {
+            "node": "Wait — Follow-up 48h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait — Follow-up 48h": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Follow-up 48h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Follow-up 48h": {
+      "main": [
+        [
+          {
+            "node": "HTTP — CRM (log follow-up)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0c1b14fc-be74-43a7-8a4c-8dea4410219b",
+  "meta": {
+    "instanceId": "3a95d349dfb294b72a8a2a73ebf262f636ddc6134c5b4c44376345a9b1c7d52f"
+  },
+  "nodeGroups": [],
+  "id": "cZoFJYQfenCTZSfM",
+  "tags": [
+    {
+      "updatedAt": "2026-07-30T04:34:17.115Z",
+      "createdAt": "2026-07-30T04:34:17.115Z",
+      "id": "TDyrM0InKxMdCBz1",
+      "name": "Automação Rentável"
+    },
+    {
+      "updatedAt": "2026-07-30T04:34:17.140Z",
+      "createdAt": "2026-07-30T04:34:17.140Z",
+      "id": "QNCikHtasrNIk5p0",
+      "name": "Playbook"
+    },
+    {
+      "updatedAt": "2026-07-30T04:34:17.159Z",
+      "createdAt": "2026-07-30T04:34:17.159Z",
+      "id": "Hkf68AfWesNSkCpS",
+      "name": "Leads"
+    }
+  ]
+}

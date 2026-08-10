@@ -1,0 +1,902 @@
+{
+  "name": "02 — Confirmação de Agenda",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 02 — Confirmação de Agenda\n\n**Playbook:** Schedule 17h → Calendar → Loop → E-mail botões → Webhook → IF confirma/remarca → Calendar update → 2º lembrete manhã\n\n### Setup\n1. Preencha **Edit Fields — Variáveis do Fluxo**\n2. Configure Google Calendar + e-mail\n3. Ative o workflow (Schedule + Webhook de resposta)\n4. A URL do webhook de confirmação entra em `webhook_confirmacao_url`\n\n5. Se tiver dúvida de como integrar o google calendar no n8n, pesquise no google \"é um conteúdo fácil\"\n",
+        "height": 628,
+        "width": 392
+      },
+      "id": "a0a614c3-e6f9-472e-bf73-da6cebdf8df7",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "868d9827-b106-4d7b-8ea1-2ba1d7ce6116",
+      "name": "Schedule — 17h (dias úteis)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        128
+      ],
+      "notes": "Dispara o envio de confirmações. Ajuste o cron em timezone do n8n."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c-negocio",
+              "name": "negocio_nome",
+              "value": "SUA_CLINICA_OU_EMPRESA",
+              "type": "string"
+            },
+            {
+              "id": "c-tz",
+              "name": "timezone",
+              "value": "America/Sao_Paulo",
+              "type": "string"
+            },
+            {
+              "id": "c-calendar-id",
+              "name": "calendar_id",
+              "value": "primary",
+              "type": "string"
+            },
+            {
+              "id": "c-horas-antes",
+              "name": "janela_horas_inicio",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "c-horas-fim",
+              "name": "janela_horas_fim",
+              "value": 38,
+              "type": "number"
+            },
+            {
+              "id": "c-webhook-url",
+              "name": "webhook_confirmacao_url",
+              "value": "https://SEU_N8N/webhook/confirmacao-agenda",
+              "type": "string"
+            },
+            {
+              "id": "c-email-from",
+              "name": "email_remetente",
+              "value": "agenda@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "c-remetente-nome",
+              "name": "email_remetente_nome",
+              "value": "Agenda",
+              "type": "string"
+            },
+            {
+              "id": "c-assunto-conf",
+              "name": "email_assunto_confirmacao",
+              "value": "Confirme seu horário",
+              "type": "string"
+            },
+            {
+              "id": "c-assunto-manha",
+              "name": "email_assunto_lembrete_manha",
+              "value": "Lembrete: seu horário é hoje",
+              "type": "string"
+            },
+            {
+              "id": "c-token-secret",
+              "name": "token_secreto",
+              "value": "TROQUE_ESTE_TOKEN_SECRETO",
+              "type": "string"
+            },
+            {
+              "id": "c-status-pendente",
+              "name": "status_pendente",
+              "value": "pendente_confirmacao",
+              "type": "string"
+            },
+            {
+              "id": "c-status-conf",
+              "name": "status_confirmado",
+              "value": "confirmado",
+              "type": "string"
+            },
+            {
+              "id": "c-status-rem",
+              "name": "status_remarcar",
+              "value": "remarcar",
+              "type": "string"
+            },
+            {
+              "id": "c-crm-url",
+              "name": "crm_webhook_url",
+              "value": "https://SEU_CRM_OU_WEBHOOK_AQUI.com/agenda",
+              "type": "string"
+            },
+            {
+              "id": "c-crm-key",
+              "name": "crm_api_key",
+              "value": "SUA_API_KEY_CRM",
+              "type": "string"
+            },
+            {
+              "id": "c-alerta",
+              "name": "alerta_email_destino",
+              "value": "recepcao@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "c-campo-email",
+              "name": "campo_email_evento",
+              "value": "attendees",
+              "type": "string"
+            },
+            {
+              "id": "c-campo-tel",
+              "name": "campo_telefone_evento",
+              "value": "description",
+              "type": "string"
+            },
+            {
+              "id": "c-execucao",
+              "name": "executado_em",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "866a8868-43e3-4d1a-9712-d249e673da40",
+      "name": "Edit Fields — Variáveis do Fluxo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        128
+      ],
+      "notes": "Config central da automação de agenda. Ajuste calendar_id, webhook e textos."
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "orderBy": "startTime"
+        }
+      },
+      "id": "e18a80a3-e228-408a-8f76-50ff82ae33c8",
+      "name": "Google Calendar — Eventos do dia seguinte",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1008,
+        128
+      ],
+      "notes": "Requer credencial Google Calendar. Ajuste a janela no Edit Fields."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Edit Fields — Variáveis do Fluxo').first().json;\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const e = item.json;\n  const start = e.start?.dateTime || e.start?.date || '';\n  const end = e.end?.dateTime || e.end?.date || '';\n  const summary = e.summary || 'Compromisso';\n  const eventId = e.id || '';\n  const email =\n    e.attendees?.[0]?.email ||\n    e.extendedProperties?.private?.email ||\n    e.organizer?.email ||\n    '';\n  const cliente =\n    e.attendees?.[0]?.displayName ||\n    e.extendedProperties?.private?.nome ||\n    summary;\n  const telefone =\n    e.extendedProperties?.private?.telefone ||\n    '';\n\n  if (!eventId) continue;\n\n  const token = Buffer.from(`${eventId}:${cfg.token_secreto}`).toString('base64url');\n  const base = String(cfg.webhook_confirmacao_url || '').replace(/\\/$/, '');\n  const urlConfirma = `${base}?acao=confirma&eventId=${encodeURIComponent(eventId)}&token=${token}`;\n  const urlRemarca = `${base}?acao=remarca&eventId=${encodeURIComponent(eventId)}&token=${token}`;\n\n  const corpo =\n    `Olá ${cliente},\\n\\n` +\n    `Confirmamos seu horário em ${cfg.negocio_nome}?\\n\\n` +\n    `Evento: ${summary}\\n` +\n    `Início: ${start}\\n` +\n    `Fim: ${end}\\n\\n` +\n    `✅ Confirmar: ${urlConfirma}\\n` +\n    `📅 Remarcar: ${urlRemarca}\\n\\n` +\n    `${cfg.email_remetente_nome} — ${cfg.negocio_nome}`;\n\n  out.push({\n    json: {\n      ...cfg,\n      event_id: eventId,\n      event_summary: summary,\n      event_start: start,\n      event_end: end,\n      cliente_nome: cliente,\n      cliente_email: email,\n      cliente_telefone: telefone,\n      token_evento: token,\n      url_confirma: urlConfirma,\n      url_remarca: urlRemarca,\n      email_corpo_confirmacao: corpo,\n      email_corpo_lembrete_manha:\n        `Olá ${cliente},\\n\\nLembrete: seu horário é hoje.\\n\\n${summary}\\nInício: ${start}\\n\\nAté logo,\\n${cfg.email_remetente_nome} — ${cfg.negocio_nome}`,\n      status_agenda: cfg.status_pendente\n    }\n  });\n}\n\nreturn out.length ? out : [{ json: { ...cfg, sem_eventos: true } }];"
+      },
+      "id": "bef5cb49-69e6-4080-bb9f-808344f9c79d",
+      "name": "Code — Preparar itens do loop",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-sem",
+              "leftValue": "={{ $json.sem_eventos }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "if-email",
+              "leftValue": "={{ $json.cliente_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b76d69f3-be5f-4284-a71e-2e7e9c719824",
+      "name": "IF — Tem evento e e-mail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p-event-id",
+              "name": "event_id",
+              "value": "={{ $json.event_id }}",
+              "type": "string"
+            },
+            {
+              "id": "p-summary",
+              "name": "event_summary",
+              "value": "={{ $json.event_summary }}",
+              "type": "string"
+            },
+            {
+              "id": "p-start",
+              "name": "event_start",
+              "value": "={{ $json.event_start }}",
+              "type": "string"
+            },
+            {
+              "id": "p-end",
+              "name": "event_end",
+              "value": "={{ $json.event_end }}",
+              "type": "string"
+            },
+            {
+              "id": "p-nome",
+              "name": "cliente_nome",
+              "value": "={{ $json.cliente_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "p-email",
+              "name": "cliente_email",
+              "value": "={{ $json.cliente_email }}",
+              "type": "string"
+            },
+            {
+              "id": "p-tel",
+              "name": "cliente_telefone",
+              "value": "={{ $json.cliente_telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "p-url-c",
+              "name": "url_confirma",
+              "value": "={{ $json.url_confirma }}",
+              "type": "string"
+            },
+            {
+              "id": "p-url-r",
+              "name": "url_remarca",
+              "value": "={{ $json.url_remarca }}",
+              "type": "string"
+            },
+            {
+              "id": "p-corpo",
+              "name": "email_corpo_confirmacao",
+              "value": "={{ $json.email_corpo_confirmacao }}",
+              "type": "string"
+            },
+            {
+              "id": "p-corpo-m",
+              "name": "email_corpo_lembrete_manha",
+              "value": "={{ $json.email_corpo_lembrete_manha }}",
+              "type": "string"
+            },
+            {
+              "id": "p-assunto-c",
+              "name": "email_assunto_confirmacao",
+              "value": "={{ $json.email_assunto_confirmacao }}",
+              "type": "string"
+            },
+            {
+              "id": "p-assunto-m",
+              "name": "email_assunto_lembrete_manha",
+              "value": "={{ $json.email_assunto_lembrete_manha }}",
+              "type": "string"
+            },
+            {
+              "id": "p-from",
+              "name": "email_remetente",
+              "value": "={{ $json.email_remetente }}",
+              "type": "string"
+            },
+            {
+              "id": "p-status",
+              "name": "status_agenda",
+              "value": "={{ $json.status_agenda }}",
+              "type": "string"
+            },
+            {
+              "id": "p-cal",
+              "name": "calendar_id",
+              "value": "={{ $json.calendar_id }}",
+              "type": "string"
+            },
+            {
+              "id": "p-negocio",
+              "name": "negocio_nome",
+              "value": "={{ $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "p-token",
+              "name": "token_evento",
+              "value": "={{ $json.token_evento }}",
+              "type": "string"
+            },
+            {
+              "id": "p-crm",
+              "name": "crm_webhook_url",
+              "value": "={{ $json.crm_webhook_url }}",
+              "type": "string"
+            },
+            {
+              "id": "p-crmk",
+              "name": "crm_api_key",
+              "value": "={{ $json.crm_api_key }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c654c1cb-97b2-45f5-9a7f-b6d713d60dc2",
+      "name": "Edit Fields — Item do agendamento",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1792,
+        48
+      ],
+      "notes": "Variáveis por evento no loop."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.email_remetente }}",
+        "toEmail": "={{ $json.cliente_email }}",
+        "subject": "={{ $json.email_assunto_confirmacao + ' — ' + $json.event_summary }}",
+        "options": {}
+      },
+      "id": "88720bcb-7057-4dea-af98-814abfaad303",
+      "name": "E-mail — Confirmação com botões (links)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2048,
+        48
+      ],
+      "webhookId": "9b80d96b-2f20-47a6-b9d0-dd5e9951dc66"
+    },
+    {
+      "parameters": {
+        "amount": 12,
+        "unit": "hours"
+      },
+      "id": "6a888885-a402-4776-a13f-e6ec6c002b97",
+      "name": "Wait — Até lembrete manhã (~12h)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2304,
+        48
+      ],
+      "webhookId": "wait-lembrete-manha",
+      "notes": "Ajuste se quiser horário fixo de manhã (ex.: Wait até 08:00)."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Edit Fields — Item do agendamento').item.json.email_remetente }}",
+        "toEmail": "={{ $('Edit Fields — Item do agendamento').item.json.cliente_email }}",
+        "subject": "={{ $('Edit Fields — Item do agendamento').item.json.email_assunto_lembrete_manha }}",
+        "options": {}
+      },
+      "id": "cadf33b0-fb4e-429c-8588-78ffcc07b62e",
+      "name": "E-mail — 2º lembrete manhã",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2560,
+        48
+      ],
+      "webhookId": "51a790af-e34f-4120-8031-42692e45fd0b"
+    },
+    {
+      "parameters": {
+        "path": "confirmacao-agenda",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c72ae71d-e460-4431-b704-e93c3129d67d",
+      "name": "Webhook — Resposta confirma/remarca",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        480,
+        448
+      ],
+      "webhookId": "confirmacao-agenda"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "w-acao",
+              "name": "acao",
+              "value": "={{ $json.query.acao || $json.acao || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "w-event",
+              "name": "event_id",
+              "value": "={{ $json.query.eventId || $json.query.event_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "w-token",
+              "name": "token",
+              "value": "={{ $json.query.token || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "w-calendar",
+              "name": "calendar_id",
+              "value": "primary",
+              "type": "string"
+            },
+            {
+              "id": "w-secret",
+              "name": "token_secreto",
+              "value": "TROQUE_ESTE_TOKEN_SECRETO",
+              "type": "string"
+            },
+            {
+              "id": "w-status-c",
+              "name": "status_confirmado",
+              "value": "confirmado",
+              "type": "string"
+            },
+            {
+              "id": "w-status-r",
+              "name": "status_remarcar",
+              "value": "remarcar",
+              "type": "string"
+            },
+            {
+              "id": "w-alerta",
+              "name": "alerta_email_destino",
+              "value": "recepcao@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "w-from",
+              "name": "email_remetente",
+              "value": "agenda@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "w-crm",
+              "name": "crm_webhook_url",
+              "value": "https://SEU_CRM_OU_WEBHOOK_AQUI.com/agenda",
+              "type": "string"
+            },
+            {
+              "id": "w-crmk",
+              "name": "crm_api_key",
+              "value": "SUA_API_KEY_CRM",
+              "type": "string"
+            },
+            {
+              "id": "w-negocio",
+              "name": "negocio_nome",
+              "value": "SUA_CLINICA_OU_EMPRESA",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "de1b4a12-1372-44a9-8c7f-3d926f655f82",
+      "name": "Edit Fields — Variáveis da resposta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        448
+      ],
+      "notes": "Variáveis do ramo de resposta do cliente (links do e-mail)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst expected = Buffer.from(`${j.event_id}:${j.token_secreto}`).toString('base64url');\nconst ok = j.token && j.token === expected && j.event_id;\nconst acao = String(j.acao || '').toLowerCase();\nconst valida = ok && (acao === 'confirma' || acao === 'remarca');\nreturn [{\n  json: {\n    ...j,\n    token_valido: !!ok,\n    resposta_valida: !!valida,\n    status_agenda: acao === 'confirma' ? j.status_confirmado : (acao === 'remarca' ? j.status_remarcar : 'invalido'),\n    prefixo_titulo: acao === 'confirma' ? '[OK] ' : (acao === 'remarca' ? '[REMARCAR] ' : '[?] ')\n  }\n}];"
+      },
+      "id": "a622c5b7-8f31-453a-835d-54b88b22d1f2",
+      "name": "Code — Validar token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-val",
+              "leftValue": "={{ $json.resposta_valida }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "68e1c05e-2ee0-47d9-8bd5-e52d3f92622f",
+      "name": "IF — Resposta válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1264,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.event_id }}",
+        "updateFields": {
+          "summary": "={{ $json.prefixo_titulo }}{{ $json.event_id }}"
+        }
+      },
+      "id": "1a1dc888-b309-4de7-a652-7624346bffaa",
+      "name": "Google Calendar — Update status",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1520,
+        368
+      ],
+      "notes": "Prefira atualizar extendedProperties no seu tenant. Aqui usa prefixo no título como sinal visual. Ajuste conforme seu Calendar."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.email_remetente }}",
+        "toEmail": "={{ $json.alerta_email_destino }}",
+        "subject": "={{ '[' + $json.status_agenda + '] Resposta de agenda — ' + $json.event_id }}",
+        "options": {}
+      },
+      "id": "1ba5ba14-b2a6-4d8d-9640-fe8d6c532167",
+      "name": "E-mail — Alerta recepção",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1792,
+        368
+      ],
+      "webhookId": "dda7f8ee-f1fa-4091-b009-dafe2a97358a"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.crm_webhook_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.crm_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event_id\": {{ JSON.stringify($json.event_id) }},\n  \"acao\": {{ JSON.stringify($json.acao) }},\n  \"status\": {{ JSON.stringify($json.status_agenda) }},\n  \"em\": {{ JSON.stringify($now.toISO()) }}\n}",
+        "options": {}
+      },
+      "id": "fde6e81a-a307-4e2f-b4ff-db45bab3ef78",
+      "name": "HTTP — CRM log resposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2048,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.acao === 'confirma' ? 'Horário confirmado. Obrigado!' : 'Recebemos seu pedido de remarcação. Em breve entraremos em contato.' }}",
+        "options": {}
+      },
+      "id": "9877edd6-cf13-43ba-9021-76b1c2e0f82b",
+      "name": "Respond — OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2304,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Link inválido ou expirado. Entre em contato com a recepção.",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "4849c79d-6ae2-4b6e-aec2-cd3861e83097",
+      "name": "Respond — Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        560
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule — 17h (dias úteis)": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Variáveis do Fluxo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Variáveis do Fluxo": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar — Eventos do dia seguinte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar — Eventos do dia seguinte": {
+      "main": [
+        [
+          {
+            "node": "Code — Preparar itens do loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Preparar itens do loop": {
+      "main": [
+        [
+          {
+            "node": "IF — Tem evento e e-mail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Tem evento e e-mail?": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Item do agendamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Item do agendamento": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Confirmação com botões (links)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Confirmação com botões (links)": {
+      "main": [
+        [
+          {
+            "node": "Wait — Até lembrete manhã (~12h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait — Até lembrete manhã (~12h)": {
+      "main": [
+        [
+          {
+            "node": "E-mail — 2º lembrete manhã",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook — Resposta confirma/remarca": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Variáveis da resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Variáveis da resposta": {
+      "main": [
+        [
+          {
+            "node": "Code — Validar token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Validar token": {
+      "main": [
+        [
+          {
+            "node": "IF — Resposta válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Resposta válida?": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar — Update status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar — Update status": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Alerta recepção",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Alerta recepção": {
+      "main": [
+        [
+          {
+            "node": "HTTP — CRM log resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — CRM log resposta": {
+      "main": [
+        [
+          {
+            "node": "Respond — OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6eac1da1-4e44-4e80-8c7b-205b86e3ab13",
+  "meta": {
+    "instanceId": "3a95d349dfb294b72a8a2a73ebf262f636ddc6134c5b4c44376345a9b1c7d52f"
+  },
+  "nodeGroups": [],
+  "id": "hnosFfQRDZql765s",
+  "tags": [
+    {
+      "updatedAt": "2026-07-30T04:34:17.115Z",
+      "createdAt": "2026-07-30T04:34:17.115Z",
+      "id": "TDyrM0InKxMdCBz1",
+      "name": "Automação Rentável"
+    },
+    {
+      "name": "Agenda",
+      "id": "JTVG1lk0KxbQfTUW",
+      "updatedAt": "2026-08-04T00:50:33.820Z",
+      "createdAt": "2026-08-04T00:50:33.820Z"
+    }
+  ]
+}

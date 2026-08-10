@@ -34,6 +34,9 @@ import {
   Bot,
   BrainCircuit,
   ScanText,
+  ScanSearch,
+  HandCoins,
+  CalendarCheck,
   PlusCircle,
   FolderOpen,
   X,
@@ -109,6 +112,8 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   assign_conversation: { label: "Assign Conversation", icon: UserCheck, border: "border-l-primary" },
   update_contact_field: { label: "Update Contact Field", icon: PencilLine, border: "border-l-primary" },
   create_deal: { label: "Create Deal", icon: Briefcase, border: "border-l-primary" },
+  update_deal: { label: "Update Deal", icon: HandCoins, border: "border-l-primary" },
+  calendar_update_status: { label: "Update Calendar Status", icon: CalendarCheck, border: "border-l-primary" },
   wait: { label: "Wait", icon: Hourglass, border: "border-l-border" },
   condition: { label: "Condition (If/Else)", icon: GitBranch, border: "border-l-amber-500" },
   send_webhook: { label: "Send Webhook", icon: Webhook, border: "border-l-primary" },
@@ -116,6 +121,7 @@ const STEP_META: Record<AutomationStepType, StepMeta> = {
   ai_condition: { label: "AI Condition", icon: BrainCircuit, border: "border-l-purple-500" },
   ai_reply: { label: "AI Reply", icon: Bot, border: "border-l-purple-500" },
   ai_extract: { label: "AI Extract", icon: ScanText, border: "border-l-purple-500" },
+  ai_classify: { label: "AI Classify", icon: ScanSearch, border: "border-l-purple-500" },
 }
 
 const ADDABLE_STEPS: AutomationStepType[] = [
@@ -128,6 +134,8 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "assign_conversation",
   "update_contact_field",
   "create_deal",
+  "update_deal",
+  "calendar_update_status",
   "wait",
   "condition",
   "send_webhook",
@@ -135,6 +143,7 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "ai_condition",
   "ai_reply",
   "ai_extract",
+  "ai_classify",
 ]
 
 const TRIGGER_OPTIONS: { value: AutomationTriggerType; label: string; hint: string }[] = [
@@ -179,6 +188,10 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { field: "name", value: "" }
     case "create_deal":
       return { pipeline_id: "", stage_id: "", title: "", value: 0 }
+    case "update_deal":
+      return { deal_id: "", pipeline_id: "", stage_id: "", status: "", value: undefined, create_if_missing: false, title: "" }
+    case "calendar_update_status":
+      return { status: "scheduled", event_id: "" }
     case "wait":
       return { amount: 1, unit: "hours" }
     case "condition":
@@ -193,6 +206,8 @@ function blankConfig(type: AutomationStepType): Record<string, unknown> {
       return { prompt: "" }
     case "ai_extract":
       return { prompt: "", fields: [] }
+    case "ai_classify":
+      return { prompt: "", labels: [], store_var: "classification", fallback: "" }
     default:
       return {}
   }
@@ -1864,6 +1879,89 @@ function StepEditor({
           </FieldBlock>
         </>
       )
+    case "update_deal":
+      return (
+        <>
+          <FieldBlock label="Deal ID (optional)">
+            <Input
+              value={(cfg.deal_id as string) ?? ""}
+              onChange={(e) => set({ deal_id: e.target.value })}
+              placeholder="Leave empty to target the contact's most recent deal"
+              className="bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <DealPipelineFields
+            pipelineId={(cfg.pipeline_id as string) ?? ""}
+            stageId={(cfg.stage_id as string) ?? ""}
+            onChange={(patch) => set(patch)}
+          />
+          <FieldBlock label="Status (optional)">
+            <select
+              value={(cfg.status as string) ?? ""}
+              onChange={(e) => set({ status: e.target.value })}
+              className={SELECT_CLASS}
+            >
+              <option value="">Keep current status</option>
+              <option value="open">Open</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+            </select>
+          </FieldBlock>
+          <FieldBlock label="Value (optional)">
+            <Input
+              type="number"
+              value={(cfg.value as number) ?? 0}
+              onChange={(e) => set({ value: Number(e.target.value) })}
+              placeholder="Leave 0 to keep current value"
+              className="bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch
+              checked={Boolean(cfg.create_if_missing)}
+              onCheckedChange={(v) => set({ create_if_missing: v })}
+            />
+            Create the deal if it doesn&apos;t exist yet
+          </label>
+          {cfg.create_if_missing && (
+            <FieldBlock label="Title (used when creating)">
+              <Input
+                value={(cfg.title as string) ?? ""}
+                onChange={(e) => set({ title: e.target.value })}
+                className="bg-muted text-foreground"
+              />
+            </FieldBlock>
+          )}
+        </>
+      )
+    case "calendar_update_status":
+      return (
+        <>
+          <FieldBlock label="New status">
+            <select
+              value={(cfg.status as string) ?? "scheduled"}
+              onChange={(e) => set({ status: e.target.value })}
+              className={SELECT_CLASS}
+            >
+              <option value="scheduled">Scheduled</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="tentative">Tentative</option>
+            </select>
+          </FieldBlock>
+          <FieldBlock label="Event ID (optional)">
+            <Input
+              value={(cfg.event_id as string) ?? ""}
+              onChange={(e) => set({ event_id: e.target.value })}
+              placeholder="Leave empty to pick the contact's next upcoming event"
+              className="bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <p className="text-xs text-muted-foreground">
+            Updates the calendar event status. When no Event ID is given, the
+            contact&apos;s next upcoming event (start_at &gt;= now) is used.
+          </p>
+        </>
+      )
     case "wait":
       return (
         <div className="grid grid-cols-2 gap-2">
@@ -2026,9 +2124,89 @@ function StepEditor({
           </p>
         </>
       )
+    case "ai_classify":
+      return (
+        <>
+          <FieldBlock label="Classification prompt">
+            <Textarea
+              value={(cfg.prompt as string) ?? ""}
+              onChange={(e) => set({ prompt: e.target.value })}
+              placeholder="Classify purchase intent: HOT = ready to buy, WARM = comparing, COLD = browsing."
+              className="min-h-20 bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <FieldBlock label="Labels">
+            <AiClassifyLabelsEditor
+              labels={(cfg.labels as string[]) ?? []}
+              onChange={(labels) => set({ labels })}
+            />
+          </FieldBlock>
+          <FieldBlock label="Save result as">
+            <Input
+              value={(cfg.store_var as string) ?? "classification"}
+              onChange={(e) => set({ store_var: e.target.value })}
+              placeholder="classification"
+              className="bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <FieldBlock label="Fallback label (optional)">
+            <Input
+              value={(cfg.fallback as string) ?? ""}
+              onChange={(e) => set({ fallback: e.target.value })}
+              placeholder="Used when the message is empty"
+              className="bg-muted text-foreground"
+            />
+          </FieldBlock>
+          <p className="text-xs text-muted-foreground">
+            The model picks exactly one label. It is stored to <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.<save result as>}}'}</code>
+            and can be used in later steps.
+          </p>
+        </>
+      )
     default:
       return null
   }
+}
+
+function AiClassifyLabelsEditor({
+  labels,
+  onChange,
+}: {
+  labels: string[]
+  onChange: (labels: string[]) => void
+}) {
+  return (
+    <div className="space-y-2">
+      {labels.map((label, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <Input
+            placeholder={`Label ${i + 1} (e.g. hot)`}
+            value={label}
+            onChange={(e) => {
+              const next = [...labels]
+              next[i] = e.target.value
+              onChange(next)
+            }}
+            className="bg-muted text-foreground text-xs"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange(labels.filter((_, idx) => idx !== i))}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange([...labels, ""])}
+      >
+        <Plus className="h-3.5 w-3.5" /> Add label
+      </Button>
+    </div>
+  )
 }
 
 function AiExtractFieldsEditor({

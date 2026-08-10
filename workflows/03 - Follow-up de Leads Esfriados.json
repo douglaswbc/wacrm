@@ -1,0 +1,425 @@
+{
+  "name": "03 — Follow-up de Leads Esfriados",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 03 — Follow-up de Leads Esfriados\n\n**Playbook:** Schedule → CRM leads >3 dias → Filter max 3 → AI e-mail personalizado → Send → CRM update\n\nConfigure **Edit Fields — Variáveis do Fluxo** e o endpoint do CRM.",
+        "height": 320,
+        "width": 340
+      },
+      "id": "note-03",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-420, 100]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "sch-03",
+      "name": "Schedule — Diário 10h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 260]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f-negocio",
+              "name": "negocio_nome",
+              "value": "SUA_CLINICA_OU_EMPRESA",
+              "type": "string"
+            },
+            {
+              "id": "f-dias",
+              "name": "dias_sem_resposta",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "f-max",
+              "name": "max_leads_por_execucao",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "f-crm-list",
+              "name": "crm_list_url",
+              "value": "https://SEU_CRM_OU_WEBHOOK_AQUI.com/leads/esfriados",
+              "type": "string"
+            },
+            {
+              "id": "f-crm-upd",
+              "name": "crm_update_url",
+              "value": "https://SEU_CRM_OU_WEBHOOK_AQUI.com/leads/update",
+              "type": "string"
+            },
+            {
+              "id": "f-crm-key",
+              "name": "crm_api_key",
+              "value": "SUA_API_KEY_CRM",
+              "type": "string"
+            },
+            {
+              "id": "f-openai-url",
+              "name": "openai_api_url",
+              "value": "https://api.openai.com/v1/chat/completions",
+              "type": "string"
+            },
+            {
+              "id": "f-openai-model",
+              "name": "openai_model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "f-openai-key",
+              "name": "openai_api_key",
+              "value": "SUA_OPENAI_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "f-prompt",
+              "name": "prompt_sistema",
+              "value": "Você escreve e-mails curtos de follow-up em português do Brasil, tom humano e profissional, sem parecer spam. Retorne APENAS JSON: {\"assunto\":\"...\",\"corpo\":\"...\"}. O corpo deve ter no máximo 120 palavras, 1 CTA claro, sem emojis excessivos.",
+              "type": "string"
+            },
+            {
+              "id": "f-from",
+              "name": "email_remetente",
+              "value": "contato@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "f-from-nome",
+              "name": "email_remetente_nome",
+              "value": "Atendimento",
+              "type": "string"
+            },
+            {
+              "id": "f-tom",
+              "name": "tom_comunicacao",
+              "value": "profissional e acolhedor",
+              "type": "string"
+            },
+            {
+              "id": "f-status-apos",
+              "name": "status_apos_followup",
+              "value": "followup_enviado",
+              "type": "string"
+            },
+            {
+              "id": "f-exec",
+              "name": "executado_em",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-vars-03",
+      "name": "Edit Fields — Variáveis do Fluxo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [260, 260],
+      "notes": "Config: dias_sem_resposta, max 3 leads, CRM e IA."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.crm_list_url }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "dias",
+              "value": "={{ $json.dias_sem_resposta }}"
+            },
+            {
+              "name": "status",
+              "value": "sem_resposta"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.crm_api_key }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-list-03",
+      "name": "HTTP — CRM leads > N dias",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 260],
+      "notes": "Espera array JSON de leads. Ajuste o endpoint ao seu CRM."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Edit Fields — Variáveis do Fluxo').first().json;\nconst raw = $input.first().json;\nlet list = [];\nif (Array.isArray(raw)) list = raw;\nelse if (Array.isArray(raw.leads)) list = raw.leads;\nelse if (Array.isArray(raw.data)) list = raw.data;\nelse if (Array.isArray(raw.items)) list = raw.items;\nelse list = [];\n\nconst max = Number(cfg.max_leads_por_execucao || 3);\nconst sliced = list.slice(0, max);\n\nif (!sliced.length) {\n  return [{ json: { ...cfg, sem_leads: true } }];\n}\n\nreturn sliced.map((lead, idx) => ({\n  json: {\n    ...cfg,\n    sem_leads: false,\n    lead_index: idx + 1,\n    lead_id: lead.id || lead.lead_id || String(idx + 1),\n    lead_nome: lead.nome || lead.name || 'Lead',\n    lead_email: lead.email || '',\n    lead_telefone: lead.telefone || lead.phone || '',\n    lead_empresa: lead.empresa || lead.company || '',\n    lead_origem: lead.origem || lead.source || '',\n    lead_mensagem: lead.mensagem || lead.message || lead.ultimo_contato || '',\n    lead_ultimo_contato_em: lead.ultimo_contato_em || lead.updated_at || lead.created_at || '',\n    lead_contexto: lead.contexto || lead.notas || ''\n  }\n}));"
+      },
+      "id": "code-filter-03",
+      "name": "Code — Filter max 3 + normalizar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-sem",
+              "leftValue": "={{ $json.sem_leads }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "if-email",
+              "leftValue": "={{ $json.lead_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-lead-03",
+      "name": "IF — Lead elegível?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1040, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.openai_api_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.openai_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": {{ JSON.stringify($json.openai_model) }},\n  \"temperature\": 0.5,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.prompt_sistema) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify('Negócio: ' + $json.negocio_nome + '\\nTom: ' + $json.tom_comunicacao + '\\nRemetente: ' + $json.email_remetente_nome + '\\nLead: ' + $json.lead_nome + '\\nE-mail: ' + $json.lead_email + '\\nEmpresa: ' + $json.lead_empresa + '\\nOrigem: ' + $json.lead_origem + '\\nÚltima mensagem/contexto: ' + $json.lead_mensagem + ' ' + $json.lead_contexto + '\\nDias sem resposta: ' + $json.dias_sem_resposta + '\\nEscreva follow-up personalizado.') }} }\n  ]\n}",
+        "options": {}
+      },
+      "id": "http-ai-03",
+      "name": "HTTP — AI e-mail personalizado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('IF — Lead elegível?').item.json;\nconst ai = $input.first().json;\nlet raw = ai.choices?.[0]?.message?.content || '';\nraw = String(raw).trim().replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'');\nlet assunto = `Ainda faz sentido conversarmos, ${prev.lead_nome}?`;\nlet corpo = `Olá ${prev.lead_nome},\\n\\nEstou retornando sobre seu contato com ${prev.negocio_nome}. Posso te ajudar a avançar?\\n\\n${prev.email_remetente_nome}`;\ntry {\n  const o = JSON.parse(raw);\n  assunto = o.assunto || o.subject || assunto;\n  corpo = o.corpo || o.body || corpo;\n} catch (e) {\n  if (raw.length > 20) corpo = raw;\n}\nreturn [{\n  json: {\n    ...prev,\n    email_assunto: assunto,\n    email_corpo: corpo,\n    ai_raw: raw\n  }\n}];"
+      },
+      "id": "code-parse-03",
+      "name": "Code — Parse e-mail IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r-id",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "r-nome",
+              "name": "lead_nome",
+              "value": "={{ $json.lead_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "r-email",
+              "name": "lead_email",
+              "value": "={{ $json.lead_email }}",
+              "type": "string"
+            },
+            {
+              "id": "r-assunto",
+              "name": "email_assunto",
+              "value": "={{ $json.email_assunto }}",
+              "type": "string"
+            },
+            {
+              "id": "r-corpo",
+              "name": "email_corpo",
+              "value": "={{ $json.email_corpo }}",
+              "type": "string"
+            },
+            {
+              "id": "r-from",
+              "name": "email_remetente",
+              "value": "={{ $json.email_remetente }}",
+              "type": "string"
+            },
+            {
+              "id": "r-status",
+              "name": "status_apos_followup",
+              "value": "={{ $json.status_apos_followup }}",
+              "type": "string"
+            },
+            {
+              "id": "r-crm",
+              "name": "crm_update_url",
+              "value": "={{ $json.crm_update_url }}",
+              "type": "string"
+            },
+            {
+              "id": "r-key",
+              "name": "crm_api_key",
+              "value": "={{ $json.crm_api_key }}",
+              "type": "string"
+            },
+            {
+              "id": "r-negocio",
+              "name": "negocio_nome",
+              "value": "={{ $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "r-enviado",
+              "name": "followup_enviado_em",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-out-03",
+      "name": "Edit Fields — Pós-geração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1820, 180]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.email_remetente }}",
+        "toEmail": "={{ $json.lead_email }}",
+        "subject": "={{ $json.email_assunto }}",
+        "emailType": "text",
+        "message": "={{ $json.email_corpo }}",
+        "options": {}
+      },
+      "id": "email-03",
+      "name": "E-mail — Enviar follow-up",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2080, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.crm_update_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.crm_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": {{ JSON.stringify($json.lead_id) }},\n  \"status\": {{ JSON.stringify($json.status_apos_followup) }},\n  \"followup_enviado_em\": {{ JSON.stringify($json.followup_enviado_em) }},\n  \"assunto\": {{ JSON.stringify($json.email_assunto) }},\n  \"negocio\": {{ JSON.stringify($json.negocio_nome) }}\n}",
+        "options": {}
+      },
+      "id": "http-upd-03",
+      "name": "HTTP — CRM update",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2340, 180]
+    }
+  ],
+  "connections": {
+    "Schedule — Diário 10h": {
+      "main": [[{ "node": "Edit Fields — Variáveis do Fluxo", "type": "main", "index": 0 }]]
+    },
+    "Edit Fields — Variáveis do Fluxo": {
+      "main": [[{ "node": "HTTP — CRM leads > N dias", "type": "main", "index": 0 }]]
+    },
+    "HTTP — CRM leads > N dias": {
+      "main": [[{ "node": "Code — Filter max 3 + normalizar", "type": "main", "index": 0 }]]
+    },
+    "Code — Filter max 3 + normalizar": {
+      "main": [[{ "node": "IF — Lead elegível?", "type": "main", "index": 0 }]]
+    },
+    "IF — Lead elegível?": {
+      "main": [
+        [{ "node": "HTTP — AI e-mail personalizado", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "HTTP — AI e-mail personalizado": {
+      "main": [[{ "node": "Code — Parse e-mail IA", "type": "main", "index": 0 }]]
+    },
+    "Code — Parse e-mail IA": {
+      "main": [[{ "node": "Edit Fields — Pós-geração", "type": "main", "index": 0 }]]
+    },
+    "Edit Fields — Pós-geração": {
+      "main": [[{ "node": "E-mail — Enviar follow-up", "type": "main", "index": 0 }]]
+    },
+    "E-mail — Enviar follow-up": {
+      "main": [[{ "node": "HTTP — CRM update", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "automacao-rentavel-followup-esfriados" },
+  "tags": [{ "name": "Automação Rentável" }, { "name": "Follow-up" }]
+}

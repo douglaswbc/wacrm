@@ -17,6 +17,7 @@ import {
   Users,
   PhoneCall,
   Image,
+  ScanSearch,
   Loader2,
 } from "lucide-react"
 
@@ -49,6 +50,7 @@ const TEMPLATE_ORDER: TemplateSlug[] = [
   "welcome_message",
   "out_of_office",
   "lead_qualifier",
+  "lead_triage",
   "follow_up_reminder",
   "ig_comment_public_reply",
   "ig_comment_dm_reply",
@@ -58,6 +60,7 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   welcome_message: MessageCircle,
   out_of_office: Clock,
   lead_qualifier: Users,
+  lead_triage: ScanSearch,
   follow_up_reminder: PhoneCall,
   ig_comment_public_reply: MessageCircle,
   ig_comment_dm_reply: Image,

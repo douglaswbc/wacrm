@@ -1,0 +1,681 @@
+{
+  "name": "04 — Triagem de Atendimento",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 04 — Triagem de Atendimento\n\n**Playbook:** IMAP → AI classifica → Switch → E-mail setor + resposta cliente → Sheets log\n**Atenção** Você pode adicionar a EvolutionAPI para trocar o e-mail por WhatsApp.\n\nConfigure IMAP, setores e **Edit Fields — Variáveis do Fluxo**.",
+        "height": 380,
+        "width": 356
+      },
+      "id": "f148cb12-c5a5-45c7-bf36-d0aac213fc8b",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "customEmailConfig": "[[\"UNSEEN\"]]",
+          "forceReconnect": 20
+        }
+      },
+      "id": "f160b9a7-0e91-4b51-b407-6ed741d6a45e",
+      "name": "IMAP Trigger — E-mail entrante",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        208
+      ],
+      "notes": "Configure credencial IMAP. Em algumas versões o node se chama Email Trigger (IMAP)."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t-negocio",
+              "name": "negocio_nome",
+              "value": "SUA_CLINICA_OU_EMPRESA",
+              "type": "string"
+            },
+            {
+              "id": "t-from-nome",
+              "name": "email_remetente_nome",
+              "value": "Atendimento",
+              "type": "string"
+            },
+            {
+              "id": "t-from",
+              "name": "email_remetente",
+              "value": "atendimento@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "t-setor-fin",
+              "name": "email_setor_financeiro",
+              "value": "financeiro@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "t-setor-com",
+              "name": "email_setor_comercial",
+              "value": "comercial@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "t-setor-sup",
+              "name": "email_setor_suporte",
+              "value": "suporte@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "t-setor-rec",
+              "name": "email_setor_recepcao",
+              "value": "recepcao@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "t-setor-def",
+              "name": "email_setor_default",
+              "value": "geral@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "t-openai-url",
+              "name": "openai_api_url",
+              "value": "https://api.openai.com/v1/chat/completions",
+              "type": "string"
+            },
+            {
+              "id": "t-openai-model",
+              "name": "openai_model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "t-openai-key",
+              "name": "openai_api_key",
+              "value": "SUA_OPENAI_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "t-prompt",
+              "name": "prompt_sistema",
+              "value": "Classifique e-mails de atendimento. Responda APENAS JSON: {\"setor\":\"financeiro|comercial|suporte|recepcao|outros\",\"prioridade\":\"alta|media|baixa\",\"resumo\":\"...\",\"resposta_cliente\":\"texto curto empático em PT-BR\"}.",
+              "type": "string"
+            },
+            {
+              "id": "t-sheets-url",
+              "name": "sheets_webhook_url",
+              "value": "https://SEU_WEBHOOK_SHEETS_OU_MAKE.com/log",
+              "type": "string"
+            },
+            {
+              "id": "t-sheets-key",
+              "name": "sheets_api_key",
+              "value": "SUA_API_KEY_LOG",
+              "type": "string"
+            },
+            {
+              "id": "t-mail-from",
+              "name": "mail_from",
+              "value": "={{ $json.from || $json.fromEmail || ($json.headers && $json.headers.from) || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "t-mail-subj",
+              "name": "mail_subject",
+              "value": "={{ $json.subject || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "t-mail-text",
+              "name": "mail_text",
+              "value": "={{ $json.textPlain || $json.text || $json.textHtml || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "t-mail-date",
+              "name": "mail_date",
+              "value": "={{ $json.date || $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "t-mail-id",
+              "name": "mail_message_id",
+              "value": "={{ $json.messageId || $json.uid || $now.toFormat('yyyyMMddHHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "t-setor",
+              "name": "setor",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "t-prio",
+              "name": "prioridade",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "t-resumo",
+              "name": "resumo",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "t-resp",
+              "name": "resposta_cliente",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8d6c8b0-f821-484c-be14-da590d7894bf",
+      "name": "Edit Fields — Variáveis do Fluxo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        208
+      ],
+      "notes": "Mapeia e-mail IMAP + config de setores, IA e log."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.openai_api_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.openai_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": {{ JSON.stringify($json.openai_model) }},\n  \"temperature\": 0.2,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.prompt_sistema) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify('Negócio: ' + $json.negocio_nome + '\\nDe: ' + $json.mail_from + '\\nAssunto: ' + $json.mail_subject + '\\nCorpo:\\n' + $json.mail_text) }} }\n  ]\n}",
+        "options": {}
+      },
+      "id": "23322fbe-6ce8-4f65-b599-545400cf473c",
+      "name": "HTTP — AI classifica",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        992,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Edit Fields — Variáveis do Fluxo').item.json;\nconst ai = $input.first().json;\nlet raw = ai.choices?.[0]?.message?.content || '';\nraw = String(raw).trim().replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'');\nlet setor = 'outros';\nlet prioridade = 'media';\nlet resumo = 'Sem resumo';\nlet resposta = `Olá, recebemos sua mensagem em ${prev.negocio_nome}. Nossa equipe retornará em breve.`;\ntry {\n  const o = JSON.parse(raw);\n  setor = String(o.setor || 'outros').toLowerCase();\n  prioridade = String(o.prioridade || 'media').toLowerCase();\n  resumo = o.resumo || resumo;\n  resposta = o.resposta_cliente || resposta;\n} catch (e) {}\nconst mapa = {\n  financeiro: prev.email_setor_financeiro,\n  comercial: prev.email_setor_comercial,\n  suporte: prev.email_setor_suporte,\n  recepcao: prev.email_setor_recepcao,\n  outros: prev.email_setor_default\n};\nconst email_setor = mapa[setor] || prev.email_setor_default;\nreturn [{\n  json: {\n    ...prev,\n    setor,\n    prioridade,\n    resumo,\n    resposta_cliente: resposta,\n    email_setor_destino: email_setor,\n    ai_raw: raw\n  }\n}];"
+      },
+      "id": "17b074ea-6852-4f34-bdb5-affa4345ec75",
+      "name": "Code — Parse triagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p-setor",
+              "name": "setor",
+              "value": "={{ $json.setor }}",
+              "type": "string"
+            },
+            {
+              "id": "p-prio",
+              "name": "prioridade",
+              "value": "={{ $json.prioridade }}",
+              "type": "string"
+            },
+            {
+              "id": "p-resumo",
+              "name": "resumo",
+              "value": "={{ $json.resumo }}",
+              "type": "string"
+            },
+            {
+              "id": "p-resp",
+              "name": "resposta_cliente",
+              "value": "={{ $json.resposta_cliente }}",
+              "type": "string"
+            },
+            {
+              "id": "p-dest",
+              "name": "email_setor_destino",
+              "value": "={{ $json.email_setor_destino }}",
+              "type": "string"
+            },
+            {
+              "id": "p-from",
+              "name": "mail_from",
+              "value": "={{ $json.mail_from }}",
+              "type": "string"
+            },
+            {
+              "id": "p-subj",
+              "name": "mail_subject",
+              "value": "={{ $json.mail_subject }}",
+              "type": "string"
+            },
+            {
+              "id": "p-text",
+              "name": "mail_text",
+              "value": "={{ $json.mail_text }}",
+              "type": "string"
+            },
+            {
+              "id": "p-mid",
+              "name": "mail_message_id",
+              "value": "={{ $json.mail_message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "p-date",
+              "name": "mail_date",
+              "value": "={{ $json.mail_date }}",
+              "type": "string"
+            },
+            {
+              "id": "p-rem",
+              "name": "email_remetente",
+              "value": "={{ $json.email_remetente }}",
+              "type": "string"
+            },
+            {
+              "id": "p-negocio",
+              "name": "negocio_nome",
+              "value": "={{ $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "p-sheets",
+              "name": "sheets_webhook_url",
+              "value": "={{ $json.sheets_webhook_url }}",
+              "type": "string"
+            },
+            {
+              "id": "p-skey",
+              "name": "sheets_api_key",
+              "value": "={{ $json.sheets_api_key }}",
+              "type": "string"
+            },
+            {
+              "id": "p-assunto-setor",
+              "name": "email_assunto_setor",
+              "value": "={{ '[Triagem ' + $json.setor + '/' + $json.prioridade + '] ' + $json.mail_subject }}",
+              "type": "string"
+            },
+            {
+              "id": "p-corpo-setor",
+              "name": "email_corpo_setor",
+              "value": "={{ 'Setor: ' + $json.setor + '\\nPrioridade: ' + $json.prioridade + '\\nDe: ' + $json.mail_from + '\\nAssunto: ' + $json.mail_subject + '\\n\\nResumo IA: ' + $json.resumo + '\\n\\n--- Mensagem original ---\\n' + $json.mail_text }}",
+              "type": "string"
+            },
+            {
+              "id": "p-assunto-cli",
+              "name": "email_assunto_cliente",
+              "value": "={{ 'Re: ' + $json.mail_subject }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7b47b7e4-6850-48c4-ba83-b2cc50e79d0e",
+      "name": "Edit Fields — Pós-classificação",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-fin",
+                    "leftValue": "={{ $json.setor }}",
+                    "rightValue": "financeiro",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "financeiro"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-com",
+                    "leftValue": "={{ $json.setor }}",
+                    "rightValue": "comercial",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "comercial"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-sup",
+                    "leftValue": "={{ $json.setor }}",
+                    "rightValue": "suporte",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "suporte"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "sw-rec",
+                    "leftValue": "={{ $json.setor }}",
+                    "rightValue": "recepcao",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "recepcao"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "13f40230-47b0-45cd-9294-c57723ee4984",
+      "name": "Switch — Setor",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1760,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.email_remetente }}",
+        "toEmail": "={{ $json.email_setor_destino }}",
+        "subject": "={{ $json.email_assunto_setor }}",
+        "options": {}
+      },
+      "id": "59947879-2e04-4d8a-bfca-7e649ff912d6",
+      "name": "E-mail — Encaminhar ao setor",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2048,
+        128
+      ],
+      "webhookId": "f5b286d4-b26a-4451-ac40-1dda0b8bf749"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.email_remetente }}",
+        "toEmail": "={{ $json.mail_from }}",
+        "subject": "={{ $json.email_assunto_cliente }}",
+        "options": {}
+      },
+      "id": "df39420e-7b99-41a8-b659-6fc95af27d71",
+      "name": "E-mail — Resposta ao cliente",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2304,
+        128
+      ],
+      "webhookId": "190cf9fe-bc5f-4755-85a1-e14c3020f593"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.sheets_webhook_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.sheets_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message_id\": {{ JSON.stringify($json.mail_message_id) }},\n  \"de\": {{ JSON.stringify($json.mail_from) }},\n  \"assunto\": {{ JSON.stringify($json.mail_subject) }},\n  \"setor\": {{ JSON.stringify($json.setor) }},\n  \"prioridade\": {{ JSON.stringify($json.prioridade) }},\n  \"resumo\": {{ JSON.stringify($json.resumo) }},\n  \"data\": {{ JSON.stringify($json.mail_date) }},\n  \"negocio\": {{ JSON.stringify($json.negocio_nome) }},\n  \"log_em\": {{ JSON.stringify($now.toISO()) }}\n}",
+        "options": {}
+      },
+      "id": "96d298d3-444c-4bb0-8e4d-30f9740a4e18",
+      "name": "HTTP — Sheets / log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        128
+      ],
+      "notes": "Troque por node Google Sheets nativo se preferir."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IMAP Trigger — E-mail entrante": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Variáveis do Fluxo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Variáveis do Fluxo": {
+      "main": [
+        [
+          {
+            "node": "HTTP — AI classifica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — AI classifica": {
+      "main": [
+        [
+          {
+            "node": "Code — Parse triagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Parse triagem": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Pós-classificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Pós-classificação": {
+      "main": [
+        [
+          {
+            "node": "Switch — Setor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch — Setor": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Encaminhar ao setor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Encaminhar ao setor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Encaminhar ao setor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Encaminhar ao setor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "E-mail — Encaminhar ao setor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Encaminhar ao setor": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Resposta ao cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail — Resposta ao cliente": {
+      "main": [
+        [
+          {
+            "node": "HTTP — Sheets / log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ecf542b3-4e83-4972-8410-325a49a61ca6",
+  "meta": {
+    "instanceId": "3a95d349dfb294b72a8a2a73ebf262f636ddc6134c5b4c44376345a9b1c7d52f"
+  },
+  "nodeGroups": [],
+  "id": "y60WQIVb1Ag0XtqP",
+  "tags": [
+    {
+      "updatedAt": "2026-07-30T04:34:17.115Z",
+      "createdAt": "2026-07-30T04:34:17.115Z",
+      "id": "TDyrM0InKxMdCBz1",
+      "name": "Automação Rentável"
+    },
+    {
+      "name": "Atendimento",
+      "id": "Ietoi8PAuqaiiqss",
+      "updatedAt": "2026-08-04T01:00:54.672Z",
+      "createdAt": "2026-08-04T01:00:54.672Z"
+    }
+  ]
+}

@@ -490,6 +490,8 @@ export type AutomationStepType =
   | 'assign_conversation'
   | 'update_contact_field'
   | 'create_deal'
+  | 'update_deal'
+  | 'calendar_update_status'
   | 'wait'
   | 'condition'
   | 'send_webhook'
@@ -497,6 +499,7 @@ export type AutomationStepType =
   | 'ai_condition'
   | 'ai_reply'
   | 'ai_extract'
+  | 'ai_classify'
   | 'send_media';
 
 export type AutomationLogStatus = 'success' | 'partial' | 'failed';
@@ -654,6 +657,46 @@ export interface AiExtractStepConfig {
   fields: AiExtractField[];
 }
 
+export interface AiClassifyStepConfig {
+  /** Instruction that tells the model which category to pick and how.
+   *  Supports {{ message.text }} at runtime. */
+  prompt: string;
+  /** Allowed output labels, e.g. ['hot', 'warm', 'cold']. The model must
+   *  pick exactly one. Matched case-insensitively. */
+  labels: string[];
+  /** Var key where the winning label is stored (default: 'classification'). */
+  store_var?: string;
+  /** Label used when the message is empty or the model output is unparseable. */
+  fallback?: string;
+}
+
+export interface UpdateDealStepConfig {
+  /** Optional exact deal to update. When omitted, the engine targets the
+   *  contact's most recently created deal. */
+  deal_id?: string;
+  /** Move to a new pipeline (recommended together with stage_id). */
+  pipeline_id?: string;
+  /** Move to a new stage. */
+  stage_id?: string;
+  /** New status: open | won | lost. */
+  status?: 'open' | 'won' | 'lost';
+  /** New deal value. */
+  value?: number;
+  /** When true and no matching deal exists, create one using pipeline_id,
+   *  stage_id and title. */
+  create_if_missing?: boolean;
+  /** Title used only when creating a missing deal. Supports {{ vars.* }}. */
+  title?: string;
+}
+
+export interface CalendarUpdateStatusStepConfig {
+  /** New event status: scheduled | cancelled | tentative. */
+  status: 'scheduled' | 'cancelled' | 'tentative';
+  /** Optional exact event to update. When omitted, the engine picks the
+   *  contact's next upcoming event (start_at >= now). */
+  event_id?: string;
+}
+
 export type AutomationStepConfig =
   | SendMessageStepConfig
   | SendTemplateStepConfig
@@ -661,12 +704,15 @@ export type AutomationStepConfig =
   | AssignConversationStepConfig
   | UpdateContactFieldStepConfig
   | CreateDealStepConfig
+  | UpdateDealStepConfig
+  | CalendarUpdateStatusStepConfig
   | WaitStepConfig
   | ConditionStepConfig
   | SendWebhookStepConfig
   | AiConditionStepConfig
   | AiReplyStepConfig
   | AiExtractStepConfig
+  | AiClassifyStepConfig
   | Record<string, never>
   | Record<string, unknown>;
 

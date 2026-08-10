@@ -1,0 +1,444 @@
+{
+  "name": "05 — Relatório Semanal Automático",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 05 — Relatório Semanal\n\n**Playbook:** Schedule domingo → CRM/Sheets → Code → AI resumo → E-mail formatado\n\nConfigure **Edit Fields — Variáveis do Fluxo**.\n\nDá mesma forma você pode automatizar este fluxo para WhatsApp, Telegram etc..",
+        "height": 376,
+        "width": 320
+      },
+      "id": "4827e381-8986-4cbd-b9b0-355ec7673383",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "646fbf1c-40e5-4fab-b28f-4757497d0de2",
+      "name": "Schedule — Domingo 18h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r-negocio",
+              "name": "negocio_nome",
+              "value": "SUA_CLINICA_OU_EMPRESA",
+              "type": "string"
+            },
+            {
+              "id": "r-cliente",
+              "name": "cliente_nome",
+              "value": "Cliente Exemplo",
+              "type": "string"
+            },
+            {
+              "id": "r-dest",
+              "name": "email_destino_relatorio",
+              "value": "dono@cliente.com.br",
+              "type": "string"
+            },
+            {
+              "id": "r-cc",
+              "name": "email_cc_interno",
+              "value": "voce@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "r-from",
+              "name": "email_remetente",
+              "value": "relatorios@suaempresa.com.br",
+              "type": "string"
+            },
+            {
+              "id": "r-from-nome",
+              "name": "email_remetente_nome",
+              "value": "Operação de Automações",
+              "type": "string"
+            },
+            {
+              "id": "r-crm",
+              "name": "crm_metrics_url",
+              "value": "https://SEU_CRM_OU_SHEETS.com/metrics/weekly",
+              "type": "string"
+            },
+            {
+              "id": "r-crm-key",
+              "name": "crm_api_key",
+              "value": "SUA_API_KEY_CRM",
+              "type": "string"
+            },
+            {
+              "id": "r-openai-url",
+              "name": "openai_api_url",
+              "value": "https://api.openai.com/v1/chat/completions",
+              "type": "string"
+            },
+            {
+              "id": "r-openai-model",
+              "name": "openai_model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "r-openai-key",
+              "name": "openai_api_key",
+              "value": "SUA_OPENAI_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "r-prompt",
+              "name": "prompt_sistema",
+              "value": "Você é analista de operações. Com base nas métricas, escreva um relatório semanal curto em português do Brasil para o dono do negócio. Retorne APENAS JSON: {\"assunto\":\"...\",\"titulo\":\"...\",\"resumo_executivo\":\"2-3 frases\",\"destaques\":[\"...\"],\"alertas\":[\"...\"],\"proximos_passos\":[\"...\"],\"corpo_email\":\"texto formatado com quebras de linha\"}. Tom: claro, sem jargão técnico, focado em reais e resultados.",
+              "type": "string"
+            },
+            {
+              "id": "r-periodo",
+              "name": "periodo_label",
+              "value": "={{ 'Semana de ' + $now.minus({ days: 7 }).toFormat('dd/MM') + ' a ' + $now.toFormat('dd/MM/yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "r-exec",
+              "name": "executado_em",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "81e0a0d7-3aa8-4000-9aed-cb3f046dc716",
+      "name": "Edit Fields — Variáveis do Fluxo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.crm_metrics_url }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "={{ $now.minus({ days: 7 }).toISODate() }}"
+            },
+            {
+              "name": "to",
+              "value": "={{ $now.toISODate() }}"
+            },
+            {
+              "name": "cliente",
+              "value": "={{ $json.cliente_nome }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.crm_api_key }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1926f93-5165-433d-8492-9c156cc0b16a",
+      "name": "HTTP — CRM/Sheets métricas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        16
+      ],
+      "notes": "Retorne JSON com métricas. Se não tiver API ainda, use o fallback do Code node."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Edit Fields — Variáveis do Fluxo').first().json;\nconst raw = $input.first().json || {};\n\n// Normaliza métricas comuns do playbook (placeholders se API vazia)\nconst m = raw.metrics || raw.data || raw;\nconst metricas = {\n  leads_entrantes: Number(m.leads_entrantes ?? m.leads ?? 0),\n  leads_quentes: Number(m.leads_quentes ?? 0),\n  leads_mornos: Number(m.leads_mornos ?? 0),\n  leads_frios: Number(m.leads_frios ?? 0),\n  followups_enviados: Number(m.followups_enviados ?? m.followups ?? 0),\n  respostas: Number(m.respostas ?? 0),\n  agendamentos: Number(m.agendamentos ?? m.consultas ?? 0),\n  confirmados: Number(m.confirmados ?? 0),\n  faltas: Number(m.faltas ?? 0),\n  faltas_percentual: Number(m.faltas_percentual ?? 0),\n  emails_triagem: Number(m.emails_triagem ?? 0),\n  receita_estimada: Number(m.receita_estimada ?? m.receita ?? 0),\n  ticket_medio: Number(m.ticket_medio ?? 0),\n  observacoes: m.observacoes || m.notes || ''\n};\n\n// Fallback demo se tudo zero (útil para testar o fluxo)\nconst allZero = Object.entries(metricas)\n  .filter(([k]) => typeof metricas[k] === 'number')\n  .every(([, v]) => v === 0);\n\nif (allZero) {\n  metricas.leads_entrantes = 12;\n  metricas.leads_quentes = 3;\n  metricas.leads_mornos = 5;\n  metricas.leads_frios = 4;\n  metricas.followups_enviados = 6;\n  metricas.respostas = 2;\n  metricas.agendamentos = 8;\n  metricas.confirmados = 6;\n  metricas.faltas = 1;\n  metricas.faltas_percentual = 12.5;\n  metricas.emails_triagem = 15;\n  metricas.receita_estimada = 2400;\n  metricas.ticket_medio = 200;\n  metricas.observacoes = 'Dados de demonstração (API retornou vazio). Substitua crm_metrics_url.';\n  metricas._demo = true;\n}\n\nconst metricas_texto = Object.entries(metricas)\n  .map(([k, v]) => `${k}: ${v}`)\n  .join('\\n');\n\nreturn [{\n  json: {\n    ...cfg,\n    metricas,\n    metricas_texto,\n    metricas_json: JSON.stringify(metricas)\n  }\n}];"
+      },
+      "id": "ce4f7e72-c427-4b22-8c88-270883a1d6d4",
+      "name": "Code — Normalizar métricas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.openai_api_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.openai_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": {{ JSON.stringify($json.openai_model) }},\n  \"temperature\": 0.4,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.prompt_sistema) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify('Cliente: ' + $json.cliente_nome + '\\nOperador: ' + $json.negocio_nome + '\\nPeríodo: ' + $json.periodo_label + '\\nMétricas:\\n' + $json.metricas_texto) }} }\n  ]\n}",
+        "options": {}
+      },
+      "id": "fc7000dc-978e-4cec-8d34-ea24a6b4163a",
+      "name": "HTTP — AI resumo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1664,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Code — Normalizar métricas').item.json;\nconst ai = $input.first().json;\nlet raw = ai.choices?.[0]?.message?.content || '';\nraw = String(raw).trim().replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'');\n\nlet assunto = `Relatório semanal — ${prev.cliente_nome} (${prev.periodo_label})`;\nlet titulo = 'Relatório semanal de automações';\nlet resumo = 'Resumo indisponível.';\nlet destaques = [];\nlet alertas = [];\nlet proximos = [];\nlet corpo = '';\n\ntry {\n  const o = JSON.parse(raw);\n  assunto = o.assunto || assunto;\n  titulo = o.titulo || titulo;\n  resumo = o.resumo_executivo || o.resumo || resumo;\n  destaques = o.destaques || [];\n  alertas = o.alertas || [];\n  proximos = o.proximos_passos || o.proximos || [];\n  corpo = o.corpo_email || '';\n} catch (e) {\n  corpo = raw || resumo;\n}\n\nif (!corpo) {\n  const m = prev.metricas;\n  corpo =\n    `${titulo}\\n${prev.periodo_label}\\n\\n` +\n    `Olá,\\n\\n${resumo}\\n\\n` +\n    `Números da semana:\\n` +\n    `- Leads: ${m.leads_entrantes} (Q ${m.leads_quentes} / M ${m.leads_mornos} / F ${m.leads_frios})\\n` +\n    `- Follow-ups: ${m.followups_enviados} | Respostas: ${m.respostas}\\n` +\n    `- Agendamentos: ${m.agendamentos} | Confirmados: ${m.confirmados} | Faltas: ${m.faltas} (${m.faltas_percentual}%)\\n` +\n    `- Triagens de e-mail: ${m.emails_triagem}\\n` +\n    `- Receita estimada: R$ ${m.receita_estimada}\\n\\n` +\n    (destaques.length ? `Destaques:\\n- ${destaques.join('\\n- ')}\\n\\n` : '') +\n    (alertas.length ? `Alertas:\\n- ${alertas.join('\\n- ')}\\n\\n` : '') +\n    (proximos.length ? `Próximos passos:\\n- ${proximos.join('\\n- ')}\\n\\n` : '') +\n    `${prev.email_remetente_nome}\\n${prev.negocio_nome}`;\n}\n\nreturn [{\n  json: {\n    ...prev,\n    relatorio_assunto: assunto,\n    relatorio_titulo: titulo,\n    relatorio_resumo: resumo,\n    relatorio_destaques: Array.isArray(destaques) ? destaques.join(' | ') : String(destaques),\n    relatorio_alertas: Array.isArray(alertas) ? alertas.join(' | ') : String(alertas),\n    relatorio_proximos: Array.isArray(proximos) ? proximos.join(' | ') : String(proximos),\n    relatorio_corpo: corpo,\n    ai_raw: raw\n  }\n}];"
+      },
+      "id": "57779477-042c-4716-90be-53a266e686d6",
+      "name": "Code — Montar relatório",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "o-assunto",
+              "name": "relatorio_assunto",
+              "value": "={{ $json.relatorio_assunto }}",
+              "type": "string"
+            },
+            {
+              "id": "o-corpo",
+              "name": "relatorio_corpo",
+              "value": "={{ $json.relatorio_corpo }}",
+              "type": "string"
+            },
+            {
+              "id": "o-resumo",
+              "name": "relatorio_resumo",
+              "value": "={{ $json.relatorio_resumo }}",
+              "type": "string"
+            },
+            {
+              "id": "o-dest",
+              "name": "email_destino_relatorio",
+              "value": "={{ $json.email_destino_relatorio }}",
+              "type": "string"
+            },
+            {
+              "id": "o-cc",
+              "name": "email_cc_interno",
+              "value": "={{ $json.email_cc_interno }}",
+              "type": "string"
+            },
+            {
+              "id": "o-from",
+              "name": "email_remetente",
+              "value": "={{ $json.email_remetente }}",
+              "type": "string"
+            },
+            {
+              "id": "o-periodo",
+              "name": "periodo_label",
+              "value": "={{ $json.periodo_label }}",
+              "type": "string"
+            },
+            {
+              "id": "o-cliente",
+              "name": "cliente_nome",
+              "value": "={{ $json.cliente_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "o-negocio",
+              "name": "negocio_nome",
+              "value": "={{ $json.negocio_nome }}",
+              "type": "string"
+            },
+            {
+              "id": "o-metricas",
+              "name": "metricas_json",
+              "value": "={{ $json.metricas_json }}",
+              "type": "string"
+            },
+            {
+              "id": "o-enviado",
+              "name": "relatorio_enviado_em",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "44eb6a45-6ed2-4d41-8a63-56734c62cc18",
+      "name": "Edit Fields — Pós-relatório",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2192,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.email_remetente }}",
+        "toEmail": "={{ $json.email_destino_relatorio }}",
+        "subject": "={{ $json.relatorio_assunto }}",
+        "options": {}
+      },
+      "id": "63b631e3-27fc-4db9-845f-6c6973125be7",
+      "name": "E-mail — Relatório formatado",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2448,
+        16
+      ],
+      "webhookId": "80c21d40-bf4f-4405-966a-8e7f54379958"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule — Domingo 18h": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Variáveis do Fluxo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Variáveis do Fluxo": {
+      "main": [
+        [
+          {
+            "node": "HTTP — CRM/Sheets métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — CRM/Sheets métricas": {
+      "main": [
+        [
+          {
+            "node": "Code — Normalizar métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Normalizar métricas": {
+      "main": [
+        [
+          {
+            "node": "HTTP — AI resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — AI resumo": {
+      "main": [
+        [
+          {
+            "node": "Code — Montar relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Montar relatório": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields — Pós-relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields — Pós-relatório": {
+      "main": [
+        [
+          {
+            "node": "E-mail — Relatório formatado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "42b485d8-77c0-4ab8-af25-32b8935eb8f0",
+  "meta": {
+    "instanceId": "3a95d349dfb294b72a8a2a73ebf262f636ddc6134c5b4c44376345a9b1c7d52f"
+  },
+  "nodeGroups": [],
+  "id": "Fw1iSVyFIvGV3cwV",
+  "tags": [
+    {
+      "updatedAt": "2026-07-30T04:34:17.115Z",
+      "createdAt": "2026-07-30T04:34:17.115Z",
+      "id": "TDyrM0InKxMdCBz1",
+      "name": "Automação Rentável"
+    },
+    {
+      "name": "Relatório",
+      "id": "gAlMQyYXhlxc820D",
+      "updatedAt": "2026-08-04T01:03:38.827Z",
+      "createdAt": "2026-08-04T01:03:38.827Z"
+    }
+  ]
+}
