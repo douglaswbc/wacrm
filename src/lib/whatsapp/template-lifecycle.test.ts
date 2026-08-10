@@ -43,7 +43,7 @@ describe('submitMessageTemplate', () => {
         name: 't',
         category: 'UTILITY',
         language: 'en_US',
-        components: [{ type: 'BODY', text: 'hi' }],
+        components: [{ type: 'body', text: 'hi' }],
       },
     });
     expect(result).toEqual({ id: '123', status: 'PENDING', category: 'UTILITY' });
@@ -55,7 +55,7 @@ describe('submitMessageTemplate', () => {
       name: 't',
       category: 'UTILITY',
       language: 'en_US',
-      components: [{ type: 'BODY', text: 'hi' }],
+      components: [{ type: 'body', text: 'hi' }],
     });
   });
 
@@ -110,14 +110,14 @@ describe('editMessageTemplate', () => {
     await editMessageTemplate({
       metaTemplateId: 'TMPL_42',
       accessToken: 'tok',
-      components: [{ type: 'BODY', text: 'new body' }],
+      components: [{ type: 'body', text: 'new body' }],
     });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain('/TMPL_42');
     expect(url).not.toContain('message_templates');
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({
-      components: [{ type: 'BODY', text: 'new body' }],
+      components: [{ type: 'body', text: 'new body' }],
     });
   });
 
@@ -125,12 +125,12 @@ describe('editMessageTemplate', () => {
     await editMessageTemplate({
       metaTemplateId: 'TMPL_42',
       accessToken: 'tok',
-      components: [{ type: 'BODY', text: 'x' }],
+      components: [{ type: 'body', text: 'x' }],
       category: 'MARKETING',
     });
     const [, init] = fetchMock.mock.calls[0];
     expect(JSON.parse(init.body)).toEqual({
-      components: [{ type: 'BODY', text: 'x' }],
+      components: [{ type: 'body', text: 'x' }],
       category: 'MARKETING',
     });
   });
