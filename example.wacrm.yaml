@@ -21,8 +21,6 @@ services:
 
       ## Criptografia e Segurança
       - ENCRYPTION_KEY=your-64-char-hex-key
-      - META_APP_SECRET=your-meta-app-secret
-      - INSTAGRAM_APP_SECRET=your-instagram-app-secret
       - AUTOMATION_CRON_SECRET=generate-a-long-random-string
 
       ## Google Calendar

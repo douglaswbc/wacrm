@@ -9,12 +9,13 @@
 
 ## O que vem pronto
 
-- **Caixa de entrada compartilhada** na API oficial do WhatsApp Business e
-  Instagram Messaging — múltiplos agentes atendendo um número/conta,
-  atribuição por conversa, status e notas.
+- **Caixa de entrada compartilhada** para WhatsApp e Instagram — múltiplos
+  agentes atendendo um número/conta, atribuição por conversa, status e
+  notas. WhatsApp via Zernio (hub WhatsApp Cloud) ou RyzeAPI; Instagram via
+  Zernio.
 - **Contatos + tags + campos personalizados**, importação CSV, deduplicação.
 - **Pipeline de vendas** (Kanban) com negócios vinculados a conversas.
-- **Transmissões** com templates aprovados pela Meta, rastreamento de
+- **Transmissões** com templates aprovados, rastreamento de
   entrega + leitura, substituição de variáveis por destinatário.
 - **Automações no-code** — gatilhos em mensagens recebidas, novos
   contatos, palavras-chave, agendamentos ou eventos de tag/pipeline;
@@ -71,7 +72,7 @@ e torna seu.
 git clone https://github.com/douglaswbc/wacrm.git
 cd wacrm
 npm install
-cp .env.local.example .env.local   # preencha credenciais Supabase + Meta
+cp .env.local.example .env.local   # preencha credenciais Supabase + gateways
 npm run dev
 ```
 
@@ -158,15 +159,15 @@ Todas as variáveis usadas pela aplicação — referência tanto para
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave anon/pública do Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave service_role do Supabase (bypassa RLS) |
 | `ENCRYPTION_KEY` | Hex de 64 chars para criptografia de tokens (`crypto.randomBytes(32).toString('hex')`) |
-| `AUTOMATION_CRON_SECRET` | Secret protegendo `/api/automations/cron` (obrigatório para wait steps e automações com agendamento) |
-| `META_APP_SECRET` | Meta App Secret para verificação do webhook do WhatsApp |
-| `INSTAGRAM_APP_SECRET` | Meta App Secret para verificação do webhook do Instagram (app separado) |
+| `AUTOMATION_CRON_SECRET` | Secret protegendo `/api/automations/cron` (obrigatório para wait steps e automações com agendamento). Gere com `openssl rand -hex 32` |
 | `NEXT_PUBLIC_SITE_URL` | URL pública do seu CRM (`https://crm.seudominio.com`) |
 | `GOOGLE_CALENDAR_CLIENT_ID` | Google Cloud Console OAuth2 Client ID (integração com Google Calendar) |
 | `GOOGLE_CALENDAR_CLIENT_SECRET` | Google Cloud Console OAuth2 Client Secret |
 | `GOOGLE_CALENDAR_REDIRECT_URI` | URL de redirecionamento OAuth2 (`https://<domínio>/api/calendar/callback`) |
 | `RYZEAPI_API_URL` | URL do servidor RyzeAPI (gateway WhatsApp auto-hospedado) |
 | `RYZEAPI_ADMIN_TOKEN` | Token de admin do RyzeAPI |
+| `ZERNIO_API_KEY` | Chave de API do Zernio (hub WhatsApp Cloud + Instagram). Gere em `https://zernio.com/dashboard → Settings → API Keys` |
+| `ZERNIO_WEBHOOK_SECRET` | Secret para verificar os webhooks do Zernio (opcional; se não definido, requests sem assinatura são aceitos em dev). Gere com `openssl rand -hex 32` |
 
 ### Configuração do Google Calendar
 
@@ -228,16 +229,19 @@ docker stack deploy -c wacrm.yaml wacrm
 ### Cron das automações
 
 Automações com agendamento e wait steps dependem do endpoint cron ser
-chamado a cada ~5 minutos. Defina `AUTOMATION_CRON_SECRET` no
-`wacrm.yaml`, instale o cron na VPS se ainda não estiver presente e
+chamado a cada ~5 minutos. Gere um secret, defina `AUTOMATION_CRON_SECRET`
+no `wacrm.yaml`, instale o cron na VPS se ainda não estiver presente e
 registre o job:
 
 ```bash
+# Gerar um secret para AUTOMATION_CRON_SECRET
+openssl rand -hex 32
+
 # Instalar cron se necessário (Debian/Ubuntu)
 apt update && apt install -y cron
 systemctl enable --now cron
 
-# Registrar o job
+# Registrar o job (troque SEU_SECRET pelo valor gerado acima)
 echo "*/5 * * * * curl -s -H 'x-cron-secret: SEU_SECRET' https://seu-dominio.com/api/automations/cron >> /var/log/wacrm-cron.log 2>&1" | crontab -
 ```
 
@@ -248,11 +252,10 @@ e dedup).
 
 - **App** — Next.js 16 (App Router), React 19, TypeScript, Tailwind v4.
 - **Dados** — Supabase (Postgres + Auth + Storage + RLS).
-- **WhatsApp** — Meta Cloud API (API oficial do WhatsApp Business) e
-  RyzeAPI (gateway WhatsApp auto-hospedado).
-- **Instagram** — Instagram Graph API para mensagens, comentários e
-  automações baseadas em posts. Suporta renovação automática de token
-  de longa duração.
+- **WhatsApp** — Zernio (hub WhatsApp Cloud) e RyzeAPI (gateway WhatsApp
+  auto-hospedado).
+- **Instagram** — Zernio para mensagens, comentários e automações
+  baseadas em posts.
 - **Calendário** — Google Calendar API com OAuth2 para sincronização
   bidirecional de eventos.
 
