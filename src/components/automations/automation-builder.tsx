@@ -1201,6 +1201,29 @@ function TimeBasedConfig({
               <option value="lost">Lost</option>
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Inactive for at least (days)
+            </label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="0 = any"
+              value={(config.deal_inactivity_days as number) ?? 0}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10)
+                onChange({
+                  ...config,
+                  deal_inactivity_days: Number.isFinite(n) && n > 0 ? n : undefined,
+                })
+              }}
+              className="bg-muted text-foreground"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Only fire for contacts whose deal has not been updated for this many
+              days. Leave at 0 to target all deals in the stage.
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -2000,6 +2023,7 @@ function StepEditor({
               <option value="contact_field">Contact field</option>
               <option value="message_content">Message content</option>
               <option value="time_of_day">Time of day</option>
+              <option value="var_equals">Workflow variable</option>
             </select>
           </FieldBlock>
           <FieldBlock label="Operand">
@@ -2009,6 +2033,8 @@ function StepEditor({
                   ? "HH:mm-HH:mm"
                   : cfg.subject === "contact_field"
                   ? "name / email / company"
+                  : cfg.subject === "var_equals"
+                  ? "var name (e.g. setor)"
                   : cfg.subject === "tag_presence"
                   ? "tag id"
                   : ""
@@ -2018,7 +2044,9 @@ function StepEditor({
               className="bg-muted text-foreground"
             />
           </FieldBlock>
-          {(cfg.subject === "contact_field" || cfg.subject === "message_content") && (
+          {(cfg.subject === "contact_field" ||
+            cfg.subject === "message_content" ||
+            cfg.subject === "var_equals") && (
             <FieldBlock label="Value">
               <Input
                 value={(cfg.value as string) ?? ""}

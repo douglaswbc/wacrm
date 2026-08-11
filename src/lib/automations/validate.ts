@@ -297,6 +297,14 @@ export function validateTriggerForActivation(
         issues.push({ path: 'trigger', message: 'time-based trigger needs at least one targeting criterion (tags or pipeline)' })
       }
     }
+    if (
+      cfg.deal_inactivity_days != null &&
+      (typeof cfg.deal_inactivity_days !== 'number' ||
+        !Number.isFinite(cfg.deal_inactivity_days) ||
+        cfg.deal_inactivity_days <= 0)
+    ) {
+      issues.push({ path: 'trigger.deal_inactivity_days', message: 'deal inactivity days must be a positive number' })
+    }
   } else if (triggerType === 'tag_added') {
     if (!nonEmpty(cfg.tag_id)) {
       issues.push({ path: 'trigger.tag_id', message: 'tag is required' })

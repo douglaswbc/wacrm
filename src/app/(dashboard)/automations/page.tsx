@@ -18,6 +18,9 @@ import {
   PhoneCall,
   Image,
   ScanSearch,
+  CalendarClock,
+  HandCoins,
+  Workflow,
   Loader2,
 } from "lucide-react"
 
@@ -52,6 +55,9 @@ const TEMPLATE_ORDER: TemplateSlug[] = [
   "lead_qualifier",
   "lead_triage",
   "follow_up_reminder",
+  "calendar_reminder",
+  "follow_up_reativacao",
+  "triagem_atendimento",
   "ig_comment_public_reply",
   "ig_comment_dm_reply",
 ]
@@ -62,6 +68,9 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
   lead_qualifier: Users,
   lead_triage: ScanSearch,
   follow_up_reminder: PhoneCall,
+  calendar_reminder: CalendarClock,
+  follow_up_reativacao: HandCoins,
+  triagem_atendimento: Workflow,
   ig_comment_public_reply: MessageCircle,
   ig_comment_dm_reply: Image,
 }

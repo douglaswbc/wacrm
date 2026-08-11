@@ -541,6 +541,10 @@ export interface TimeBasedTriggerConfig {
   stage_id?: string;
   /** Deal status filter. If omitted, defaults to 'open'. */
   deal_status?: DealStatus;
+  /** When set (> 0), only targets contacts whose most recent deal has NOT
+   *  been updated for at least this many days. Used for re-engagement /
+   *  cold-lead follow-ups. Applies to 'pipeline' and 'both' modes. */
+  deal_inactivity_days?: number;
 }
 
 export type AutomationTriggerConfig =
@@ -617,7 +621,8 @@ export type ConditionSubject =
   | 'contact_field'
   | 'tag_presence'
   | 'message_content'
-  | 'time_of_day';
+  | 'time_of_day'
+  | 'var_equals';
 
 export interface ConditionStepConfig {
   subject: ConditionSubject;

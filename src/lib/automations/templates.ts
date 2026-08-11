@@ -13,6 +13,9 @@ export type TemplateSlug =
   | 'follow_up_reminder'
   | 'ig_comment_public_reply'
   | 'ig_comment_dm_reply'
+  | 'calendar_reminder'
+  | 'follow_up_reativacao'
+  | 'triagem_atendimento'
 
 export interface TemplateStepSeed {
   step_type: AutomationStepType
@@ -218,6 +221,153 @@ export const AUTOMATION_TEMPLATES: Record<TemplateSlug, AutomationTemplateDefini
       {
         step_type: 'add_tag',
         step_config: { tag_id: '' },
+      },
+    ],
+  },
+  calendar_reminder: {
+    slug: 'calendar_reminder',
+    name: 'Appointment Reminder',
+    description: 'Send a WhatsApp reminder to contacts with a scheduled appointment and let them confirm or cancel with a tap.',
+    trigger_type: 'time_based',
+    trigger_config: {
+      schedule: '17:00',
+      timezone: 'America/Sao_Paulo',
+      target_mode: 'tags',
+      tag_ids: [],
+    },
+    steps: [
+      {
+        step_type: 'send_button',
+        step_config: {
+          text:
+            'Olá {{contact.name}}! 👋 Você tem um atendimento marcado para amanhã. Confirma?',
+          buttons: [
+            { type: 'postback', title: '✅ Confirmar', payload: 'CONFIRMAR' },
+            { type: 'postback', title: '❌ Cancelar', payload: 'CANCELAR' },
+          ],
+        },
+      },
+      {
+        step_type: 'condition',
+        step_config: {
+          subject: 'message_content',
+          operand: 'confirmar',
+        },
+      },
+      {
+        step_type: 'calendar_update_status',
+        step_config: { status: 'scheduled' },
+        parent_index: 1,
+        branch: 'yes',
+      },
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: 'Perfeito! Até amanhã. 😊',
+        },
+        parent_index: 1,
+        branch: 'yes',
+      },
+    ],
+  },
+  follow_up_reativacao: {
+    slug: 'follow_up_reativacao',
+    name: 'Cold Lead Re-engagement',
+    description: 'Send a WhatsApp nudge to contacts whose open deals have had no activity for a set number of days.',
+    trigger_type: 'time_based',
+    trigger_config: {
+      schedule: '10:00',
+      timezone: 'America/Sao_Paulo',
+      target_mode: 'pipeline',
+      deal_status: 'open',
+      deal_inactivity_days: 3,
+    },
+    steps: [
+      {
+        step_type: 'send_message',
+        step_config: {
+          text:
+            'Olá {{contact.name}}! Vi que ainda não concluímos seu atendimento. Posso ajudar em algo? 😊',
+        },
+      },
+      {
+        step_type: 'update_deal',
+        step_config: {
+          status: 'open',
+        },
+      },
+    ],
+  },
+  triagem_atendimento: {
+    slug: 'triagem_atendimento',
+    name: 'Service Triage',
+    description: 'Classify each inbound WhatsApp message by department with AI and route the reply accordingly.',
+    trigger_type: 'new_message_received',
+    trigger_config: {},
+    steps: [
+      {
+        step_type: 'ai_classify',
+        step_config: {
+          prompt:
+            'Classify this customer message into one department: TECNICO (technical/bug), COMERCIAL (pricing/quote/buy), FINANCEIRO (billing/payment/invoice) or OUTRO. Answer with a single label.',
+          labels: ['TECNICO', 'COMERCIAL', 'FINANCEIRO', 'OUTRO'],
+          store_var: 'setor',
+          fallback: 'OUTRO',
+        },
+      },
+      {
+        step_type: 'condition',
+        step_config: {
+          subject: 'var_equals',
+          operand: 'setor',
+          value: 'TECNICO',
+        },
+      },
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: 'Você falou com o suporte técnico. Já anotei seu caso e um especialista vai te atender em instantes. 🛠️',
+        },
+        parent_index: 1,
+        branch: 'yes',
+      },
+      {
+        step_type: 'assign_conversation',
+        step_config: { mode: 'round_robin' },
+        parent_index: 1,
+        branch: 'yes',
+      },
+      {
+        step_type: 'condition',
+        step_config: {
+          subject: 'var_equals',
+          operand: 'setor',
+          value: 'COMERCIAL',
+        },
+      },
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: 'Você falou com o comercial! Um consultor vai te chamar com as melhores condições. 💼',
+        },
+        parent_index: 4,
+        branch: 'yes',
+      },
+      {
+        step_type: 'condition',
+        step_config: {
+          subject: 'var_equals',
+          operand: 'setor',
+          value: 'FINANCEIRO',
+        },
+      },
+      {
+        step_type: 'send_message',
+        step_config: {
+          text: 'Você falou com o financeiro. Enviei os dados de pagamento para você. 💳',
+        },
+        parent_index: 6,
+        branch: 'yes',
       },
     ],
   },

@@ -108,6 +108,14 @@ async function resolveByPipeline(
   // This way the user can target all contacts in a stage regardless
   // of whether the deal is open/won/lost.
 
+  if (cfg.deal_inactivity_days && cfg.deal_inactivity_days > 0) {
+    // Only deals whose most recent activity (created or updated) is older
+    // than the inactivity window. Filters on updated_at only would miss
+    // brand-new deals whose created_at is old relative to updated_at.
+    const cutoff = new Date(Date.now() - cfg.deal_inactivity_days * 86_400_000).toISOString()
+    query = query.lt('updated_at', cutoff).lte('created_at', cutoff)
+  }
+
   const { data, error } = await query
 
   if (error) {
@@ -121,6 +129,7 @@ async function resolveByPipeline(
     pipeline_id: cfg.pipeline_id,
     stage_id: cfg.stage_id,
     deal_status: cfg.deal_status ?? '(any)',
+    deal_inactivity_days: cfg.deal_inactivity_days ?? '(any)',
     found: unique.length,
   })
   return unique

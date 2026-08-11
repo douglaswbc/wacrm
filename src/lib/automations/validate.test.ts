@@ -221,9 +221,56 @@ describe("validateTriggerForActivation", () => {
   it("requires schedule on time_based triggers", () => {
     expect(validateTriggerForActivation("time_based", {})).toEqual([
       { path: "trigger.schedule", message: "schedule is required" },
+      { path: "trigger", message: "time-based trigger needs at least one targeting criterion (tags or pipeline)" },
     ]);
     expect(
-      validateTriggerForActivation("time_based", { schedule: "0 9 * * *" }),
+      validateTriggerForActivation("time_based", {
+        schedule: "0 9 * * *",
+        target_mode: "tags",
+        tag_ids: ["tag-uuid"],
+      }),
+    ).toEqual([]);
+  });
+
+  it("requires a targeting criterion on time_based triggers even with a schedule", () => {
+    const issues = validateTriggerForActivation("time_based", {
+      schedule: "0 9 * * *",
+    });
+    expect(issues.map((i) => i.path)).toContain("trigger");
+    expect(issues).toHaveLength(1);
+  });
+
+  it("accepts a pipeline-targeted time_based trigger", () => {
+    expect(
+      validateTriggerForActivation("time_based", {
+        schedule: "0 9 * * *",
+        target_mode: "pipeline",
+        pipeline_id: "pipe-1",
+      }),
+    ).toEqual([]);
+  });
+
+  it("rejects deal_inactivity_days that is not a positive number", () => {
+    const issues = validateTriggerForActivation("time_based", {
+      schedule: "0 9 * * *",
+      target_mode: "pipeline",
+      pipeline_id: "pipe-1",
+      deal_inactivity_days: 0,
+    });
+    expect(issues.map((i) => i.path)).toContain("trigger.deal_inactivity_days");
+    expect(issues.map((i) => i.message)).toContain(
+      "deal inactivity days must be a positive number",
+    );
+  });
+
+  it("accepts a valid positive deal_inactivity_days", () => {
+    expect(
+      validateTriggerForActivation("time_based", {
+        schedule: "0 9 * * *",
+        target_mode: "pipeline",
+        pipeline_id: "pipe-1",
+        deal_inactivity_days: 5,
+      }),
     ).toEqual([]);
   });
 

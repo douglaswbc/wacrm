@@ -938,6 +938,15 @@ async function evaluateCondition(cfg: ConditionStepConfig, args: ExecuteArgs): P
       const v = (data as Record<string, unknown> | null)?.[cfg.operand]
       return v != null && String(v) === String(cfg.value ?? '')
     }
+    case 'var_equals': {
+      // Compare a workflow variable stored earlier (e.g. by ai_classify /
+      // ai_extract) against a static value. `operand` is the var name
+      // (without the "vars." prefix), `value` is the expected value.
+      const varName = (cfg.operand ?? '').replace(/^vars\./, '')
+      const v = args.context.vars?.[varName]
+      if (v == null) return false
+      return String(v) === String(cfg.value ?? '')
+    }
     case 'message_content': {
       const text = (args.context.message_text ?? '').toString()
       return text.toLowerCase().includes((cfg.value ?? '').toLowerCase())

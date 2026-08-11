@@ -49,6 +49,18 @@ vi.mock("./admin-client", () => {
       return { data: null, error: null };
     }
     if (table === "automations") return { data: state.automations, error: null };
+    if (table === "automation_steps") {
+      const parentIsNull = ops.filters.some(([op, k, v]) => op === "is" && k === "parent_step_id" && v === null);
+      const parentEq = ops.filters.find(([op, k]) => op === "eq" && k === "parent_step_id");
+      const branchEq = ops.filters.find(([op, k]) => op === "eq" && k === "branch");
+      const gte = ops.filters.find(([op, k]) => op === "gte" && k === "position");
+      let rows = state.steps;
+      if (parentIsNull) rows = rows.filter((s) => s.parent_step_id == null);
+      else if (parentEq) rows = rows.filter((s) => s.parent_step_id === parentEq[2]);
+      if (branchEq) rows = rows.filter((s) => (s.branch ?? "yes") === branchEq[2]);
+      if (gte) rows = rows.filter((s) => (s.position ?? 0) >= gte[2]);
+      return { data: [...rows].sort((a, b) => a.position - b.position), error: null };
+    }
     if (table === "automation_logs") {
       if (type === "insert") return { data: { id: "log1" }, error: null };
       if (type === "update") return { data: null, error: null };
@@ -93,8 +105,8 @@ vi.mock("./admin-client", () => {
       delete: () => ((ops.type = "delete"), b),
       upsert: (p: unknown) => ((ops.type = "upsert"), (ops.payload = p), b),
       eq: (k: string, v: unknown) => (ops.filters.push(["eq", k, v]), b),
-      gte: () => b,
-      is: () => b,
+      gte: (k: string, v: unknown) => (ops.filters.push(["gte", k, v]), b),
+      is: (k: string, v: unknown) => (ops.filters.push(["is", k, v]), b),
       order: () => b,
       limit: () => b,
       single: () => Promise.resolve(resolve(ops)),
@@ -130,6 +142,7 @@ vi.mock("@/lib/ai/config", () => ({
 }));
 
 import { runAutomationsForTrigger } from "./engine";
+import { engineSendText } from "./meta-send";
 import { generateReply } from "@/lib/ai/generate";
 
 const ACCOUNT = "acct-1";
@@ -498,5 +511,90 @@ describe("ai_classify step", () => {
         context: { message_text: "hello", vars: {} },
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("condition — var_equals branch selection", () => {
+  function conditionWithBranches() {
+    return [
+      {
+        id: "s0",
+        automation_id: "a1",
+        step_type: "condition",
+        position: 0,
+        parent_step_id: null,
+        branch: null,
+        step_config: { subject: "var_equals", operand: "lead_tier", value: "hot" },
+      },
+      {
+        id: "s1",
+        automation_id: "a1",
+        step_type: "send_message",
+        position: 0,
+        parent_step_id: "s0",
+        branch: "yes",
+        step_config: { text: "hot branch" },
+      },
+      {
+        id: "s2",
+        automation_id: "a1",
+        step_type: "send_message",
+        position: 0,
+        parent_step_id: "s0",
+        branch: "no",
+        step_config: { text: "cold branch" },
+      },
+    ];
+  }
+
+  it("takes the yes branch when the stored var matches", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [baseAutomation()];
+    h.state.steps = conditionWithBranches();
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "x", conversation_id: "conv1", vars: { lead_tier: "hot" } },
+    });
+
+    expect(engineSendText).toHaveBeenCalledTimes(1);
+    const arg = engineSendText.mock.calls[0][0];
+    expect(arg.text).toBe("hot branch");
+  });
+
+  it("takes the no branch when the stored var does not match", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [baseAutomation()];
+    h.state.steps = conditionWithBranches();
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "x", conversation_id: "conv1", vars: { lead_tier: "warm" } },
+    });
+
+    expect(engineSendText).toHaveBeenCalledTimes(1);
+    const arg = engineSendText.mock.calls[0][0];
+    expect(arg.text).toBe("cold branch");
+  });
+
+  it("falls to the no branch when the var is unset", async () => {
+    h.state.owned = { id: "c1" };
+    h.state.automations = [baseAutomation()];
+    h.state.steps = conditionWithBranches();
+
+    await runAutomationsForTrigger({
+      accountId: ACCOUNT,
+      triggerType: "new_message_received",
+      contactId: "c1",
+      context: { message_text: "x", conversation_id: "conv1", vars: {} },
+    });
+
+    expect(engineSendText).toHaveBeenCalledTimes(1);
+    const arg = engineSendText.mock.calls[0][0];
+    expect(arg.text).toBe("cold branch");
   });
 });
