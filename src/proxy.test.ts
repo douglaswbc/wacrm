@@ -32,6 +32,15 @@ vi.mock("@supabase/ssr", () => ({
         return { data: { user: mockUser } };
       },
     },
+    // The middleware also reads profiles/accounts (account-disabled check).
+    // No test here exercises a disabled account, so resolve no row.
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: null }),
+        }),
+      }),
+    }),
   }),
 }));
 

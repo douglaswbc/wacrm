@@ -6,12 +6,30 @@ import {
   formatCurrencyShort,
 } from "./currency";
 
+// Intl formats with the *system* locale, so the grouping separator varies
+// ("1,234" in en-US, "1.234" in many European/locale settings) and a NBSP
+// may separate symbol and amount. Compare on digits only to stay
+// locale-agnostic: strip non-digits and assert the currency value's digits
+// are intact. For the invalid-code fallback the raw code is PREPENDED (e.g.
+// "12 1.234"), so check the *ends* rather than an exact match.
+function digits(s: string) {
+  return s.replace(/\D/g, "");
+}
+const amountDigits = (s: string) => digits(s).endsWith("1234");
+
 describe("formatCurrency", () => {
   it("formats whole amounts with no minor units", () => {
-    // Use a non-breaking-space-tolerant check: Intl may insert NBSP.
+    // Whole dollars only — 1234 must render with no minor units,
+    // regardless of the system locale's grouping separator.
+    expect(amountDigits(formatCurrency(1234, "USD"))).toBe(true);
+  });
+
+  it("embeds the currency symbol (locale-agnostic)", () => {
+    // Symbol may be "US$" (en/pt) or "US$" with NBSP — just ensure the
+    // ISO code region or symbol appears and digits stay intact.
     const out = formatCurrency(1234, "USD");
-    expect(out).toContain("1,234");
-    expect(out).not.toContain(".00");
+    expect(out).toMatch(/US\$|USD|[$]/);
+    expect(amountDigits(out)).toBe(true);
   });
 
   it("defaults to USD when no currency is given", () => {
@@ -30,13 +48,13 @@ describe("formatCurrency", () => {
     // Intl is lenient here — it uses the code as the symbol.
     const out = formatCurrency(1234, "ZZZ");
     expect(out).toContain("ZZZ");
-    expect(out).toContain("1,234");
+    expect(amountDigits(out)).toBe(true);
   });
 
   it("never throws on a structurally invalid code (no DB CHECK on deals.currency)", () => {
     for (const bad of ["United States", "US", "USDD", "12", "u$d"]) {
       expect(() => formatCurrency(1234, bad)).not.toThrow();
-      expect(formatCurrency(1234, bad)).toContain("1,234");
+      expect(amountDigits(formatCurrency(1234, bad))).toBe(true);
     }
   });
 

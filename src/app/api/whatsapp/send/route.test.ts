@@ -14,6 +14,7 @@ const messageInserts: Array<Record<string, unknown>> = []
 // Toggles for the per-test scenario.
 let existingConversation: Record<string, unknown> | null = null
 let contactRow: Record<string, unknown> | null = null
+let zernioConnection: Record<string, unknown> | null = null
 // A conversation created during the request becomes retrievable by id —
 // the shared send core re-loads the conversation (with its contact) from
 // just the id, so the mock must model insert-then-select-by-id.
@@ -52,6 +53,8 @@ function makeSupabaseMock() {
             },
             error: null,
           }
+        case 'zernio_connections':
+          return { data: zernioConnection, error: null }
         case 'message_templates':
           return { data: null, error: null }
         default:
@@ -143,13 +146,27 @@ vi.mock('@/lib/whatsapp/encryption', () => ({
   isLegacyFormat: vi.fn(() => false),
 }))
 
-const { sendTemplateMessage } = vi.hoisted(() => ({
-  sendTemplateMessage: vi.fn(async () => ({ messageId: 'wamid-1' })),
+const {
+  createInboxConversation,
+  sendInboxMessage,
+} = vi.hoisted(() => ({
+  // WhatsApp template path: no existing Zernio conversation → the core
+  // bootstraps one via createInboxConversation (returns the Meta wamid).
+  createInboxConversation: vi.fn(async () => ({
+    messageId: 'wamid-1',
+    conversationId: 'zconv-1',
+  })),
+  sendInboxMessage: vi.fn(async () => ({ messageId: 'wamid-1' })),
 }))
-vi.mock('@/lib/whatsapp/meta-api', () => ({
-  sendTemplateMessage,
-  sendTextMessage: vi.fn(),
-  sendMediaMessage: vi.fn(),
+vi.mock('@/lib/zernio/client', () => ({
+  createInboxConversation,
+  sendInboxMessage,
+  sendPublicCommentReply: vi.fn(),
+  sendPrivateCommentReply: vi.fn(),
+}))
+
+vi.mock('@/lib/webhooks/deliver', () => ({
+  dispatchWebhookEvent: vi.fn(async () => {}),
 }))
 
 import { POST } from './route'
@@ -179,8 +196,12 @@ describe('POST /api/whatsapp/send — contact_id template path', () => {
     existingConversation = null
     createdConversation = null
     contactRow = CONTACT
+    zernioConnection = {
+      connected_accounts: [{ platform: 'whatsapp', accountId: 'zacct-1' }],
+    }
     supabaseMock = makeSupabaseMock()
-    sendTemplateMessage.mockClear()
+    createInboxConversation.mockClear()
+    sendInboxMessage.mockClear()
   })
 
   afterEach(() => {
@@ -202,14 +223,14 @@ describe('POST /api/whatsapp/send — contact_id template path', () => {
       contact_id: 'contact-1',
     })
 
-    // The template was sent to the contact's number.
-    expect(sendTemplateMessage).toHaveBeenCalledTimes(1)
-    const args = (sendTemplateMessage.mock.calls[0] as unknown[])[0] as Record<
+    // The template was sent to the contact's number via a new Zernio
+    // conversation, bootstrapped because none existed yet.
+    expect(createInboxConversation).toHaveBeenCalledTimes(1)
+    const args = (createInboxConversation.mock.calls[0] as unknown[])[0] as Record<
       string,
       unknown
     >
-    // Meta wants the bare E.164 digits — sanitizePhoneForMeta strips the '+'.
-    expect(args.to).toBe('15551234567')
+    expect(args.participantId).toBe('+15551234567')
     expect(args.templateName).toBe('order_update')
 
     // The outbound message was persisted under the new conversation.
@@ -245,7 +266,7 @@ describe('POST /api/whatsapp/send — contact_id template path', () => {
 
     expect(res.status).toBe(404)
     expect(json.error).toMatch(/contact not found/i)
-    expect(sendTemplateMessage).not.toHaveBeenCalled()
+    expect(createInboxConversation).not.toHaveBeenCalled()
   })
 
   it('400s when neither conversation_id nor contact_id is provided', async () => {
