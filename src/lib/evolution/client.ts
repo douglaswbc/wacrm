@@ -43,8 +43,13 @@ export interface EvolutionStatusResponse {
 
 export interface EvolutionSendResponse {
   message: string
-  data: {
-    key: {
+  key?: {
+    remoteJid: string
+    fromMe: boolean
+    id: string
+  }
+  data?: {
+    key?: {
       remoteJid: string
       fromMe: boolean
       id: string

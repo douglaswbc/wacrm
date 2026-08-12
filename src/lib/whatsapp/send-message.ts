@@ -574,6 +574,9 @@ async function sendEvolutionMessage(
 
   let evoMessageId = '';
   try {
+    const extractId = (r: { data?: { key?: { id?: string } }; key?: { id?: string } }) =>
+      r.data?.key?.id ?? r.key?.id ?? ''
+
     if (messageType === 'template' || messageType === 'text') {
       const r = await sendEvoText({
         apiUrl: config.api_url,
@@ -582,7 +585,7 @@ async function sendEvolutionMessage(
         message: contentText || '',
         linkPreview: linkPreview || undefined,
       });
-      evoMessageId = r.data.key.id;
+      evoMessageId = extractId(r);
     } else if (messageType === 'buttons') {
       const r = await sendEvoButtons({
         apiUrl: config.api_url,
@@ -593,7 +596,7 @@ async function sendEvolutionMessage(
         headerText: headerText || undefined,
         footerText: footerText || undefined,
       });
-      evoMessageId = r.data.key.id;
+      evoMessageId = extractId(r);
     } else if (messageType === 'list') {
       const r = await sendEvoList({
         apiUrl: config.api_url,
@@ -608,7 +611,7 @@ async function sendEvolutionMessage(
         headerText: headerText || undefined,
         footerText: footerText || undefined,
       });
-      evoMessageId = r.data.key.id;
+      evoMessageId = extractId(r);
     } else if (['image', 'video', 'audio', 'document'].includes(messageType)) {
       const r = await sendEvoMedia({
         apiUrl: config.api_url,
@@ -619,7 +622,7 @@ async function sendEvolutionMessage(
         message: contentText || undefined,
         fileName: filename || undefined,
       });
-      evoMessageId = r.data.key.id;
+      evoMessageId = extractId(r);
     } else {
       const r = await sendEvoText({
         apiUrl: config.api_url,
@@ -627,7 +630,10 @@ async function sendEvolutionMessage(
         number: phone,
         message: contentText || '',
       });
-      evoMessageId = r.data.key.id;
+      evoMessageId = extractId(r);
+    }
+    if (!evoMessageId) {
+      throw new Error('Evolution API did not return a message ID');
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown Evolution API error';
