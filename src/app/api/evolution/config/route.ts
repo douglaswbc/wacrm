@@ -63,8 +63,7 @@ export async function GET() {
           apiUrl: config.api_url,
           instanceToken,
         })
-        const s = state?.data?.state?.toLowerCase() ?? ''
-        if (s === 'open' || s === 'connected') {
+        if (state?.data?.Connected === true && state?.data?.LoggedIn === true) {
           await supabase
             .from('evolution_config')
             .update({
@@ -468,8 +467,7 @@ async function handleReconnect(
         apiUrl: config.api_url,
         instanceToken,
       })
-      const s = state?.data?.state?.toLowerCase() ?? ''
-      if (s === 'open' || s === 'connected') {
+      if (state?.data?.Connected === true) {
         newStatus = 'connected'
       }
     } catch {

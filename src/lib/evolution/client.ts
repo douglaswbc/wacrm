@@ -35,8 +35,9 @@ export interface EvolutionQrResponse {
 export interface EvolutionStatusResponse {
   message: string
   data?: {
-    state?: string
-    status?: string
+    Connected?: boolean
+    LoggedIn?: boolean
+    Name?: string
   }
 }
 

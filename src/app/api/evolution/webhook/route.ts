@@ -148,7 +148,6 @@ export async function POST(request: Request) {
       .from('evolution_config')
       .select('account_id, relay_url')
       .eq('instance_name', instanceName)
-      .eq('status', 'connected')
       .maybeSingle()
 
     if (!config?.account_id) {
