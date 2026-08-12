@@ -3,6 +3,10 @@ import crypto from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+
+function stripQrPrefix(raw: string): string {
+  return raw.replace(/^data:image\/[^;]+;base64,/, '')
+}
 import {
   createInstance,
   connectInstance,
@@ -255,7 +259,7 @@ async function handleCreate(
       apiUrl,
       instanceToken,
     })
-    qr = qrResult?.data?.qrcode ?? null
+    qr = qrResult?.data?.qrcode ? stripQrPrefix(qrResult.data.qrcode) : null
     qrExpires = qr ? new Date(Date.now() + 30_000).toISOString() : null
   } catch (err) {
     try {
@@ -342,7 +346,7 @@ async function handleConnect(
       apiUrl: config.api_url,
       instanceToken,
     })
-    qr = qrResult?.data?.qrcode ?? null
+    qr = qrResult?.data?.qrcode ? stripQrPrefix(qrResult.data.qrcode) : null
     qrExpires = qr ? new Date(Date.now() + 30_000).toISOString() : null
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -452,7 +456,7 @@ async function handleReconnect(
       apiUrl: config.api_url,
       instanceToken,
     })
-    qr = qrResult?.data?.qrcode ?? null
+    qr = qrResult?.data?.qrcode ? stripQrPrefix(qrResult.data.qrcode) : null
     if (qr) {
       newStatus = 'pending_qr'
       qrExpires = new Date(Date.now() + 30_000).toISOString()
