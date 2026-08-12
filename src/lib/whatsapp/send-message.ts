@@ -574,8 +574,8 @@ async function sendEvolutionMessage(
 
   let evoMessageId = '';
   try {
-    const extractId = (r: { data?: { key?: { id?: string } }; key?: { id?: string } }) =>
-      r.data?.key?.id ?? r.key?.id ?? ''
+    const extractId = (r: { data?: { Info?: { ID?: string }; key?: { id?: string } }; key?: { id?: string } }) =>
+      r.data?.Info?.ID ?? r.data?.key?.id ?? r.key?.id ?? ''
 
     if (messageType === 'template' || messageType === 'text') {
       const r = await sendEvoText({

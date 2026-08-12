@@ -44,15 +44,14 @@ export interface EvolutionStatusResponse {
 export interface EvolutionSendResponse {
   message: string
   key?: {
-    remoteJid: string
-    fromMe: boolean
     id: string
   }
   data?: {
+    Info?: {
+      ID?: string
+    }
     key?: {
-      remoteJid: string
-      fromMe: boolean
-      id: string
+      id?: string
     }
     messageTimestamp?: string
     status?: string
