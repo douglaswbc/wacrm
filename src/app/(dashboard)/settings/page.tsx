@@ -15,6 +15,7 @@ import { AppearancePanel } from '@/components/settings/appearance-panel';
 import { WhatsAppConfig } from '@/components/settings/whatsapp-config';
 import { InstagramConfig } from '@/components/settings/instagram-config';
 import { RyzeApiConfig } from '@/components/settings/ryzeapi-config';
+import { EvolutionApiConfig } from '@/components/settings/evolution-config';
 import { CalendarConfig } from '@/components/settings/calendar-config';
 import { ZernioConfig } from '@/components/settings/zernio-config';
 import { TemplateManager } from '@/components/settings/template-manager';
@@ -88,6 +89,7 @@ function SettingsPageContent() {
     whatsapp: <WhatsAppConfig />,
     instagram: <InstagramConfig />,
     ryzeapi: <RyzeApiConfig />,
+    evolution: <EvolutionApiConfig />,
     calendar: <CalendarConfig />,
     social: <ZernioConfig />,
     templates: <TemplateManager />,

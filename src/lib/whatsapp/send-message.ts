@@ -29,6 +29,12 @@ import {
   sendList as sendRyzeList,
   sendPix as sendRyzePix,
 } from '@/lib/ryzeapi/client';
+import {
+  sendText as sendEvoText,
+  sendMedia as sendEvoMedia,
+  sendButtons as sendEvoButtons,
+  sendList as sendEvoList,
+} from '@/lib/evolution/client';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver';
@@ -292,6 +298,14 @@ export async function sendMessageToConversation(
     return sendRyzeMessage(db, accountId, conversationId, contact.phone, params);
   }
 
+  // ── Evolution API provider ─────────────────────────────────
+  if (provider === 'evolution') {
+    if (!contact?.phone) {
+      throw new SendMessageError('bad_request', 'Contact phone number not found', 400);
+    }
+    return sendEvolutionMessage(db, accountId, conversationId, contact.phone, params);
+  }
+
   // ── Zernio provider (primary for WhatsApp + Instagram) ────
   if (
     provider === 'zernio' ||
@@ -329,9 +343,21 @@ export async function sendMessageToConversation(
     return sendRyzeMessage(db, accountId, conversationId, contact.phone, params);
   }
 
+  // Fallback to Evolution API if configured
+  const { data: evoConfig } = await db
+    .from('evolution_config')
+    .select('*')
+    .eq('account_id', accountId)
+    .eq('status', 'connected')
+    .maybeSingle();
+
+  if (evoConfig) {
+    return sendEvolutionMessage(db, accountId, conversationId, contact.phone, params);
+  }
+
   throw new SendMessageError(
     'not_configured',
-    'No messaging provider configured. Connect via Zernio or RyzeAPI in Settings.',
+    'No messaging provider configured. Connect via Zernio, RyzeAPI, or Evolution API in Settings.',
     400,
   );
 }
@@ -505,6 +531,158 @@ async function sendRyzeMessage(
     .eq('id', conversationId);
 
   return { messageId: messageRecord.id, whatsappMessageId: ryzeMessageId };
+}
+
+// ── Evolution API send ───────────────────────────────────────
+
+async function sendEvolutionMessage(
+  db: SupabaseClient,
+  accountId: string,
+  conversationId: string,
+  phone: string,
+  params: SendMessageParams,
+): Promise<{ messageId: string; whatsappMessageId: string }> {
+  const { data: config, error: configError } = await db
+    .from('evolution_config')
+    .select('*')
+    .eq('account_id', accountId)
+    .eq('status', 'connected')
+    .single();
+
+  if (configError || !config) {
+    throw new SendMessageError(
+      'evolution_not_configured',
+      'Evolution API is not configured or not connected.',
+      400,
+    );
+  }
+
+  const instanceToken = decrypt(config.instance_token);
+  const {
+    messageType,
+    contentText,
+    mediaUrl,
+    filename,
+    replyToMessageId,
+    buttons,
+    headerText,
+    footerText,
+    buttonLabel,
+    sections,
+    linkPreview,
+  } = params;
+
+  let evoMessageId = '';
+  try {
+    if (messageType === 'template' || messageType === 'text') {
+      const r = await sendEvoText({
+        apiUrl: config.api_url,
+        instanceToken,
+        instance: config.instance_name,
+        number: phone,
+        message: contentText || '',
+        linkPreview: linkPreview || undefined,
+      });
+      evoMessageId = r.key.id;
+    } else if (messageType === 'buttons') {
+      const r = await sendEvoButtons({
+        apiUrl: config.api_url,
+        instanceToken,
+        instance: config.instance_name,
+        number: phone,
+        contentText: contentText || '',
+        buttons: (buttons ?? []).map((b) => ({ displayText: b.title, id: b.id })),
+        headerText: headerText || undefined,
+        footerText: footerText || undefined,
+      });
+      evoMessageId = r.key.id;
+    } else if (messageType === 'list') {
+      const r = await sendEvoList({
+        apiUrl: config.api_url,
+        instanceToken,
+        instance: config.instance_name,
+        number: phone,
+        contentText: contentText || '',
+        buttonText: buttonLabel || 'View',
+        sections: (sections ?? []).map((s) => ({
+          title: s.title || '',
+          rows: s.rows.map((row) => ({ id: row.id, title: row.title, description: row.description })),
+        })),
+        headerText: headerText || undefined,
+        footerText: footerText || undefined,
+      });
+      evoMessageId = r.key.id;
+    } else if (['image', 'video', 'audio', 'document'].includes(messageType)) {
+      const r = await sendEvoMedia({
+        apiUrl: config.api_url,
+        instanceToken,
+        instance: config.instance_name,
+        number: phone,
+        mediaType: messageType as 'image' | 'video' | 'audio' | 'document',
+        mediaUrl: mediaUrl || undefined,
+        message: contentText || undefined,
+        fileName: filename || undefined,
+      });
+      evoMessageId = r.key.id;
+    } else {
+      const r = await sendEvoText({
+        apiUrl: config.api_url,
+        instanceToken,
+        instance: config.instance_name,
+        number: phone,
+        message: contentText || '',
+      });
+      evoMessageId = r.key.id;
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown Evolution API error';
+    throw new SendMessageError('evolution_error', `Evolution API error: ${message}`, 502);
+  }
+
+  const { data: messageRecord, error: msgError } = await db
+    .from('messages')
+    .insert({
+      account_id: accountId,
+      conversation_id: conversationId,
+      sender_type: 'agent',
+      content_type: messageType,
+      content_text: contentText || null,
+      media_url: mediaUrl || null,
+      message_id: evoMessageId,
+      status: 'sent',
+      reply_to_message_id: replyToMessageId || null,
+    })
+    .select()
+    .single();
+
+  if (msgError) {
+    throw new SendMessageError(
+      'db_error',
+      `Message sent via Evolution API but failed to save to DB: ${msgError.message}`,
+      500,
+    );
+  }
+
+  void dispatchWebhookEvent(supabaseAdmin(), accountId, 'message.sent', {
+    conversation_id: conversationId,
+    message_id: messageRecord.id,
+    sender_type: 'agent',
+    content_type: messageType,
+    text: contentText || null,
+    channel: 'whatsapp',
+    provider: 'evolution',
+  }).catch((err) => console.error('[webhook] message.sent dispatch failed:', err))
+
+  await db
+    .from('conversations')
+    .update({
+      last_message_text: contentText || `[${messageType}]`,
+      last_message_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', conversationId);
+
+  return { messageId: messageRecord.id, whatsappMessageId: evoMessageId };
 }
 
 // ── Zernio send (primary: WhatsApp + Instagram) ────────────

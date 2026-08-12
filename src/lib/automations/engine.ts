@@ -89,7 +89,7 @@ export interface DispatchInput {
   /** WhatsApp provider. Automations scoped to a specific WhatsApp
    *  provider (e.g. 'meta') only fire for that provider. NULL-provider
    *  automations fire for both. Ignored for non-WhatsApp channels. */
-  provider?: 'meta' | 'ryzeapi' | 'zernio'
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution'
 }
 
 /**

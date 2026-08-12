@@ -32,6 +32,10 @@ services:
       - RYZEAPI_API_URL=https://ryzeapi.cloud
       - RYZEAPI_ADMIN_TOKEN=your-admin-token
 
+      # Evolution Go
+      - EVOLUTION_API_URL=https://your-evolution-server.com
+      - EVOLUTION_API_KEY=your-admin-apikey
+      
       # Zernio Social Media Integration (Settings → Social Accounts)
       - ZERNIO_API_KEY=sk_your-zernio-api-key
 

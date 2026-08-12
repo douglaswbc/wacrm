@@ -275,7 +275,7 @@ export interface FlowRow {
   channel?: 'whatsapp' | 'instagram' | null;
   /** NULL = fires for both WhatsApp providers. 'meta' | 'ryzeapi'
    *  scopes this flow to only that WhatsApp provider. */
-  provider?: 'meta' | 'ryzeapi' | 'zernio' | null;
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null;
   execution_count: number;
   last_executed_at: string | null;
   created_at: string;
