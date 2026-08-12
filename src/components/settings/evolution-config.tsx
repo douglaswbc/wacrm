@@ -299,7 +299,7 @@ export function EvolutionApiConfig() {
         </Alert>
       )}
       {status === 'pending_qr' && (
-        <Alert variant="warning">
+        <Alert>
           <QrCode className="size-4" />
           <AlertTitle>Waiting for QR scan</AlertTitle>
           <AlertDescription>
@@ -308,7 +308,7 @@ export function EvolutionApiConfig() {
         </Alert>
       )}
       {status === 'disconnected' && config && (
-        <Alert variant="warning">
+        <Alert>
           <Unplug className="size-4" />
           <AlertTitle>Disconnected</AlertTitle>
           <AlertDescription>
