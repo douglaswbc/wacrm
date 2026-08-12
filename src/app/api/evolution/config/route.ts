@@ -6,11 +6,9 @@ import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 import {
   createInstance,
   connectInstance,
-  listInstances,
   deleteInstance,
   disconnectInstance,
   getInstanceState,
-  setWebhook,
   getQrCode,
 } from '@/lib/evolution/client'
 
@@ -53,16 +51,16 @@ export async function GET() {
       return NextResponse.json(null, { status: 200 })
     }
 
-    // If status is pending_qr, check instance state.
+    // If status is pending_qr, poll instance state.
     if (config.status === 'pending_qr') {
       try {
         const instanceToken = decrypt(config.instance_token)
         const state = await getInstanceState({
           apiUrl: config.api_url,
           instanceToken,
-          instance: config.instance_name,
         })
-        if (state?.instance?.state === 'open') {
+        const s = state?.data?.state?.toLowerCase() ?? ''
+        if (s === 'open' || s === 'connected') {
           await supabase
             .from('evolution_config')
             .update({
@@ -115,10 +113,10 @@ export async function POST(request: Request) {
       return handleConnect(supabase, accountId, body)
     }
     if (action === 'logout') {
-      return handleLogout(supabase, accountId, user.id)
+      return handleLogout(supabase, accountId)
     }
     if (action === 'reconnect') {
-      return handleReconnect(supabase, accountId, user.id, body)
+      return handleReconnect(supabase, accountId, body)
     }
     if (action === 'update_relay') {
       return handleUpdateRelay(supabase, accountId, body)
@@ -146,7 +144,7 @@ export async function DELETE() {
 
     const { data: config } = await supabase
       .from('evolution_config')
-      .select('instance_name, api_url')
+      .select('instance_name, instance_id, api_url')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -157,10 +155,11 @@ export async function DELETE() {
     let remoteDeleted = false
     try {
       const adminKey = (process.env.EVOLUTION_API_KEY ?? '').trim()
+      const idForDelete = config.instance_id || config.instance_name
       await deleteInstance({
         apiUrl: config.api_url,
         adminKey,
-        instanceName: config.instance_name,
+        instanceId: idForDelete as string,
       })
       remoteDeleted = true
     } catch (e) {
@@ -227,10 +226,10 @@ async function handleCreate(
     return NextResponse.json({ error: 'instance_name is required' }, { status: 400 })
   }
 
-  // Generate a secure token for the instance.
   const instanceToken = crypto.randomUUID()
 
-  let instance: { instanceName: string; instanceId: string; status: string }
+  // 1. Create instance on Evolution Go.
+  let instanceId: string | undefined
   try {
     const result = await createInstance({
       apiUrl,
@@ -239,7 +238,7 @@ async function handleCreate(
       token: instanceToken,
       webhookUrl: webhookUrl || undefined,
     })
-    instance = result.instance
+    instanceId = result.data?.id ?? result.data?.instanceId
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json(
@@ -248,24 +247,21 @@ async function handleCreate(
     )
   }
 
-  // Get QR code.
+  // 2. Get QR code.
   let qr: string | null = null
   let qrExpires: string | null = null
   try {
     const qrResult = await getQrCode({
       apiUrl,
       instanceToken,
-      instance: instanceName,
     })
-    const qrBase64 =
-      qrResult?.qrcode?.base64 ??
-      qrResult?.base64 ??
-      null
-    qr = qrBase64
+    qr = qrResult?.data?.qrcode ?? null
     qrExpires = qr ? new Date(Date.now() + 30_000).toISOString() : null
   } catch (err) {
     try {
-      await deleteInstance({ apiUrl, adminKey, instanceName })
+      if (instanceId) {
+        await deleteInstance({ apiUrl, adminKey, instanceId })
+      }
     } catch { /* best effort */ }
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json(
@@ -274,7 +270,7 @@ async function handleCreate(
     )
   }
 
-  // Persist locally.
+  // 3. Persist locally.
   const encryptedAdmin = encrypt(adminKey)
   const encryptedInstance = encrypt(instanceToken)
 
@@ -285,7 +281,7 @@ async function handleCreate(
     api_key: encryptedAdmin,
     instance_name: instanceName,
     instance_token: encryptedInstance,
-    instance_id: instance.instanceId || null,
+    instance_id: instanceId || null,
     status: qr ? 'pending_qr' : 'connected',
     qr_base64: qr,
     qr_expires_at: qrExpires,
@@ -324,19 +320,29 @@ async function handleConnect(
 
   const instanceToken = decrypt(config.instance_token)
 
+  // Reconfigure webhook via connect.
+  const baseUrl = String(body.webhook_url ?? '').trim()
+  try {
+    await connectInstance({
+      apiUrl: config.api_url,
+      instanceToken,
+      webhookUrl: baseUrl
+        ? `${baseUrl}?instance=${encodeURIComponent(config.instance_name)}`
+        : undefined,
+    })
+  } catch (err) {
+    console.warn('[evolution connect] webhook reconfig failed (non-fatal):', err)
+  }
+
+  // Get fresh QR.
   let qr: string | null = null
   let qrExpires: string | null = null
   try {
     const qrResult = await getQrCode({
       apiUrl: config.api_url,
       instanceToken,
-      instance: config.instance_name,
     })
-    const qrBase64 =
-      qrResult?.qrcode?.base64 ??
-      qrResult?.base64 ??
-      null
-    qr = qrBase64
+    qr = qrResult?.data?.qrcode ?? null
     qrExpires = qr ? new Date(Date.now() + 30_000).toISOString() : null
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -357,23 +363,6 @@ async function handleConnect(
     return NextResponse.json({ error: 'Failed to update QR' }, { status: 500 })
   }
 
-  // Reconfigure webhook.
-  try {
-    const baseUrl = String(body.webhook_url ?? '').trim()
-    if (baseUrl) {
-      await setWebhook({
-        apiUrl: config.api_url,
-        instanceToken,
-        instance: config.instance_name,
-        enabled: true,
-        url: `${baseUrl}?instance=${encodeURIComponent(config.instance_name)}`,
-        events: ['MESSAGES_UPSERT'],
-      })
-    }
-  } catch (err) {
-    console.warn('[evolution connect] webhook reconfig failed (non-fatal):', err)
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { api_key, instance_token: _tok, ...safe } = config
   return NextResponse.json({
@@ -384,8 +373,6 @@ async function handleConnect(
 async function handleLogout(
   supabase: Awaited<ReturnType<typeof createClient>>,
   accountId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _userId: string,
 ) {
   const { data: config } = await supabase
     .from('evolution_config')
@@ -399,7 +386,6 @@ async function handleLogout(
       await disconnectInstance({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
       })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -429,7 +415,6 @@ async function handleLogout(
 async function handleReconnect(
   supabase: Awaited<ReturnType<typeof createClient>>,
   accountId: string,
-  _userId: string,
   body: Record<string, unknown>,
 ) {
   const { data: config, error: configError } = await supabase
@@ -444,21 +429,18 @@ async function handleReconnect(
 
   const instanceToken = decrypt(config.instance_token)
 
-  // Reconfigure webhook.
+  // Reconfigure webhook via connect.
+  const baseUrl = String(body.webhook_url ?? '').trim()
   try {
-    const baseUrl = String(body.webhook_url ?? '').trim()
-    if (baseUrl) {
-      await setWebhook({
-        apiUrl: config.api_url,
-        instanceToken,
-        instance: config.instance_name,
-        enabled: true,
-        url: `${baseUrl}?instance=${encodeURIComponent(config.instance_name)}`,
-        events: ['MESSAGES_UPSERT'],
-      })
-    }
+    await connectInstance({
+      apiUrl: config.api_url,
+      instanceToken,
+      webhookUrl: baseUrl
+        ? `${baseUrl}?instance=${encodeURIComponent(config.instance_name)}`
+        : undefined,
+    })
   } catch (err) {
-    console.warn('[evolution reconnect] webhook reconfig failed (non-fatal):', err)
+    console.warn('[evolution reconnect] connect/webhook failed (non-fatal):', err)
   }
 
   // Get fresh QR.
@@ -469,13 +451,8 @@ async function handleReconnect(
     const qrResult = await getQrCode({
       apiUrl: config.api_url,
       instanceToken,
-      instance: config.instance_name,
     })
-    const qrBase64 =
-      qrResult?.qrcode?.base64 ??
-      qrResult?.base64 ??
-      null
-    qr = qrBase64
+    qr = qrResult?.data?.qrcode ?? null
     if (qr) {
       newStatus = 'pending_qr'
       qrExpires = new Date(Date.now() + 30_000).toISOString()
@@ -486,9 +463,9 @@ async function handleReconnect(
       const state = await getInstanceState({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
       })
-      if (state?.instance?.state === 'open') {
+      const s = state?.data?.state?.toLowerCase() ?? ''
+      if (s === 'open' || s === 'connected') {
         newStatus = 'connected'
       }
     } catch {

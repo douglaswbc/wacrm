@@ -578,29 +578,26 @@ async function sendEvolutionMessage(
       const r = await sendEvoText({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
         number: phone,
         message: contentText || '',
         linkPreview: linkPreview || undefined,
       });
-      evoMessageId = r.key.id;
+      evoMessageId = r.data.key.id;
     } else if (messageType === 'buttons') {
       const r = await sendEvoButtons({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
         number: phone,
         contentText: contentText || '',
         buttons: (buttons ?? []).map((b) => ({ displayText: b.title, id: b.id })),
         headerText: headerText || undefined,
         footerText: footerText || undefined,
       });
-      evoMessageId = r.key.id;
+      evoMessageId = r.data.key.id;
     } else if (messageType === 'list') {
       const r = await sendEvoList({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
         number: phone,
         contentText: contentText || '',
         buttonText: buttonLabel || 'View',
@@ -611,28 +608,26 @@ async function sendEvolutionMessage(
         headerText: headerText || undefined,
         footerText: footerText || undefined,
       });
-      evoMessageId = r.key.id;
+      evoMessageId = r.data.key.id;
     } else if (['image', 'video', 'audio', 'document'].includes(messageType)) {
       const r = await sendEvoMedia({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
         number: phone,
         mediaType: messageType as 'image' | 'video' | 'audio' | 'document',
         mediaUrl: mediaUrl || undefined,
         message: contentText || undefined,
         fileName: filename || undefined,
       });
-      evoMessageId = r.key.id;
+      evoMessageId = r.data.key.id;
     } else {
       const r = await sendEvoText({
         apiUrl: config.api_url,
         instanceToken,
-        instance: config.instance_name,
         number: phone,
         message: contentText || '',
       });
-      evoMessageId = r.key.id;
+      evoMessageId = r.data.key.id;
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown Evolution API error';

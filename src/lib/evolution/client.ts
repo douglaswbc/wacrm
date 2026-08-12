@@ -1,19 +1,19 @@
 /**
- * Evolution API client — REST.
+ * Evolution Go API client — REST only.
  *
- * Auth: `ApiKey: {key}` header for all requests.
- * Instance management uses the admin API key from env vars.
- * Instance operations (connect, QR, messages) use the instance token.
+ * Auth: `apikey: {key}` header for all requests.
+ * Admin key (EVOLUTION_API_KEY from env) for /instance/create, /instance/all, /instance/delete.
+ * Instance token for /instance/connect, /instance/qr, /instance/status, /send/*, etc.
+ *
+ * Endpoints are path-only (no instance name in path) — the apikey header identifies the instance.
  */
 
-export interface EvolutionCreateResult {
-  instance: {
-    instanceName: string
-    instanceId: string
-    status: string
-  }
-  hash?: {
-    apikey: string
+export interface EvolutionCreateResponse {
+  message: string
+  data?: {
+    id?: string
+    instanceName?: string
+    instanceId?: string
   }
 }
 
@@ -21,37 +21,36 @@ export interface EvolutionInstance {
   instanceName: string
   instanceId: string
   status: string
+  token?: string
 }
 
-export interface EvolutionQrResult {
-  base64?: string
-  qrcode?: {
-    base64?: string
+export interface EvolutionQrResponse {
+  message: string
+  data: {
+    qrcode: string
+    count: number
   }
 }
 
-export interface EvolutionConnectResult {
-  pairingCode?: string
-  code?: string
-  count?: number
-}
-
-export interface EvolutionStateResult {
-  instance: {
-    instanceName: string
-    state: string
+export interface EvolutionStatusResponse {
+  message: string
+  data?: {
+    state?: string
+    status?: string
   }
 }
 
-export interface EvolutionSendResult {
-  key: {
-    remoteJid: string
-    fromMe: boolean
-    id: string
+export interface EvolutionSendResponse {
+  message: string
+  data: {
+    key: {
+      remoteJid: string
+      fromMe: boolean
+      id: string
+    }
+    messageTimestamp?: string
+    status?: string
   }
-  message?: Record<string, unknown>
-  messageTimestamp: string
-  status: string
 }
 
 // ---- Errors ----------------------------------------------------------
@@ -75,7 +74,7 @@ async function restFetch<T>(
 ): Promise<T> {
   const url = `${apiUrl.replace(/\/$/, '')}${path}`
   const headers: Record<string, string> = {
-    'ApiKey': apikey,
+    'apikey': apikey,
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string> | undefined),
   }
@@ -86,15 +85,11 @@ async function restFetch<T>(
     try {
       const body = await res.json() as Record<string, unknown>
       if (body && typeof body === 'object') {
-        const err = body.response as Record<string, unknown> | undefined
-        if (err && typeof err === 'object' && err.message) message = String(err.message)
-        else if (body.message) message = String(body.message)
+        if (body.message) message = String(body.message)
+        else if (body.error) message = String(body.error)
       }
     } catch {
-      try {
-        const text = await res.clone().text()
-        if (text && text.length < 500) message = `${message}: ${text}`
-      } catch { /* ignore */ }
+      /* keep status message */
     }
     throw new EvolutionApiError(message, res.status)
   }
@@ -108,30 +103,20 @@ export interface CreateInstanceArgs {
   adminKey: string
   name: string
   token: string
-  instanceId?: string
   webhookUrl?: string
 }
 
 export async function createInstance(
   args: CreateInstanceArgs,
-): Promise<EvolutionCreateResult> {
+): Promise<EvolutionCreateResponse> {
   const body: Record<string, unknown> = {
-    instanceName: args.name,
+    name: args.name,
     token: args.token,
-    integration: 'WHATSAPP-BAILEYS',
   }
   if (args.webhookUrl) {
-    body.webhook = {
-      url: args.webhookUrl,
-      byEvents: false,
-      base64: true,
-      events: ['MESSAGES_UPSERT'],
-    }
+    body.webhook = args.webhookUrl
   }
-  if (args.instanceId) {
-    body.instanceId = args.instanceId
-  }
-  return await restFetch<EvolutionCreateResult>(
+  return await restFetch<EvolutionCreateResponse>(
     args.apiUrl, args.adminKey, '/instance/create',
     { method: 'POST', body: JSON.stringify(body) },
   )
@@ -145,21 +130,22 @@ export interface ListInstancesArgs {
 export async function listInstances(
   args: ListInstancesArgs,
 ): Promise<EvolutionInstance[]> {
-  return await restFetch<EvolutionInstance[]>(
+  const result = await restFetch<{ data?: EvolutionInstance[] }>(
     args.apiUrl, args.adminKey, '/instance/all',
   )
+  return result.data ?? []
 }
 
 export interface DeleteInstanceArgs {
   apiUrl: string
   adminKey: string
-  instanceName: string
+  instanceId: string
 }
 
 export async function deleteInstance(args: DeleteInstanceArgs): Promise<void> {
   await restFetch(
     args.apiUrl, args.adminKey,
-    `/instance/delete/${encodeURIComponent(args.instanceName)}`,
+    `/instance/delete/${encodeURIComponent(args.instanceId)}`,
     { method: 'DELETE' },
   )
 }
@@ -169,54 +155,45 @@ export async function deleteInstance(args: DeleteInstanceArgs): Promise<void> {
 export interface ConnectInstanceArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
   webhookUrl?: string
 }
 
 export async function connectInstance(
   args: ConnectInstanceArgs,
-): Promise<EvolutionConnectResult> {
-  if (args.webhookUrl) {
-    return await restFetch<EvolutionConnectResult>(
-      args.apiUrl, args.instanceToken,
-      `/instance/connect/${encodeURIComponent(args.instance)}`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ immediate: true, webhookUrl: args.webhookUrl }),
-      },
-    )
+): Promise<{ message?: string }> {
+  const body: Record<string, unknown> = {
+    immediate: true,
   }
-  return await restFetch<EvolutionConnectResult>(
-    args.apiUrl, args.instanceToken,
-    `/instance/connect/${encodeURIComponent(args.instance)}`,
+  if (args.webhookUrl) {
+    body.webhookUrl = args.webhookUrl
+  }
+  return await restFetch(
+    args.apiUrl, args.instanceToken, '/instance/connect',
+    { method: 'POST', body: JSON.stringify(body) },
   )
 }
 
 export interface GetQrCodeArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
 }
 
 export async function getQrCode(
   args: GetQrCodeArgs,
-): Promise<EvolutionQrResult> {
-  return await restFetch<EvolutionQrResult>(
-    args.apiUrl, args.instanceToken,
-    `/instance/connect/${encodeURIComponent(args.instance)}`,
+): Promise<EvolutionQrResponse> {
+  return await restFetch<EvolutionQrResponse>(
+    args.apiUrl, args.instanceToken, '/instance/qr',
   )
 }
 
 export interface DisconnectInstanceArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
 }
 
 export async function disconnectInstance(args: DisconnectInstanceArgs): Promise<void> {
   await restFetch(
-    args.apiUrl, args.instanceToken,
-    `/instance/logout/${encodeURIComponent(args.instance)}`,
+    args.apiUrl, args.instanceToken, '/instance/logout',
     { method: 'DELETE' },
   )
 }
@@ -224,61 +201,28 @@ export async function disconnectInstance(args: DisconnectInstanceArgs): Promise<
 export interface GetInstanceStateArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
 }
 
 export async function getInstanceState(
   args: GetInstanceStateArgs,
-): Promise<EvolutionStateResult> {
-  return await restFetch<EvolutionStateResult>(
-    args.apiUrl, args.instanceToken,
-    `/instance/connectionState/${encodeURIComponent(args.instance)}`,
+): Promise<EvolutionStatusResponse> {
+  return await restFetch<EvolutionStatusResponse>(
+    args.apiUrl, args.instanceToken, '/instance/status',
   )
 }
 
-// ---- Webhook config ---------------------------------------------------
-
-export interface SetWebhookArgs {
-  apiUrl: string
-  instanceToken: string
-  instance: string
-  enabled: boolean
-  url: string
-  events?: string[]
-  base64?: boolean
-}
-
-export async function setWebhook(args: SetWebhookArgs): Promise<void> {
-  await restFetch(
-    args.apiUrl, args.instanceToken,
-    `/webhook/set/${encodeURIComponent(args.instance)}`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        enabled: args.enabled,
-        url: args.url,
-        webhookByEvents: false,
-        webhookBase64: args.base64 ?? true,
-        events: args.events ?? ['MESSAGES_UPSERT'],
-      }),
-    },
-  )
-}
-
-// ---- Send messages ----------------------------------------------------
+// ---- Send messages (Instance key) -------------------------------------
 
 export interface SendTextArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
   number: string
   message: string
   delay?: number
   linkPreview?: boolean
-  quotedId?: string
 }
 
-export async function sendText(args: SendTextArgs): Promise<EvolutionSendResult> {
+export async function sendText(args: SendTextArgs): Promise<EvolutionSendResponse> {
   const body: Record<string, unknown> = {
     number: args.number,
     text: args.message,
@@ -286,9 +230,8 @@ export async function sendText(args: SendTextArgs): Promise<EvolutionSendResult>
   if (args.delay) body.delay = args.delay
   if (args.linkPreview) body.linkPreview = args.linkPreview
 
-  return await restFetch<EvolutionSendResult>(
-    args.apiUrl, args.instanceToken,
-    `/message/sendText/${encodeURIComponent(args.instance)}`,
+  return await restFetch<EvolutionSendResponse>(
+    args.apiUrl, args.instanceToken, '/send/text',
     { method: 'POST', body: JSON.stringify(body) },
   )
 }
@@ -296,7 +239,6 @@ export async function sendText(args: SendTextArgs): Promise<EvolutionSendResult>
 export interface SendMediaArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
   number: string
   mediaType: 'image' | 'video' | 'audio' | 'document'
   mediaUrl?: string
@@ -307,11 +249,11 @@ export interface SendMediaArgs {
   delay?: number
 }
 
-export async function sendMedia(args: SendMediaArgs): Promise<EvolutionSendResult> {
+export async function sendMedia(args: SendMediaArgs): Promise<EvolutionSendResponse> {
   const media = args.mediaUrl || args.mediaBase64 || ''
   const body: Record<string, unknown> = {
     number: args.number,
-    mediatype: args.mediaType,
+    type: args.mediaType,
     media,
   }
   if (args.message) body.caption = args.message
@@ -319,17 +261,8 @@ export async function sendMedia(args: SendMediaArgs): Promise<EvolutionSendResul
   if (args.fileName) body.fileName = args.fileName
   if (args.delay) body.delay = args.delay
 
-  if (args.mediaType === 'audio') {
-    return await restFetch<EvolutionSendResult>(
-      args.apiUrl, args.instanceToken,
-      `/message/sendWhatsAppAudio/${encodeURIComponent(args.instance)}`,
-      { method: 'POST', body: JSON.stringify({ number: args.number, audio: media }) },
-    )
-  }
-
-  return await restFetch<EvolutionSendResult>(
-    args.apiUrl, args.instanceToken,
-    `/message/sendMedia/${encodeURIComponent(args.instance)}`,
+  return await restFetch<EvolutionSendResponse>(
+    args.apiUrl, args.instanceToken, '/send/media',
     { method: 'POST', body: JSON.stringify(body) },
   )
 }
@@ -337,31 +270,30 @@ export async function sendMedia(args: SendMediaArgs): Promise<EvolutionSendResul
 export interface SendButtonsArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
   number: string
   contentText: string
-  buttons: { displayText: string; id: string; type?: 'REPLY' | 'URL' | 'CALL' | 'COPY' }[]
+  buttons: { displayText: string; id: string; type?: string }[]
   headerText?: string
   footerText?: string
   delay?: number
 }
 
-export async function sendButtons(args: SendButtonsArgs): Promise<EvolutionSendResult> {
+export async function sendButtons(args: SendButtonsArgs): Promise<EvolutionSendResponse> {
   const body: Record<string, unknown> = {
     number: args.number,
-    title: args.headerText || ' ',
-    description: args.contentText,
-    footer: args.footerText || ' ',
+    title: args.headerText || '',
+    body: args.contentText,
+    footer: args.footerText || '',
     buttons: args.buttons.map((b) => ({
-      buttonText: { displayText: b.displayText },
-      buttonId: b.id,
+      type: b.type || 'reply',
+      displayText: b.displayText,
+      id: b.id,
     })),
   }
   if (args.delay) body.delay = args.delay
 
-  return await restFetch<EvolutionSendResult>(
-    args.apiUrl, args.instanceToken,
-    `/message/sendButtons/${encodeURIComponent(args.instance)}`,
+  return await restFetch<EvolutionSendResponse>(
+    args.apiUrl, args.instanceToken, '/send/button',
     { method: 'POST', body: JSON.stringify(body) },
   )
 }
@@ -369,7 +301,6 @@ export async function sendButtons(args: SendButtonsArgs): Promise<EvolutionSendR
 export interface SendListArgs {
   apiUrl: string
   instanceToken: string
-  instance: string
   number: string
   contentText: string
   buttonText: string
@@ -379,13 +310,13 @@ export interface SendListArgs {
   delay?: number
 }
 
-export async function sendList(args: SendListArgs): Promise<EvolutionSendResult> {
+export async function sendList(args: SendListArgs): Promise<EvolutionSendResponse> {
   const body: Record<string, unknown> = {
     number: args.number,
-    title: args.headerText || ' ',
-    description: args.contentText,
+    title: args.headerText || '',
+    body: args.contentText,
     buttonText: args.buttonText,
-    footerText: args.footerText || ' ',
+    footer: args.footerText || '',
     sections: args.sections.map((s) => ({
       title: s.title,
       rows: s.rows.map((r) => ({ title: r.title, description: r.description || '', rowId: r.id })),
@@ -393,9 +324,8 @@ export async function sendList(args: SendListArgs): Promise<EvolutionSendResult>
   }
   if (args.delay) body.delay = args.delay
 
-  return await restFetch<EvolutionSendResult>(
-    args.apiUrl, args.instanceToken,
-    `/message/sendList/${encodeURIComponent(args.instance)}`,
+  return await restFetch<EvolutionSendResponse>(
+    args.apiUrl, args.instanceToken, '/send/list',
     { method: 'POST', body: JSON.stringify(body) },
   )
 }
