@@ -382,7 +382,7 @@ export interface DispatchInboundInput {
   channel?: 'whatsapp' | 'instagram';
   /** WhatsApp provider. Used to filter flows scoped to a specific
    *  WhatsApp provider (NULL = both). Ignored for Instagram. */
-  provider?: 'meta' | 'ryzeapi' | 'zernio';
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution';
 }
 
 export interface DispatchInboundResult {

@@ -199,7 +199,7 @@ export interface Conversation {
   /** Which WhatsApp provider created this conversation. 'meta' for
    *  Meta Cloud API, 'ryzeapi' for RyzeAPI gateway. NULL for legacy
    *  rows and Instagram conversations. */
-  provider?: 'meta' | 'ryzeapi' | 'zernio';
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution';
   ai_autoreply_disabled?: boolean;
   ai_autoreply_disabled_at?: string;
   created_at: string;
@@ -741,7 +741,7 @@ export interface Automation {
   /** NULL = fires for both WhatsApp providers. 'meta' | 'ryzeapi'
    *  scopes this automation to only that WhatsApp provider. Ignored
    *  for Instagram channel. */
-  provider?: 'meta' | 'ryzeapi' | 'zernio' | null;
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null;
   execution_count: number;
   last_executed_at?: string | null;
   created_at: string;
