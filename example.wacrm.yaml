@@ -1,3 +1,22 @@
+# ============================================================
+# wacrm — Stack Docker Swarm / Portainer + Traefik
+#
+# IMPORTANTE — BUILD ANTES DO DEPLOY:
+# As variáveis NEXT_PUBLIC_* são embutidas no bundle JavaScript
+# no momento do BUILD (não adianta setá-las só como env de runtime).
+# Construa a imagem na VPS com os build args ANTES de subir esta stack:
+#
+#   git clone https://github.com/douglaswbc/wacrm && cd wacrm
+#   docker build -t wacrm:latest \
+#     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co \
+#     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...sua-anon-key \
+#     --build-arg NEXT_PUBLIC_SITE_URL=https://app.autofunil.com.br \
+#     .
+#
+# Depois faça o deploy da stack pelo Portainer (Repositories ou
+# Web editor colando este arquivo).
+# ============================================================
+
 version: "3.8"
 
 services:
@@ -14,37 +33,59 @@ services:
     environment:
       - NODE_ENV=production
 
-      ## Supabase
+      ## Supabase (OBRIGATÓRIAS — Settings → API no painel do Supabase)
+      ## Nota: também devem ser passadas como --build-arg (ver cabeçalho)
       - NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+      ## Service role (OBRIGATÓRIA — secreta, bypassa RLS; usada apenas
+      ## server-side: webhooks, engines e auth da API pública)
       - SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-      ## Criptografia e Segurança
+      ## Criptografia e Segurança (OBRIGATÓRIAS)
+      ## ENCRYPTION_KEY: 64 hex chars = 32 bytes (AES-256-GCM). Gere com:
+      ##   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      ## ⚠️ Se já existirem tokens/configs salvos no Supabase, use A MESMA
+      ## chave da época — trocá-la órfã todos os tokens criptografados.
       - ENCRYPTION_KEY=your-64-char-hex-key
+      ## Protege os endpoints de cron (automations/flows/instagram).
+      ## Gere com: openssl rand -hex 32
       - AUTOMATION_CRON_SECRET=generate-a-long-random-string
 
-      ## Google Calendar
+      ## Google Calendar (OPCIONAL — Settings → Google Calendar)
+      ## Redirect URI no Google Cloud Console deve ser exatamente:
+      ##   https://app.autofunil.com.br/api/calendar/callback
       - GOOGLE_CALENDAR_CLIENT_ID=your-client-id.apps.googleusercontent.com
       - GOOGLE_CALENDAR_CLIENT_SECRET=GOCSPX-your-client-secret
-      - GOOGLE_CALENDAR_REDIRECT_URI=https://wacrm.yourdomain.com/api/calendar/callback
+      - GOOGLE_CALENDAR_REDIRECT_URI=https://app.autofunil.com.br/api/calendar/callback
 
-      # RyzeAPI
+      # RyzeAPI (OPCIONAL — WhatsApp self-hosted alternativo)
       - RYZEAPI_API_URL=https://ryzeapi.cloud
       - RYZEAPI_ADMIN_TOKEN=your-admin-token
 
-      # Evolution Go
+      # Evolution Go (WhatsApp via Evolution API Whatsmeow)
+      # URL e admin apikey do servidor Evolution Go existente.
       - EVOLUTION_API_URL=https://your-evolution-server.com
       - EVOLUTION_API_KEY=your-admin-apikey
-      
+
       # Zernio Social Media Integration (Settings → Social Accounts)
       - ZERNIO_API_KEY=sk_your-zernio-api-key
-
-      # Optional: webhook secret for verifying Zernio webhook deliveries.
-      # Generate any long random string: openssl rand -hex 32
+      # Opcional: segredo para validar webhooks do Zernio.
+      # Gere com: openssl rand -hex 32
       - ZERNIO_WEBHOOK_SECRET=generate-a-long-random-string
 
-      ## URL pública
-      - NEXT_PUBLIC_SITE_URL=https://wacrm.yourdomain.com
+      ## URL pública canônica (usada em links de convite, callbacks e
+      ## registro automático do webhook da Evolution)
+      - NEXT_PUBLIC_SITE_URL=https://app.autofunil.com.br
+
+    healthcheck:
+      # fetch() resolve mesmo com resposta 401 — só falha se o servidor
+      # não responder (processo morto/travado).
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/me').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
     deploy:
       mode: replicated
@@ -58,7 +99,7 @@ services:
           memory: 1024M
       labels:
         - traefik.enable=true
-        - traefik.http.routers.wacrm.rule=Host(`wacrm.yourdomain.com`)
+        - traefik.http.routers.wacrm.rule=Host(`app.autofunil.com.br`)
         - traefik.http.routers.wacrm.entrypoints=websecure
         - traefik.http.routers.wacrm.priority=10
         - traefik.http.routers.wacrm.tls.certresolver=letsencryptresolver
