@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Loader2, Search, X, Image as ImageIcon, Video, FileText } from "lucide-react";
+import { Loader2, Search, X, Video, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiMediaAsset, ApiMediaTag } from "@/lib/api/v1/media-library";
 
@@ -21,7 +19,6 @@ export interface MediaPickerProps {
 }
 
 export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) {
-  const supabase = createClient();
   const [assets, setAssets] = useState<ApiMediaAsset[]>([]);
   const [tags, setTags] = useState<ApiMediaTag[]>([]);
   const [loading, setLoading] = useState(false);

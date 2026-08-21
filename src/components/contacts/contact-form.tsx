@@ -23,7 +23,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface ContactFormProps {
@@ -78,6 +77,7 @@ export function ContactForm({
       setDupMatch(null);
       fetchTags();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form-reset on open/contact change only; `fetchTags` is recreated each render (refetch loop) and re-running on `contactTags` would clobber in-progress tag selection
   }, [open, contact]);
 
   // Look up an existing contact with this number (new contacts only).

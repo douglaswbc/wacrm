@@ -87,6 +87,7 @@ export default function BroadcastsPage() {
 
   useEffect(() => {
     fetchBroadcasts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch-on-mount only; `fetchBroadcasts` is recreated each render and adding it would refetch in a loop
   }, []);
 
   const anySending = useMemo(
@@ -128,6 +129,7 @@ export default function BroadcastsPage() {
       stopPolling();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `fetchBroadcasts` is recreated each render; polling lifecycle should follow `anySending` only
   }, [anySending]);
 
   if (loading) {

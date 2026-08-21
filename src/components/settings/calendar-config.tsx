@@ -67,6 +67,9 @@ export function CalendarConfig() {
   }, [fetchStatus]);
 
   const handleConnect = () => {
+    // Full page navigation is required to start the OAuth flow and
+    // land back on the OAuth callback route.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- intentional hard redirect to trigger the Google OAuth flow via API route
     window.location.href = '/api/calendar/connect';
   };
 

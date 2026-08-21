@@ -2,19 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "sonner";
 import {
-  uploadAccountMedia,
-  deleteAccountMedia,
-  MEDIA_LIBRARY_BUCKET,
   MEDIA_MAX_BYTES_BY_KIND,
 } from "@/lib/storage/upload-media";
 import type { ApiMediaAsset, ApiMediaTag } from "@/lib/api/v1/media-library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -28,11 +23,9 @@ import {
   Trash2,
   Search,
   X,
-  Image as ImageIcon,
   Video,
   FileText,
   Loader2,
-  Tag,
   Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -125,8 +118,6 @@ function ContactSearchDialog({
 
 export default function MediaLibraryPage() {
   const { t } = useLanguage();
-  const { accountId } = useAuth();
-  const supabase = createClient();
 
   const [assets, setAssets] = useState<ApiMediaAsset[]>([]);
   const [tags, setTags] = useState<ApiMediaTag[]>([]);
@@ -313,16 +304,7 @@ export default function MediaLibraryPage() {
     }
   }
 
-  const typeIcon = (mediaType: string) => {
-    switch (mediaType) {
-      case "image": return <ImageIcon className="h-4 w-4" />;
-      case "video": return <Video className="h-4 w-4" />;
-      default: return <FileText className="h-4 w-4" />;
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full">
+  return (    <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t("nav.mediaLibrary")}</h1>

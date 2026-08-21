@@ -311,6 +311,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setAccount(null);
+    // Hard redirect clears all in-memory auth state after sign-out.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload needed to clear auth state after logout
     window.location.href = "/login";
   }, []);
 
@@ -374,6 +376,8 @@ export function useAuth(): AuthContextValue {
       loading: false,
       profileLoading: false,
       signOut: async () => {
+        // Hard redirect ensures a clean slate outside the provider.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload needed to reset auth state without provider
         window.location.href = "/login";
       },
       refreshProfile: async () => {},

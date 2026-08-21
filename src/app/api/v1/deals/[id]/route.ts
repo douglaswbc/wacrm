@@ -1,9 +1,6 @@
 import { requireApiKey } from '@/lib/auth/api-context';
 import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
-import {
-  getDealById,
-  serializeDeal,
-} from '@/lib/api/v1/deals';
+import { getDealById } from '@/lib/api/v1/deals';
 import { verifyPipelineAccess, verifyStageAccess } from '@/lib/api/v1/pipelines';
 
 export async function GET(

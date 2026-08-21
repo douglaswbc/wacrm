@@ -3,7 +3,7 @@
 // ============================================================
 
 import { requireApiKey } from '@/lib/auth/api-context';
-import { ok, okList, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
+import { okList, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import { parseListParams, keysetFilter, buildPage } from '@/lib/api/v1/pagination';
 import {
   MEDIA_ASSET_SELECT,

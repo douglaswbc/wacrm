@@ -189,6 +189,7 @@ export default function BroadcastDetailPage() {
     }
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is only a fallback label; adding it would refetch the broadcast on language change
   }, [broadcastId]);
 
   const filteredRecipients = useMemo(

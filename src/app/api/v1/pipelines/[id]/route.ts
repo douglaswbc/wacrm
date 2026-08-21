@@ -1,9 +1,6 @@
 import { requireApiKey } from '@/lib/auth/api-context';
 import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
-import {
-  getPipelineById,
-  serializeStage,
-} from '@/lib/api/v1/pipelines';
+import { getPipelineById } from '@/lib/api/v1/pipelines';
 
 export async function GET(
   request: Request,

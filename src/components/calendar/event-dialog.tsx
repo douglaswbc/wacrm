@@ -122,7 +122,7 @@ export function EventDialog({
     };
 
     fetchContacts();
-  }, [open, event, defaultDate]);
+  }, [open, event, defaultDate, accountId]);
 
   const handleSave = useCallback(async () => {
     if (!title.trim()) {

@@ -12,7 +12,7 @@
 
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
-import { exchangeToken, debugToken } from '@/lib/instagram/meta-api'
+import { exchangeToken } from '@/lib/instagram/meta-api'
 
 const REFRESH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 

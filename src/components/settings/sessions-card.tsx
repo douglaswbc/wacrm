@@ -38,6 +38,8 @@ export function SessionsCard() {
         toast.error(`Sign-out failed: ${error.message}`);
         return;
       }
+      // Hard redirect clears all in-memory state after revoking every session.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload needed to clear auth state after global sign-out
       window.location.href = '/login';
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';

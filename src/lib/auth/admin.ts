@@ -12,7 +12,7 @@
 
 import { createClient as createSsrClient } from "@/lib/supabase/server";
 import { type SupabaseClient, createClient } from "@supabase/supabase-js";
-import { toErrorResponse, UnauthorizedError, ForbiddenError } from "./account";
+import { UnauthorizedError, ForbiddenError } from "./account";
 
 let _adminClient: SupabaseClient | null = null;
 

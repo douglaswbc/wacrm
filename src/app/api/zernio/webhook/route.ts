@@ -1,7 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { getProfileId, updateConnectedAccounts } from '@/lib/zernio/store';
 import { normalizeZernioPayload } from '@/lib/zernio/normalize';
 import { runAutomationsForTrigger } from '@/lib/automations/engine';
 import { dispatchInboundToFlows } from '@/lib/flows/engine';

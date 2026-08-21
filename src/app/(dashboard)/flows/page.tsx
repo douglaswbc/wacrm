@@ -57,12 +57,6 @@ interface FlowRow {
   updated_at: string;
 }
 
-const STATUS_LABELS: Record<FlowRow["status"], string> = {
-  draft: "Draft",
-  active: "Active",
-  archived: "Archived",
-};
-
 const STATUS_COLORS: Record<FlowRow["status"], string> = {
   draft: "border-border bg-muted text-muted-foreground",
   active: "border-emerald-600/40 bg-emerald-500/10 text-emerald-300",
@@ -129,6 +123,7 @@ export default function FlowsPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is only used in the error toast; adding it would refetch flows on language change
   }, []);
 
   async function handleCreate() {

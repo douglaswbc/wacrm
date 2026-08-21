@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   CheckCircle2,
-  XCircle,
   Loader2,
   QrCode,
   RefreshCw,
@@ -13,6 +12,7 @@ import {
   Zap,
   AlertTriangle,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -327,10 +327,13 @@ export function EvolutionApiConfig() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
-            <img
+            <Image
               src={`data:image/png;base64,${config.qr_base64}`}
               alt="WhatsApp QR code"
               className="size-56 rounded-lg border"
+              width={224}
+              height={224}
+              unoptimized
             />
             {qrExpiry && (
               <p className="text-xs text-muted-foreground">

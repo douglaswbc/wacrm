@@ -29,7 +29,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { WORKSPACE_FEATURE_META, type WorkspaceFeature } from "@/lib/features";
 
@@ -56,13 +55,6 @@ function fmtDate(iso: string): string {
     month: "short",
     day: "numeric",
   });
-}
-
-function isSuperAdmin(): Promise<boolean> {
-  return fetch("/api/admin/me")
-    .then((r) => r.json())
-    .then((d) => d.admin === true)
-    .catch(() => false);
 }
 
 export default function AdminPage() {

@@ -100,6 +100,7 @@ export default function AutomationsPage() {
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch-on-mount only; `load` is recreated each render and adding it would refetch in a loop
   }, [])
 
   async function toggleActive(a: Automation, next: boolean) {

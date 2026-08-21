@@ -240,22 +240,13 @@ export async function sendMessageToConversation(
     messageType,
     contentText,
     mediaUrl,
-    filename,
     templateName,
-    templateLanguage,
-    templateParams,
-    templateMessageParams,
-    replyToMessageId,
     buttons,
-    headerText,
-    footerText,
     buttonLabel,
     sections,
     pixKey,
     pixKeyType,
     merchantName,
-    pixItems,
-    linkPreview,
   } = params;
 
   if (!conversationId) {
@@ -267,8 +258,6 @@ export async function sendMessageToConversation(
   }
 
   validateSendMessageParams({ messageType, contentText, mediaUrl, templateName, buttons, buttonLabel, sections, pixKey, pixKeyType, merchantName });
-
-  const isMediaKind = (MEDIA_KINDS as readonly string[]).includes(messageType);
 
   // Conversation + contact + Zernio routing fields, account-scoped.
   const { data: conversation, error: convError } = await db
@@ -731,13 +720,11 @@ async function sendZernioMessage(
     templateName,
     templateLanguage,
     templateParams,
-    replyToMessageId,
     buttons,
     headerText,
     footerText,
     buttonLabel,
     sections,
-    linkPreview,
   } = params;
 
   // PIX only via RyzeAPI

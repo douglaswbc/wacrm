@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, ExternalLink, Loader2, Plus, Trash2, Edit2, CheckCircle2, AlertTriangle, XCircle, Send } from 'lucide-react';
+import { Copy, Loader2, Plus, Trash2, Edit2, CheckCircle2, AlertTriangle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

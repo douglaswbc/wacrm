@@ -1053,11 +1053,6 @@ function TimeBasedConfig({
 
   const stageOptions = stages.filter((s) => s.pipeline_id === pipelineId)
 
-  function setTag(newTagId: string) {
-    const next = newTagId ? [newTagId] : []
-    onChange({ ...config, tag_ids: next })
-  }
-
   return (
     <div className="space-y-4">
       {/* Schedule */}

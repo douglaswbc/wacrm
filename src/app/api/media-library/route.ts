@@ -13,7 +13,6 @@ import {
 import {
   MEDIA_ASSET_SELECT,
   serializeMediaAsset,
-  serializeMediaTag,
 } from '@/lib/api/v1/media-library';
 
 export async function GET(request: Request) {

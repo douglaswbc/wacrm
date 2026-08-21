@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import Image from 'next/image';
 import {
   CheckCircle2,
   XCircle,
@@ -340,10 +341,13 @@ export function RyzeApiConfig() {
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-4">
                 <div className="rounded-lg border border-border bg-white p-3">
-                  <img
+                  <Image
                     src={`data:image/png;base64,${config.qr_base64}`}
                     alt="WhatsApp QR code"
                     className="h-56 w-56"
+                    width={224}
+                    height={224}
+                    unoptimized
                   />
                 </div>
                 {qrExpiry && (

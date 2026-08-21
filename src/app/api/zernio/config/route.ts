@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { requireRole, toErrorResponse } from '@/lib/auth/account';
 import {
   createProfile,
-  getProfile,
   deleteProfile,
   listSocialAccounts,
   disconnectSocialAccount,
@@ -11,7 +10,6 @@ import {
   getConnection,
   createConnection,
   deleteConnection,
-  getProfileId,
   updateConnectedAccounts,
   refreshSocialAccounts,
 } from '@/lib/zernio/store';

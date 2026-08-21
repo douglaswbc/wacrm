@@ -58,7 +58,7 @@ export function estimateCost(params: {
   audioSeconds?: number
   imageCount?: number
 }): number {
-  const { provider, model, operationType, inputTokens, outputTokens, audioSeconds, imageCount } = params
+  const { provider, model, operationType, inputTokens, outputTokens, audioSeconds } = params
 
   const providerPricing = PRICING[provider]
   if (!providerPricing) return 0

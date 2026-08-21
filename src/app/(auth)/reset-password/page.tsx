@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useLanguage } from "@/hooks/use-language";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,6 @@ import {
 import { CheckCircle, Lock } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const { t } = useLanguage();
   const router = useRouter();
   const supabase = createClient();
 

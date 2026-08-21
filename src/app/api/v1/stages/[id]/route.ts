@@ -3,7 +3,6 @@ import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import {
   getStageById,
   verifyStageAccess,
-  serializeStage,
 } from '@/lib/api/v1/pipelines';
 
 export async function PATCH(

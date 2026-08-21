@@ -3,7 +3,6 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { MediaAsset, MediaTag } from '@/types';
 
 export const MEDIA_ASSET_SELECT = '*, media_asset_tags(media_tags(*))';
 
