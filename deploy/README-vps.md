@@ -69,24 +69,62 @@ Verifique a saúde do container: Portainer → Containers → `wacrm` deve estar
 ## 3. Cron dos engines (obrigatório para automations/flows)
 
 Os endpoints de cron precisam ser pingados a cada minuto com o header
-`x-cron-secret`. Na própria VPS:
+`x-cron-secret`.
+
+### 3.1 Instalar o cron (distros mínimas vêm sem ele)
+
+Em Debian/Ubuntu enxuto, o `crontab` pode não existir:
 
 ```bash
-crontab -e
+apt-get update && apt-get install -y cron
+systemctl enable --now cron
 ```
 
-Adicione (substitua o secret pelo valor de `AUTOMATION_CRON_SECRET`):
+### 3.2 Registrar os agendamentos
 
-```cron
+⚠️ **Colar linhas de cron direto no terminal NÃO registra nada** — elas são
+executadas uma vez pelo bash e descartadas. Use um dos métodos abaixo.
+
+**Método não-interativo (recomendado)** — cole o bloco inteiro no terminal,
+substituindo o secret pelo valor de `AUTOMATION_CRON_SECRET`:
+
+```bash
+cat <<'EOF' | crontab -
 * * * * * curl -s -H "x-cron-secret: SEU_AUTOMATION_CRON_SECRET" https://app.autofunil.com.br/api/automations/cron > /dev/null 2>&1
 * * * * * curl -s -H "x-cron-secret: SEU_AUTOMATION_CRON_SECRET" https://app.autofunil.com.br/api/flows/cron > /dev/null 2>&1
 * * * * * curl -s -H "x-cron-secret: SEU_AUTOMATION_CRON_SECRET" https://app.autofunil.com.br/api/instagram/cron > /dev/null 2>&1
+EOF
 ```
 
-Sem isso, automations com agendamento (`time_based`) e flows com wait steps
-não disparam.
+**Método interativo:** `crontab -e` (escolha nano se perguntar), cole as 3
+linhas no final e salve com Ctrl+O → Enter → Ctrl+X.
 
-Alternativa: [cron-job.org](https://cron-job.org) com header customizado.
+> Se o root já tiver outros agendamentos, prefira o método interativo —
+> o bloco acima **substitui** todo o crontab existente.
+
+### 3.3 Verificar
+
+```bash
+crontab -l                          # deve listar as 3 linhas
+systemctl status cron --no-pager    # deve estar active (running)
+
+# teste manual — deve retornar JSON, não erro:
+curl -H "x-cron-secret: SEU_AUTOMATION_CRON_SECRET" https://app.autofunil.com.br/api/automations/cron
+```
+
+Respostas possíveis do teste manual:
+
+| Resposta | Significado |
+|---|---|
+| JSON com contadores (`fired`, `processed`, etc.) | ✅ Funcionando |
+| `{"error":"Unauthorized"}` | O secret do header difere do da stack |
+| `{"error":"cron not configured"}` | `AUTOMATION_CRON_SECRET` não chegou no container — confira a env na stack do Portainer e faça redeploy |
+
+Sem o cron configurado, automations com agendamento (`time_based`) e flows
+com wait steps **não disparam**.
+
+Alternativa: [cron-job.org](https://cron-job.org) com header customizado
+`x-cron-secret`.
 
 ---
 
@@ -123,5 +161,6 @@ acima está configurada para os eventos de mensagem.
 | Container `(healthy: starting)` por muito tempo | Primeiro boot compilando caches | Aguardar `start_period` (60s); verificar logs |
 | Certificado TLS não emite | DNS ainda não propagou ou porta 80 bloqueada | `dig app.autofunil.com.br`; liberar 80/443 |
 | Webhook Evolution não recebe mensagens | URL errada no painel da Evolution | Conferir `https://app.autofunil.com.br/api/evolution/webhook` |
-| Automations time_based não disparam | Cron não configurado | Passo 3 |
+| Automations time_based não disparam | Cron não configurado ou distro sem o pacote | Seção 3 (instalar `cron` + registrar agendamentos) |
+| `crontab: command not found` | Debian/Ubuntu mínimo sem o pacote cron | `apt-get install -y cron && systemctl enable --now cron` |
 | Erro de descriptografia ao salvar config WhatsApp | `ENCRYPTION_KEY` diferente da usada antes | Usar a mesma chave; tokens antigos precisam ser re-salvos |
