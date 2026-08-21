@@ -58,8 +58,8 @@ vi.mock("./admin-client", () => {
       if (parentIsNull) rows = rows.filter((s) => s.parent_step_id == null);
       else if (parentEq) rows = rows.filter((s) => s.parent_step_id === parentEq[2]);
       if (branchEq) rows = rows.filter((s) => (s.branch ?? "yes") === branchEq[2]);
-      if (gte) rows = rows.filter((s) => (s.position ?? 0) >= gte[2]);
-      return { data: [...rows].sort((a, b) => a.position - b.position), error: null };
+      if (gte) rows = rows.filter((s) => (s.position as number | undefined ?? 0) >= (gte[2] as number));
+      return { data: [...rows].sort((a, b) => (a.position as number) - (b.position as number)), error: null };
     }
     if (table === "automation_logs") {
       if (type === "insert") return { data: { id: "log1" }, error: null };
@@ -560,7 +560,7 @@ describe("condition — var_equals branch selection", () => {
     });
 
     expect(engineSendText).toHaveBeenCalledTimes(1);
-    const arg = engineSendText.mock.calls[0][0];
+    const arg = vi.mocked(engineSendText).mock.calls[0][0];
     expect(arg.text).toBe("hot branch");
   });
 
@@ -577,7 +577,7 @@ describe("condition — var_equals branch selection", () => {
     });
 
     expect(engineSendText).toHaveBeenCalledTimes(1);
-    const arg = engineSendText.mock.calls[0][0];
+    const arg = vi.mocked(engineSendText).mock.calls[0][0];
     expect(arg.text).toBe("cold branch");
   });
 
@@ -594,7 +594,7 @@ describe("condition — var_equals branch selection", () => {
     });
 
     expect(engineSendText).toHaveBeenCalledTimes(1);
-    const arg = engineSendText.mock.calls[0][0];
+    const arg = vi.mocked(engineSendText).mock.calls[0][0];
     expect(arg.text).toBe("cold branch");
   });
 });

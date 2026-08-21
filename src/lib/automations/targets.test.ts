@@ -63,23 +63,24 @@ beforeEach(() => {
 
 describe("resolveTargetMode", () => {
   it("uses target_mode when present", () => {
-    expect(resolveTargetMode({ target_mode: "tags" })).toBe("tags");
-    expect(resolveTargetMode({ target_mode: "pipeline" })).toBe("pipeline");
-    expect(resolveTargetMode({ target_mode: "both" })).toBe("both");
+    expect(resolveTargetMode({ schedule: "09:00", target_mode: "tags" })).toBe("tags");
+    expect(resolveTargetMode({ schedule: "09:00", target_mode: "pipeline" })).toBe("pipeline");
+    expect(resolveTargetMode({ schedule: "09:00", target_mode: "both" })).toBe("both");
   });
 
   it("infers pipeline from pipeline_id, else defaults to tags", () => {
-    expect(resolveTargetMode({ pipeline_id: "p1" })).toBe("pipeline");
-    expect(resolveTargetMode({})).toBe("tags");
+    expect(resolveTargetMode({ schedule: "09:00", pipeline_id: "p1" })).toBe("pipeline");
+    expect(resolveTargetMode({ schedule: "09:00" })).toBe("tags");
   });
 });
 
 describe("resolveTargetContacts — pipeline mode", () => {
   const pipelineCfg = {
-    target_mode: "pipeline",
+    schedule: "09:00",
+    target_mode: "pipeline" as const,
     pipeline_id: "p1",
     stage_id: "st1",
-    deal_status: "open",
+    deal_status: "open" as const,
   };
 
   it("returns unique contact_ids scoped to the account and pipeline", async () => {
@@ -145,6 +146,7 @@ describe("resolveTargetContacts — tags mode", () => {
     ];
 
     const ids = await resolveTargetContacts(ACCOUNT, {
+      schedule: "09:00",
       target_mode: "tags",
       tag_ids: ["t1", "t2"],
     });
@@ -157,7 +159,7 @@ describe("resolveTargetContacts — tags mode", () => {
 
   it("returns [] when no tag_ids are configured", async () => {
     await expect(
-      resolveTargetContacts(ACCOUNT, { target_mode: "tags" }),
+      resolveTargetContacts(ACCOUNT, { schedule: "09:00", target_mode: "tags" }),
     ).resolves.toEqual([]);
   });
 });
@@ -171,6 +173,7 @@ describe("resolveTargetContacts — both mode (intersection)", () => {
     h.dealRows = [{ contact_id: "c2" }, { contact_id: "c3" }];
 
     const ids = await resolveTargetContacts(ACCOUNT, {
+      schedule: "09:00",
       target_mode: "both",
       tag_ids: ["t1"],
       pipeline_id: "p1",
@@ -184,6 +187,7 @@ describe("resolveTargetContacts — both mode (intersection)", () => {
     h.dealRows = [{ contact_id: "c1" }];
 
     const ids = await resolveTargetContacts(ACCOUNT, {
+      schedule: "09:00",
       target_mode: "both",
       tag_ids: ["t1"],
       pipeline_id: "p1",
