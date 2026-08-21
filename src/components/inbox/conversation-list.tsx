@@ -9,7 +9,12 @@ import {
   normalizeConversations,
 } from "@/lib/inbox/conversations";
 import { cn } from "@/lib/utils";
-import type { Conversation, ConversationStatus, Tag } from "@/types";
+import type {
+  Conversation,
+  ConversationLabel,
+  ConversationStatus,
+  Tag,
+} from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -78,6 +83,10 @@ export function ConversationList({
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  // Conversation labels (Evolution Go labels). Same OR logic as tags: a
+  // conversation matches if it carries any of the selected labels.
+  const [labels, setLabels] = useState<ConversationLabel[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -146,6 +155,28 @@ export function ConversationList({
     };
   }, []);
 
+  // Label definitions for the filter picker — loaded once from the same
+  // API the settings manager uses; soft-deleted definitions are skipped
+  // so stale WhatsApp labels never show up as filter options.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/evolution/labels");
+        if (!res.ok) return;
+        const data = (await res.json()) as { labels?: ConversationLabel[] };
+        if (!cancelled && data.labels) {
+          setLabels(data.labels.filter((l) => !l.deleted));
+        }
+      } catch {
+        // Filter options are best-effort; the list still works without them.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Company options are derived from the loaded conversations — there's no
   // separate companies table, and only companies with a live conversation
   // are worth offering as an inbox filter.
@@ -164,6 +195,12 @@ export function ConversationList({
     return m;
   }, [tags]);
 
+  const labelsById = useMemo(() => {
+    const m = new Map<string, ConversationLabel>();
+    for (const l of labels) m.set(l.id, l);
+    return m;
+  }, [labels]);
+
   const filtered = useMemo(() => {
     let result = conversations;
 
@@ -173,12 +210,18 @@ export function ConversationList({
       result = result.filter((c) => c.status === filter);
     }
 
-    // Contact-based filters (tags via OR logic, exact company match).
-    if (selectedTagIds.length > 0 || selectedCompany !== null) {
+    // Contact-based filters (tags via OR logic, exact company match)
+    // plus conversation-label filter (same OR logic as tags).
+    if (
+      selectedTagIds.length > 0 ||
+      selectedCompany !== null ||
+      selectedLabelIds.length > 0
+    ) {
       result = result.filter((c) =>
         matchesContactFilters(c, {
           tagIds: selectedTagIds,
           company: selectedCompany,
+          labelIds: selectedLabelIds,
         })
       );
     }
@@ -201,7 +244,7 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany, channelFilter]);
+  }, [conversations, filter, search, selectedTagIds, selectedCompany, selectedLabelIds, channelFilter]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -209,12 +252,22 @@ export function ConversationList({
     );
   }, []);
 
+  const toggleLabel = useCallback((id: string) => {
+    setSelectedLabelIds((prev) =>
+      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]
+    );
+  }, []);
+
   const clearContactFilters = useCallback(() => {
     setSelectedTagIds([]);
     setSelectedCompany(null);
+    setSelectedLabelIds([]);
   }, []);
 
-  const hasContactFilters = selectedTagIds.length > 0 || selectedCompany !== null;
+  const hasContactFilters =
+    selectedTagIds.length > 0 ||
+    selectedCompany !== null ||
+    selectedLabelIds.length > 0;
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,6 +398,48 @@ export function ConversationList({
             </DropdownMenu>
           )}
 
+          {labels.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  selectedLabelIds.length > 0
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Labels
+                {selectedLabelIds.length > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                    {selectedLabelIds.length}
+                  </span>
+                )}
+                <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="max-h-64 w-56 border-border bg-popover"
+              >
+                {labels.map((l) => (
+                  <DropdownMenuCheckboxItem
+                    key={l.id}
+                    checked={selectedLabelIds.includes(l.id)}
+                    onCheckedChange={() => toggleLabel(l.id)}
+                    className="text-sm text-popover-foreground"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: l.color }}
+                      />
+                      <span className="truncate">{l.name}</span>
+                    </span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           {companies.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -407,6 +502,23 @@ export function ConversationList({
                     style={{ backgroundColor: tag?.color ?? "var(--muted-foreground)" }}
                   />
                   <span className="max-w-24 truncate">{tag?.name ?? "Tag"}</span>
+                  <X className="h-3 w-3" />
+                </button>
+              );
+            })}
+            {selectedLabelIds.map((id) => {
+              const label = labelsById.get(id);
+              return (
+                <button
+                  key={id}
+                  onClick={() => toggleLabel(id)}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground hover:bg-muted/70"
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: label?.color ?? "var(--muted-foreground)" }}
+                  />
+                  <span className="max-w-24 truncate">{label?.name ?? "Label"}</span>
                   <X className="h-3 w-3" />
                 </button>
               );
@@ -564,6 +676,36 @@ function ConversationItem({
             />
           </div>
         </div>
+        {(() => {
+          const convLabels = conversation.labels ?? [];
+          if (convLabels.length === 0) return null;
+          return (
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {convLabels.slice(0, 3).map((label) => (
+                <span
+                  key={label.id}
+                  className="inline-flex max-w-24 items-center gap-1 rounded-full border px-1.5 py-px text-[9px] font-medium"
+                  style={{
+                    backgroundColor: `${label.color}20`,
+                    borderColor: `${label.color}40`,
+                    color: label.color,
+                  }}
+                >
+                  <span
+                    className="h-1 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: label.color }}
+                  />
+                  <span className="truncate">{label.name}</span>
+                </span>
+              ))}
+              {convLabels.length > 3 && (
+                <span className="text-[9px] text-muted-foreground">
+                  +{convLabels.length - 3}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </button>
   );

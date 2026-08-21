@@ -22,6 +22,7 @@ export interface ApiConversation {
   provider: string | null;
   created_at: string;
   updated_at: string;
+  labels: { id: string; name: string; color: string }[];
   contact: {
     id: string;
     phone: string;
@@ -69,6 +70,11 @@ export function serializeConversation(conv: Conversation): ApiConversation {
     provider: conv.provider ?? null,
     created_at: conv.created_at,
     updated_at: conv.updated_at,
+    labels: (conv.labels ?? []).map((l) => ({
+      id: l.id,
+      name: l.name,
+      color: l.color,
+    })),
     contact: c
       ? {
           id: c.id,

@@ -31,9 +31,11 @@ import {
 } from '@/lib/ryzeapi/client';
 import {
   sendText as sendEvoText,
+  sendLink as sendEvoLink,
   sendMedia as sendEvoMedia,
   sendButtons as sendEvoButtons,
   sendList as sendEvoList,
+  type EvolutionButton,
 } from '@/lib/evolution/client';
 import { decrypt } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
@@ -66,6 +68,18 @@ export class SendMessageError extends Error {
   }
 }
 
+/**
+ * Interactive button supported by the send core. `reply` is the only
+ * type every provider supports (and the only one that produces a
+ * trackable webhook response); the remaining types are Evolution-only.
+ */
+export type OutboundButton =
+  | { type?: 'reply'; id: string; title: string }
+  | { type: 'copy'; title: string; copyCode: string }
+  | { type: 'url'; title: string; url: string }
+  | { type: 'call'; title: string; phoneNumber: string }
+  | { type: 'pix'; currency: string; name: string; keyType: string; key: string };
+
 export interface SendMessageParams {
   conversationId: string;
   messageType: string;
@@ -80,7 +94,7 @@ export interface SendMessageParams {
   templateMessageParams?: unknown;
   replyToMessageId?: string | null;
   // Interactive buttons
-  buttons?: { id: string; title: string }[] | null;
+  buttons?: OutboundButton[] | null;
   headerText?: string | null;
   footerText?: string | null;
   // Interactive list
@@ -126,7 +140,7 @@ export function validateSendMessageParams(params: {
   contentText?: string | null;
   mediaUrl?: string | null;
   templateName?: string | null;
-  buttons?: { id: string; title: string }[] | null;
+  buttons?: OutboundButton[] | null;
   buttonLabel?: string | null;
   sections?: { title?: string; rows: { id: string; title: string; description?: string }[] }[] | null;
   pixKey?: string | null;
@@ -167,11 +181,55 @@ export function validateSendMessageParams(params: {
 
   if (messageType === 'buttons') {
     if (!buttons || !Array.isArray(buttons) || buttons.length === 0 || buttons.length > 3) {
-      throw new SendMessageError('bad_request', 'buttons requires a "buttons" array with 1-3 items, each with "id" and "title"', 400);
+      throw new SendMessageError('bad_request', 'buttons requires a "buttons" array with 1-3 items', 400);
     }
     for (const btn of buttons) {
-      if (!btn.id || !btn.title) {
-        throw new SendMessageError('bad_request', 'Each button must have "id" and "title"', 400);
+      if (!btn.type || btn.type === 'reply') {
+        if (!btn.id || !btn.title) {
+          throw new SendMessageError('bad_request', 'Reply buttons must have "id" and "title"', 400);
+        }
+      } else if (btn.type === 'copy') {
+        if (!('copyCode' in btn) || !btn.title || !btn.copyCode) {
+          throw new SendMessageError('bad_request', 'Copy buttons must have "title" and "copy_code"', 400);
+        }
+      } else if (btn.type === 'url') {
+        if (!('url' in btn) || !btn.title || !btn.url) {
+          throw new SendMessageError('bad_request', 'URL buttons must have "title" and "url"', 400);
+        }
+      } else if (btn.type === 'call') {
+        if (!('phoneNumber' in btn) || !btn.title || !btn.phoneNumber) {
+          throw new SendMessageError('bad_request', 'Call buttons must have "title" and "phone_number"', 400);
+        }
+      } else if (btn.type === 'pix') {
+        if (
+          !('currency' in btn) ||
+          !('name' in btn) ||
+          !('keyType' in btn) ||
+          !('key' in btn) ||
+          !btn.currency ||
+          !btn.name ||
+          !btn.keyType ||
+          !btn.key
+        ) {
+          throw new SendMessageError(
+            'bad_request',
+            'PIX buttons must have "currency", "name", "key_type" and "key"',
+            400,
+          );
+        }
+        if (!['CPF', 'CNPJ', 'EMAIL', 'PHONE', 'RANDOM'].includes(btn.keyType)) {
+          throw new SendMessageError(
+            'bad_request',
+            'PIX button key_type must be one of: CPF, CNPJ, EMAIL, PHONE, RANDOM',
+            400,
+          );
+        }
+      } else {
+        throw new SendMessageError(
+          'bad_request',
+          `Unsupported button type "${String(btn.type)}"`,
+          400,
+        );
       }
     }
     if (!contentText) {
@@ -410,7 +468,10 @@ async function sendRyzeMessage(
         instance: config.instance_name,
         number: phone,
         contentText: contentText || '',
-        buttons: (buttons ?? []).map((b) => ({ displayText: b.title, id: b.id })),
+        // RyzeAPI only supports reply buttons.
+        buttons: (buttons ?? [])
+          .filter((b): b is Extract<OutboundButton, { type?: 'reply' }> => !b.type || b.type === 'reply')
+          .map((b) => ({ displayText: b.title, id: b.id })),
         headerText: headerText || undefined,
         footerText: footerText || undefined,
         replyTo: replyToMessageId || undefined,
@@ -563,25 +624,62 @@ async function sendEvolutionMessage(
 
   let evoMessageId = '';
   try {
-    const extractId = (r: { data?: { Info?: { ID?: string }; key?: { id?: string } }; key?: { id?: string } }) =>
-      r.data?.Info?.ID ?? r.data?.key?.id ?? r.key?.id ?? ''
+    const extractId = (r: {
+      data?: { Info?: { ID?: string }; key?: { id?: string } };
+      key?: { id?: string };
+      messageId?: string;
+      messageID?: string;
+    }) => r.data?.Info?.ID ?? r.data?.key?.id ?? r.key?.id ?? r.messageId ?? r.messageID ?? ''
 
     if (messageType === 'template' || messageType === 'text') {
-      const r = await sendEvoText({
+      // Evolution Go has a dedicated /send/link endpoint for messages
+      // that should render a link preview card.
+      const useLink = Boolean(linkPreview) && /https?:\/\//.test(contentText || '');
+      const payload = {
         apiUrl: config.api_url,
         instanceToken,
         number: phone,
         message: contentText || '',
-        linkPreview: linkPreview || undefined,
-      });
+      };
+      const r = useLink ? await sendEvoLink(payload) : await sendEvoText(payload);
       evoMessageId = extractId(r);
     } else if (messageType === 'buttons') {
+      const evoButtons: EvolutionButton[] = (buttons ?? []).map((btn) => {
+        switch (btn.type ?? 'reply') {
+          case 'copy': {
+            const b = btn as Extract<OutboundButton, { type: 'copy' }>;
+            return { type: 'copy', displayText: b.title, copyCode: b.copyCode };
+          }
+          case 'url': {
+            const b = btn as Extract<OutboundButton, { type: 'url' }>;
+            return { type: 'url', displayText: b.title, url: b.url };
+          }
+          case 'call': {
+            const b = btn as Extract<OutboundButton, { type: 'call' }>;
+            return { type: 'call', displayText: b.title, phoneNumber: b.phoneNumber };
+          }
+          case 'pix': {
+            const b = btn as Extract<OutboundButton, { type: 'pix' }>;
+            return {
+              type: 'pix',
+              currency: b.currency,
+              name: b.name,
+              keyType: b.keyType,
+              key: b.key,
+            };
+          }
+          default: {
+            const b = btn as Extract<OutboundButton, { type?: 'reply' }>;
+            return { type: 'reply', displayText: b.title, id: b.id };
+          }
+        }
+      });
       const r = await sendEvoButtons({
         apiUrl: config.api_url,
         instanceToken,
         number: phone,
         contentText: contentText || '',
-        buttons: (buttons ?? []).map((b) => ({ displayText: b.title, id: b.id })),
+        buttons: evoButtons,
         headerText: headerText || undefined,
         footerText: footerText || undefined,
       });
@@ -608,7 +706,7 @@ async function sendEvolutionMessage(
         number: phone,
         mediaType: messageType as 'image' | 'video' | 'audio' | 'document',
         mediaUrl: mediaUrl || undefined,
-        message: contentText || undefined,
+        caption: contentText || undefined,
         fileName: filename || undefined,
       });
       evoMessageId = extractId(r);
@@ -844,12 +942,14 @@ async function sendZernioMessage(
 
         resultMsgId = mediaRes.messageId;
       } else if (isButtons) {
-        // ── Botões / Lista: private-reply com buttons ──────────
-        const buttonList = (buttons ?? []).map((b) => ({
-          type: 'postback' as const,
-          title: b.title,
-          payload: b.id,
-        }));
+        // ── Botões / Lista: private-reply com buttons (reply-only) ──
+        const buttonList = (buttons ?? [])
+          .filter((b): b is Extract<OutboundButton, { type?: 'reply' }> => !b.type || b.type === 'reply')
+          .map((b) => ({
+            type: 'postback' as const,
+            title: b.title,
+            payload: b.id,
+          }));
 
         const r = await sendPrivateCommentReply({
           zernioAccountId: resolvedAcctId,
@@ -987,7 +1087,10 @@ async function sendZernioMessage(
         zernioConversationId: resolvedConvId!,
         zernioAccountId: resolvedAcctId,
         text: contentText || '',
-        buttons: (buttons ?? []).map((b) => ({ title: b.title, payload: b.id })),
+        // Zernio/Meta only supports reply buttons.
+        buttons: (buttons ?? [])
+          .filter((b): b is Extract<OutboundButton, { type?: 'reply' }> => !b.type || b.type === 'reply')
+          .map((b) => ({ title: b.title, payload: b.id })),
       });
       zernioMsgId = result.messageId;
     } else if (messageType === 'list') {

@@ -2,6 +2,7 @@
 
 import { useCan } from '@/hooks/use-can';
 
+import { ConversationLabelsManager } from './conversation-labels-manager';
 import { CustomFieldsSettings } from './custom-fields-settings';
 import { SettingsPanelHead } from './settings-panel-head';
 import { TagManager } from './tag-manager';
@@ -23,6 +24,7 @@ export function FieldsAndTagsPanel() {
         description="Two ways to organize contacts: colour-coded tags for quick grouping, and custom fields for structured data."
       />
       <TagManager />
+      <ConversationLabelsManager />
       {canEditSettings ? <CustomFieldsSettings /> : null}
     </section>
   );

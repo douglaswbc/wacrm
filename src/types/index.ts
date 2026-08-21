@@ -186,6 +186,19 @@ export interface ContactNote {
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';
 
+/** Label definition for conversations (Evolution Go labels, migration 008). */
+export interface ConversationLabel {
+  id: string;
+  account_id: string;
+  /** WhatsApp label id (e.g. "8"); NULL for local-only labels. */
+  evolution_label_id?: string | null;
+  name: string;
+  color: string;
+  deleted?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface Conversation {
   id: string;
   user_id: string;
@@ -205,6 +218,8 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   contact?: Contact;
+  /** Labels applied to this conversation (flattened from the embed). */
+  labels?: ConversationLabel[];
 }
 
 // ============================================================

@@ -7,6 +7,9 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { autoCreateDealForContact } from '@/lib/deals/auto-create'
+import { decrypt } from '@/lib/whatsapp/encryption'
+import { downloadMedia } from '@/lib/evolution/client'
+import { uploadAccountMedia } from '@/lib/storage/upload-media'
 import type { ParsedInbound } from '@/lib/flows/types'
 import type { AutomationTriggerType } from '@/types'
 
@@ -107,10 +110,32 @@ export async function POST(request: Request) {
     // Parse message content.
     let messageType = 'text'
     let contentText: string | null = null
-    const interactiveReplyId: string | null = null
-    const interactiveReplyTitle: string | null = null
 
     const msg = data.Message ?? {}
+
+    // Interactive replies (button / list clicks from messages WE sent).
+    // Whatsmeow surfaces them as buttonsResponseMessage (reply buttons)
+    // or listResponseMessage (list rows).
+    let interactiveReplyId: string | null = null
+    let interactiveReplyTitle: string | null = null
+    const buttonsResp = msg.buttonsResponseMessage as Record<string, unknown> | null
+    if (buttonsResp && typeof buttonsResp === 'object') {
+      interactiveReplyId = buttonsResp.selectedId ? String(buttonsResp.selectedId) : null
+      interactiveReplyTitle = buttonsResp.selectedDisplayText
+        ? String(buttonsResp.selectedDisplayText)
+        : interactiveReplyId
+    }
+    if (!interactiveReplyId) {
+      const listResp = msg.listResponseMessage as Record<string, unknown> | null
+      if (listResp && typeof listResp === 'object') {
+        const ssr = listResp.singleSelectReply as Record<string, unknown> | null
+        interactiveReplyId = ssr?.selectedRowId ? String(ssr.selectedRowId) : null
+        interactiveReplyTitle = listResp.title ? String(listResp.title) : interactiveReplyId
+      }
+    }
+
+    // Raw WhatsApp media message object — needed for /message/downloadmedia.
+    const mediaMessage = extractMediaMessage(msg)
 
     if (type === 'text' || !type) {
       messageType = 'text'
@@ -146,7 +171,7 @@ export async function POST(request: Request) {
     // Find config.
     const { data: config } = await db
       .from('evolution_config')
-      .select('account_id, relay_url')
+      .select('account_id, relay_url, api_url, instance_token')
       .eq('instance_name', instanceName)
       .maybeSingle()
 
@@ -192,6 +217,21 @@ export async function POST(request: Request) {
             timestamp,
           })
         } else {
+          // Media download needs the instance credentials — resolve them
+          // lazily so text-only messages never pay for it.
+          let mediaDownload: MediaDownloadArgs | null = null
+          if (mediaMessage && !isFromMe && config.api_url && config.instance_token) {
+            try {
+              mediaDownload = {
+                apiUrl: String(config.api_url),
+                instanceToken: decrypt(String(config.instance_token)),
+                key: mediaMessage.key,
+                payload: mediaMessage.payload,
+              }
+            } catch (err) {
+              console.error('[evolution webhook] token decrypt failed:', err)
+            }
+          }
           await processInboundMessage(db, {
             accountId,
             configOwnerUserId,
@@ -204,6 +244,7 @@ export async function POST(request: Request) {
             interactiveReplyId,
             interactiveReplyTitle,
             timestamp,
+            mediaDownload,
           })
         }
       } catch (err) {
@@ -217,6 +258,14 @@ export async function POST(request: Request) {
 
 // ---- Message processing ------------------------------------------------
 
+interface MediaDownloadArgs {
+  apiUrl: string
+  instanceToken: string
+  /** Which WhatsApp media object this is, e.g. "imageMessage". */
+  key: string
+  payload: Record<string, unknown>
+}
+
 interface InboundArgs {
   accountId: string
   configOwnerUserId: string
@@ -229,6 +278,7 @@ interface InboundArgs {
   interactiveReplyId: string | null
   interactiveReplyTitle: string | null
   timestamp: Date
+  mediaDownload?: MediaDownloadArgs | null
 }
 
 async function processInboundMessage(
@@ -246,6 +296,7 @@ async function processInboundMessage(
     interactiveReplyId,
     interactiveReplyTitle,
     timestamp,
+    mediaDownload,
   } = args
 
   const contactOutcome = await upsertContact(db, accountId, configOwnerUserId, fromPhone, pushName)
@@ -279,12 +330,44 @@ async function processInboundMessage(
   const contentType = mapContentType(messageType)
   const text = contentText ?? null
 
+  // Download the inbound media and persist it to Storage so the inbox can
+  // render it (the Evolution/WhatsApp CDN URLs are short-lived).
+  let mediaUrl: string | null = null
+  let mediaMimetype: string | null = null
+  let mediaFilename: string | null = null
+  if (mediaDownload) {
+    try {
+      const dl = await downloadMedia({
+        apiUrl: mediaDownload.apiUrl,
+        instanceToken: mediaDownload.instanceToken,
+        message: { [mediaDownload.key]: mediaDownload.payload },
+      })
+      const raw = mediaDownload.payload
+      const mimetype =
+        dl.mimetype ??
+        (raw.mimetype ? String(raw.mimetype) : 'application/octet-stream')
+      const filename = raw.fileName
+        ? String(raw.fileName)
+        : `evolution-${messageType}-${messageId}`
+      const file = new File([dl.buffer], filename, { type: mimetype })
+      const uploaded = await uploadAccountMedia('chat-media', file, db, accountId)
+      mediaUrl = uploaded.publicUrl
+      mediaMimetype = mimetype
+      mediaFilename = filename
+    } catch (err) {
+      console.error('[evolution webhook] inbound media download failed:', err)
+    }
+  }
+
   const { error: msgErr } = await db.from('messages').insert({
     account_id: accountId,
     conversation_id: conversationId,
     sender_type: 'customer',
     content_type: contentType,
     content_text: text,
+    media_url: mediaUrl,
+    media_mimetype: mediaMimetype,
+    media_filename: mediaFilename,
     message_id: messageId,
     status: 'delivered',
     created_at: timestamp.toISOString(),
@@ -540,6 +623,28 @@ async function upsertConversation(
 
   if (error) throw error
   return created.id
+}
+
+/** Keys on the Whatsmeow Message object that carry a downloadable media blob. */
+const MEDIA_MESSAGE_KEYS = [
+  'imageMessage',
+  'videoMessage',
+  'audioMessage',
+  'pttMessage',
+  'documentMessage',
+  'stickerMessage',
+] as const
+
+function extractMediaMessage(
+  msg: Record<string, unknown>,
+): { key: string; payload: Record<string, unknown> } | null {
+  for (const key of MEDIA_MESSAGE_KEYS) {
+    const val = msg[key]
+    if (val && typeof val === 'object') {
+      return { key, payload: val as Record<string, unknown> }
+    }
+  }
+  return null
 }
 
 function mapContentType(type: string): string {

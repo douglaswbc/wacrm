@@ -217,6 +217,15 @@ export async function getInstanceState(
 }
 
 // ---- Send messages (Instance key) -------------------------------------
+//
+// Payloads follow the Evolution Go (Whatsmeow) API v2 shape:
+//   POST /send/text  { number, text, delay }
+//   POST /send/link  { number, text, delay }
+//   POST /send/media { number, url, caption, filename, type, delay }
+//   POST /send/button{ number, title, description, footer, buttons[], delay }
+//   POST /send/list  { number, title, description, buttonText, footerText, sections[], delay }
+
+export const DEFAULT_SEND_DELAY = 1000
 
 export interface SendTextArgs {
   apiUrl: string
@@ -224,19 +233,36 @@ export interface SendTextArgs {
   number: string
   message: string
   delay?: number
-  linkPreview?: boolean
 }
 
 export async function sendText(args: SendTextArgs): Promise<EvolutionSendResponse> {
-  const body: Record<string, unknown> = {
+  const body = {
     number: args.number,
     text: args.message,
+    delay: args.delay ?? DEFAULT_SEND_DELAY,
   }
-  if (args.delay) body.delay = args.delay
-  if (args.linkPreview) body.linkPreview = args.linkPreview
-
   return await restFetch<EvolutionSendResponse>(
     args.apiUrl, args.instanceToken, '/send/text',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+export interface SendLinkArgs {
+  apiUrl: string
+  instanceToken: string
+  number: string
+  message: string
+  delay?: number
+}
+
+export async function sendLink(args: SendLinkArgs): Promise<EvolutionSendResponse> {
+  const body = {
+    number: args.number,
+    text: args.message,
+    delay: args.delay ?? DEFAULT_SEND_DELAY,
+  }
+  return await restFetch<EvolutionSendResponse>(
+    args.apiUrl, args.instanceToken, '/send/link',
     { method: 'POST', body: JSON.stringify(body) },
   )
 }
@@ -246,25 +272,24 @@ export interface SendMediaArgs {
   instanceToken: string
   number: string
   mediaType: 'image' | 'video' | 'audio' | 'document'
+  /** HTTP(S) URL or raw base64 (no data: prefix) — the API detects which. */
   mediaUrl?: string
   mediaBase64?: string
-  message?: string
-  mimetype?: string
+  caption?: string
   fileName?: string
   delay?: number
 }
 
 export async function sendMedia(args: SendMediaArgs): Promise<EvolutionSendResponse> {
-  const media = args.mediaUrl || args.mediaBase64 || ''
+  const url = args.mediaUrl || args.mediaBase64 || ''
   const body: Record<string, unknown> = {
     number: args.number,
+    url,
     type: args.mediaType,
-    media,
+    delay: args.delay ?? DEFAULT_SEND_DELAY,
   }
-  if (args.message) body.caption = args.message
-  if (args.mimetype) body.mimetype = args.mimetype
-  if (args.fileName) body.fileName = args.fileName
-  if (args.delay) body.delay = args.delay
+  if (args.caption) body.caption = args.caption
+  if (args.fileName) body.filename = args.fileName
 
   return await restFetch<EvolutionSendResponse>(
     args.apiUrl, args.instanceToken, '/send/media',
@@ -272,14 +297,23 @@ export async function sendMedia(args: SendMediaArgs): Promise<EvolutionSendRespo
   )
 }
 
+export type EvolutionButton =
+  | { type: 'reply'; displayText: string; id: string }
+  | { type: 'pix'; currency: string; name: string; keyType: string; key: string }
+  | { type: 'copy'; displayText: string; copyCode: string }
+  | { type: 'url'; displayText: string; url: string }
+  | { type: 'call'; displayText: string; phoneNumber: string }
+
 export interface SendButtonsArgs {
   apiUrl: string
   instanceToken: string
   number: string
-  contentText: string
-  buttons: { displayText: string; id: string; type?: string }[]
+  /** Header/title shown above the body. */
   headerText?: string
+  /** Main body text ("description" in the v2 API). */
+  contentText: string
   footerText?: string
+  buttons: EvolutionButton[]
   delay?: number
 }
 
@@ -287,15 +321,11 @@ export async function sendButtons(args: SendButtonsArgs): Promise<EvolutionSendR
   const body: Record<string, unknown> = {
     number: args.number,
     title: args.headerText || '',
-    body: args.contentText,
+    description: args.contentText,
     footer: args.footerText || '',
-    buttons: args.buttons.map((b) => ({
-      type: b.type || 'reply',
-      displayText: b.displayText,
-      id: b.id,
-    })),
+    buttons: args.buttons,
+    delay: args.delay ?? DEFAULT_SEND_DELAY,
   }
-  if (args.delay) body.delay = args.delay
 
   return await restFetch<EvolutionSendResponse>(
     args.apiUrl, args.instanceToken, '/send/button',
@@ -307,11 +337,12 @@ export interface SendListArgs {
   apiUrl: string
   instanceToken: string
   number: string
+  headerText?: string
+  /** Main body text ("description" in the v2 API). */
   contentText: string
   buttonText: string
-  sections: { title: string; rows: { id: string; title: string; description?: string }[] }[]
-  headerText?: string
   footerText?: string
+  sections: { title: string; rows: { id: string; title: string; description?: string }[] }[]
   delay?: number
 }
 
@@ -319,18 +350,195 @@ export async function sendList(args: SendListArgs): Promise<EvolutionSendRespons
   const body: Record<string, unknown> = {
     number: args.number,
     title: args.headerText || '',
-    body: args.contentText,
+    description: args.contentText,
     buttonText: args.buttonText,
-    footer: args.footerText || '',
+    footerText: args.footerText || '',
     sections: args.sections.map((s) => ({
       title: s.title,
       rows: s.rows.map((r) => ({ title: r.title, description: r.description || '', rowId: r.id })),
     })),
+    delay: args.delay ?? DEFAULT_SEND_DELAY,
   }
-  if (args.delay) body.delay = args.delay
 
   return await restFetch<EvolutionSendResponse>(
     args.apiUrl, args.instanceToken, '/send/list',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+// ---- Media download (Instance key) -------------------------------------
+
+export interface DownloadMediaArgs {
+  apiUrl: string
+  instanceToken: string
+  /**
+   * The raw WhatsApp media message object from the webhook payload,
+   * e.g. { imageMessage: { URL, directPath, mediaKey, mimetype, ... } }.
+   */
+  message: Record<string, unknown>
+}
+
+/**
+ * Download inbound media via POST /message/downloadmedia.
+ * The API may answer with JSON containing base64 or with the raw binary —
+ * both are handled and returned as bytes plus the detected mimetype.
+ */
+export async function downloadMedia(
+  args: DownloadMediaArgs,
+): Promise<{ buffer: ArrayBuffer; mimetype: string | null }> {
+  const url = `${args.apiUrl.replace(/\/$/, '')}/message/downloadmedia`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'apikey': args.instanceToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message: args.message }),
+    signal: AbortSignal.timeout(120_000),
+  })
+  if (!res.ok) {
+    let message = `Evolution API returned ${res.status}`
+    try {
+      const body = await res.json() as Record<string, unknown>
+      if (body?.message) message = String(body.message)
+      else if (body?.error) message = String(body.error)
+    } catch {
+      /* keep status message */
+    }
+    throw new EvolutionApiError(message, res.status)
+  }
+
+  const mimetype = res.headers.get('content-type')
+  const contentType = mimetype ?? ''
+  if (contentType.includes('application/json')) {
+    // JSON answers carry the media as base64 under a known key.
+    const parsed = await res.json() as Record<string, unknown>
+    const b64 =
+      (typeof parsed.base64 === 'string' && parsed.base64) ||
+      (typeof parsed.data === 'string' && parsed.data) ||
+      (typeof parsed.buffer === 'string' && parsed.buffer) ||
+      ''
+    if (!b64) throw new EvolutionApiError('downloadmedia returned no base64 payload', 502)
+    const bin = atob(b64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    const innerMime =
+      typeof parsed.mimetype === 'string' ? parsed.mimetype : null
+    return { buffer: bytes.buffer, mimetype: innerMime ?? (contentType.split(';')[0] || null) }
+  }
+
+  return { buffer: await res.arrayBuffer(), mimetype: contentType.split(';')[0] || null }
+}
+
+// ---- Labels (Instance key) ----------------------------------------------
+
+export interface EvolutionLabel {
+  id: string
+  name: string
+  color: number | string
+  deleted?: boolean
+  predefinedId?: string | number
+}
+
+export interface ListLabelsArgs {
+  apiUrl: string
+  instanceToken: string
+}
+
+/** Fetch all labels defined on the connected WhatsApp account. */
+export async function listLabels(args: ListLabelsArgs): Promise<EvolutionLabel[]> {
+  const result = await restFetch<unknown>(
+    args.apiUrl, args.instanceToken, '/label/list',
+  )
+  // Defensive unwrap: the payload may be a bare array or wrapped in data/labels.
+  if (Array.isArray(result)) return result as EvolutionLabel[]
+  if (result && typeof result === 'object') {
+    const obj = result as Record<string, unknown>
+    if (Array.isArray(obj.data)) return obj.data as EvolutionLabel[]
+    if (Array.isArray(obj.labels)) return obj.labels as EvolutionLabel[]
+  }
+  return []
+}
+
+export interface LabelChatArgs {
+  apiUrl: string
+  instanceToken: string
+  /** Chat JID, e.g. "5511999999999@s.whatsapp.net". */
+  jid: string
+  labelId: string
+}
+
+export async function labelChat(args: LabelChatArgs): Promise<void> {
+  await restFetch(
+    args.apiUrl, args.instanceToken, '/label/chat',
+    { method: 'POST', body: JSON.stringify({ jid: args.jid, labelId: args.labelId }) },
+  )
+}
+
+export interface UnlabelChatArgs {
+  apiUrl: string
+  instanceToken: string
+  jid: string
+  labelId: string
+}
+
+export async function unlabelChat(args: UnlabelChatArgs): Promise<void> {
+  await restFetch(
+    args.apiUrl, args.instanceToken, '/unlabel/chat',
+    { method: 'POST', body: JSON.stringify({ jid: args.jid, labelId: args.labelId }) },
+  )
+}
+
+export interface LabelMessageArgs {
+  apiUrl: string
+  instanceToken: string
+  jid: string
+  messageId: string
+  labelId: string
+}
+
+export async function labelMessage(args: LabelMessageArgs): Promise<void> {
+  await restFetch(
+    args.apiUrl, args.instanceToken, '/label/message',
+    { method: 'POST', body: JSON.stringify({ jid: args.jid, messageId: args.messageId, labelId: args.labelId }) },
+  )
+}
+
+export interface UnlabelMessageArgs {
+  apiUrl: string
+  instanceToken: string
+  jid: string
+  messageId: string
+  labelId: string
+}
+
+export async function unlabelMessage(args: UnlabelMessageArgs): Promise<void> {
+  await restFetch(
+    args.apiUrl, args.instanceToken, '/unlabel/message',
+    { method: 'POST', body: JSON.stringify({ jid: args.jid, messageId: args.messageId, labelId: args.labelId }) },
+  )
+}
+
+export interface EditLabelArgs {
+  apiUrl: string
+  instanceToken: string
+  /** Existing label id when editing/deleting; omit to create. */
+  labelId?: string
+  name: string
+  /** Palette index per WhatsApp (0-7). */
+  color: number
+  deleted?: boolean
+}
+
+export async function editLabel(args: EditLabelArgs): Promise<void> {
+  const body: Record<string, unknown> = {
+    name: args.name,
+    color: args.color,
+  }
+  if (args.labelId) body.labelId = args.labelId
+  if (args.deleted !== undefined) body.deleted = args.deleted
+  await restFetch(
+    args.apiUrl, args.instanceToken, '/label/edit',
     { method: 'POST', body: JSON.stringify(body) },
   )
 }

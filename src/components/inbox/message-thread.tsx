@@ -12,6 +12,7 @@ import type {
   Message,
   MessageReaction,
   Contact,
+  ConversationLabel,
   ConversationStatus,
   MessageTemplate,
   Profile,
@@ -27,11 +28,13 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Sparkles,
+  Tag as TagIcon,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -73,6 +76,16 @@ interface MessageThreadProps {
   onAssignChange: (
     conversationId: string,
     assignedAgentId: string | null,
+  ) => void;
+  /**
+   * Fired after a label is applied/removed on the active conversation.
+   * The parent owns the canonical conversation state (list + active),
+   * so it patches both copies; we update optimistically and call this
+   * with the previous list to revert if the API round-trip fails.
+   */
+  onLabelsChange?: (
+    conversationId: string,
+    labels: ConversationLabel[],
   ) => void;
   /**
    * On mobile, the thread is shown full-screen with the conversation list
@@ -159,6 +172,7 @@ export function MessageThread({
   onUpdateMessage,
   onStatusChange,
   onAssignChange,
+  onLabelsChange,
   onBack,
   resyncToken = 0,
   onRefresh,
@@ -243,6 +257,72 @@ export function MessageThread({
       cancelled = true;
     };
   }, []);
+
+  // Account label definitions for the label picker — loaded once from
+  // the same API the settings manager uses; soft-deleted definitions
+  // are skipped so stale WhatsApp labels never show up as options.
+  const [accountLabels, setAccountLabels] = useState<ConversationLabel[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/evolution/labels");
+        if (!res.ok) return;
+        const data = (await res.json()) as { labels?: ConversationLabel[] };
+        if (!cancelled && data.labels) {
+          setAccountLabels(data.labels.filter((l) => !l.deleted));
+        }
+      } catch {
+        // The label dropdown degrades to an empty state; not fatal.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const appliedLabelIds = useMemo(
+    () => (conversation?.labels ?? []).map((l) => l.id),
+    [conversation]
+  );
+
+  // Optimistically flip the label on the active conversation, then let
+  // the API round-trip confirm it. On failure we hand the previous list
+  // back through `onLabelsChange` so both the list pills and this
+  // dropdown snap back to the pre-click state.
+  const handleToggleLabel = useCallback(
+    async (label: ConversationLabel) => {
+      if (!conversation || !onLabelsChange) return;
+      const currentLabels = conversation.labels ?? [];
+      const hasLabel = currentLabels.some((l) => l.id === label.id);
+      const nextLabels = hasLabel
+        ? currentLabels.filter((l) => l.id !== label.id)
+        : [...currentLabels, label];
+      onLabelsChange(conversation.id, nextLabels);
+      try {
+        const res = await fetch("/api/evolution/labels/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversation_id: conversation.id,
+            label_id: label.id,
+            remove: hasLabel,
+          }),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(data?.error ?? "Request failed");
+        }
+      } catch (err) {
+        console.error("Failed to update conversation labels:", err);
+        toast.error("Failed to update labels");
+        onLabelsChange(conversation.id, currentLabels);
+      }
+    },
+    [conversation, onLabelsChange]
+  );
 
   // 24-hour session timer (WhatsApp only — Instagram has no session window)
   const sessionInfo = useMemo(() => {
@@ -964,6 +1044,55 @@ export function MessageThread({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Label dropdown — toggle the conversation's labels. Hidden
+              entirely when the account defines no labels (e.g. Evolution
+              not connected), so it never renders as a dead control. */}
+          {onLabelsChange && accountLabels.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  appliedLabelIds.length > 0
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                <TagIcon className="h-3 w-3" />
+                <span className="hidden sm:inline">Label</span>
+                {appliedLabelIds.length > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                    {appliedLabelIds.length}
+                  </span>
+                )}
+                <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-64 w-56 overflow-y-auto border-border bg-popover"
+              >
+                {accountLabels.map((label) => {
+                  const isSelected = appliedLabelIds.includes(label.id);
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={label.id}
+                      checked={isSelected}
+                      onCheckedChange={() => handleToggleLabel(label)}
+                      className="text-sm text-popover-foreground"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: label.color }}
+                        />
+                        <span className="truncate">{label.name}</span>
+                      </span>
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Assign dropdown */}
           <DropdownMenu>
