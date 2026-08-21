@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import type { Lang } from './translations';
 import t from './translations';
 import { CopyButton } from './copy-button';
@@ -50,6 +52,18 @@ const introNav: NavEntry[] = [
   { id: 'pagination', labelKey: 'paginationTitle' },
   { id: 'webhooks', labelKey: 'webhooksTitle' },
   { id: 'roadmap', labelKey: 'roadmapTitle' },
+];
+
+/** Sidebar endpoint grouping — order defines display order. */
+const ENDPOINT_GROUPS: { labelKey: string; test: (path: string) => boolean }[] = [
+  { labelKey: 'groupMessages', test: (p) => /^\/api\/v1\/(me$|messages$|instagram\/messages$)/.test(p) },
+  { labelKey: 'groupConversations', test: (p) => p.startsWith('/api/v1/conversations') },
+  { labelKey: 'groupBroadcasts', test: (p) => p.startsWith('/api/v1/broadcasts') },
+  { labelKey: 'groupContacts', test: (p) => p.startsWith('/api/v1/contacts') },
+  { labelKey: 'groupPipelinesDeals', test: (p) => /^\/api\/v1\/(pipelines|stages|deals)/.test(p) },
+  { labelKey: 'groupMediaLibrary', test: (p) => p.startsWith('/api/v1/media-library') },
+  { labelKey: 'groupGroups', test: (p) => p.startsWith('/api/v1/groups') },
+  { labelKey: 'groupTeam', test: (p) => /^\/api\/v1\/(account|members)/.test(p) },
 ];
 
 function methodColor(m: string): string {
@@ -166,6 +180,8 @@ function EndpointView({ ep, lang, copyLabel, copiedLabel }: { ep: typeof endpoin
 export function ApiDocsClient() {
   const [lang, setLang] = useState<Lang>('pt');
   const [activeNav, setActiveNav] = useState<NavId>('auth');
+  const [search, setSearch] = useState('');
+  const mainRef = useRef<HTMLElement>(null);
   const tr = t[lang];
 
   const endpointNav: NavEntry[] = useMemo(() =>
@@ -176,6 +192,24 @@ export function ApiDocsClient() {
       path: ep.path,
     })),
   []);
+
+  /** Sidebar groups filtered by the search query. */
+  const groupedNav = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return ENDPOINT_GROUPS.map((group) => ({
+      labelKey: group.labelKey,
+      items: endpointNav.filter(
+        (item) =>
+          group.test(item.path ?? '') &&
+          (!q || (item.path ?? '').toLowerCase().includes(q)),
+      ),
+    })).filter((g) => g.items.length > 0);
+  }, [endpointNav, search]);
+
+  function handleNav(id: NavId) {
+    setActiveNav(id);
+    mainRef.current?.scrollTo({ top: 0 });
+  }
 
   function renderContent() {
     if (activeNav.startsWith('endpoint-')) {
@@ -350,6 +384,17 @@ export function ApiDocsClient() {
       <div className="flex flex-1">
         {/* Sidebar */}
         <nav className="hidden w-64 shrink-0 border-r border-border bg-card p-3 lg:block overflow-y-auto">
+          <div className="relative mb-3">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tr.searchEndpoints}
+              className="h-8 bg-muted pl-8 text-sm"
+              aria-label={tr.searchEndpoints}
+            />
+          </div>
+
           <div className="mb-3">
             <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Introduction
@@ -358,7 +403,7 @@ export function ApiDocsClient() {
               {introNav.map((item) => (
                 <li key={item.id}>
                   <button
-                    onClick={() => setActiveNav(item.id)}
+                    onClick={() => handleNav(item.id)}
                     className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
                       activeNav === item.id
                         ? 'bg-primary/10 text-primary font-medium'
@@ -372,39 +417,45 @@ export function ApiDocsClient() {
             </ul>
           </div>
 
-          <div>
-            <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {tr.endpointsTitle}
-            </p>
-            <ul className="mt-1 space-y-0.5">
-              {endpointNav.map((item) => (
-                <li key={item.id}>
-                  <button
-                    onClick={() => setActiveNav(item.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-                      activeNav === item.id
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                  >
-                    {item.method && (
-                      <span className={`shrink-0 text-[10px] font-bold ${methodColor(item.method)}`}>
-                        {item.method}
-                      </span>
-                    )}
-                    <span className="truncate font-mono text-xs">{item.path}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {groupedNav.length === 0 ? (
+            <p className="px-2 py-4 text-sm text-muted-foreground">{tr.searchNoResults}</p>
+          ) : (
+            groupedNav.map((group) => (
+              <div key={group.labelKey} className="mb-3 last:mb-0">
+                <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {tr[group.labelKey as keyof typeof tr] as string}
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {group.items.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        onClick={() => handleNav(item.id)}
+                        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                          activeNav === item.id
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                      >
+                        {item.method && (
+                          <span className={`shrink-0 text-[10px] font-bold ${methodColor(item.method)}`}>
+                            {item.method}
+                          </span>
+                        )}
+                        <span className="truncate font-mono text-xs">{item.path}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
         </nav>
 
         {/* Mobile nav tabs */}
         <div className="flex flex-col lg:hidden">
           <select
             value={activeNav}
-            onChange={(e) => setActiveNav(e.target.value as NavId)}
+            onChange={(e) => handleNav(e.target.value as NavId)}
             className="mx-3 mt-3 h-9 rounded-lg border border-border bg-muted px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           >
             <optgroup label="Introduction">
@@ -425,7 +476,7 @@ export function ApiDocsClient() {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
           {renderContent()}
         </main>
       </div>

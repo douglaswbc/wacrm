@@ -62,6 +62,17 @@ export interface TranslationSet {
   required: string;
   optional: string;
   response: string;
+
+  searchEndpoints: string;
+  searchNoResults: string;
+  groupMessages: string;
+  groupConversations: string;
+  groupBroadcasts: string;
+  groupContacts: string;
+  groupPipelinesDeals: string;
+  groupMediaLibrary: string;
+  groupGroups: string;
+  groupTeam: string;
 }
 
 const t: Record<Lang, TranslationSet> = {
@@ -127,6 +138,17 @@ const t: Record<Lang, TranslationSet> = {
     required: 'Obrigatório',
     optional: 'Opcional',
     response: 'Resposta',
+
+    searchEndpoints: 'Buscar endpoints...',
+    searchNoResults: 'Nenhum endpoint encontrado',
+    groupMessages: 'Mensagens',
+    groupConversations: 'Conversas',
+    groupBroadcasts: 'Broadcasts',
+    groupContacts: 'Contatos',
+    groupPipelinesDeals: 'Pipelines & Deals',
+    groupMediaLibrary: 'Biblioteca de Mídia',
+    groupGroups: 'Grupos',
+    groupTeam: 'Time & Conta',
   },
 
   es: {
@@ -191,6 +213,17 @@ const t: Record<Lang, TranslationSet> = {
     required: 'Requerido',
     optional: 'Opcional',
     response: 'Respuesta',
+
+    searchEndpoints: 'Buscar endpoints...',
+    searchNoResults: 'No se encontraron endpoints',
+    groupMessages: 'Mensajes',
+    groupConversations: 'Conversaciones',
+    groupBroadcasts: 'Broadcasts',
+    groupContacts: 'Contactos',
+    groupPipelinesDeals: 'Pipelines & Deals',
+    groupMediaLibrary: 'Biblioteca de Medios',
+    groupGroups: 'Grupos',
+    groupTeam: 'Equipo & Cuenta',
   },
 
   en: {
@@ -255,6 +288,17 @@ const t: Record<Lang, TranslationSet> = {
     required: 'Required',
     optional: 'Optional',
     response: 'Response',
+
+    searchEndpoints: 'Search endpoints...',
+    searchNoResults: 'No endpoints found',
+    groupMessages: 'Messages',
+    groupConversations: 'Conversations',
+    groupBroadcasts: 'Broadcasts',
+    groupContacts: 'Contacts',
+    groupPipelinesDeals: 'Pipelines & Deals',
+    groupMediaLibrary: 'Media Library',
+    groupGroups: 'Groups',
+    groupTeam: 'Team & Account',
   },
 };
 

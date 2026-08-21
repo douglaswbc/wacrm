@@ -54,16 +54,17 @@ const messages: EndpointDoc = {
   path: '/api/v1/messages',
   scopes: ['messages:send'],
   description: {
-    pt: 'Envia uma mensagem para um contato. WhatsApp (Meta Cloud API ou RyzeAPI) usa número E.164; Instagram usa instagram_id. O endpoint encontra-ou-cria o contato + conversa e roteia automaticamente pelo canal configurado.',
-    es: 'Envía un mensaje a un contacto. WhatsApp (Meta Cloud API o RyzeAPI) usa número E.164; Instagram usa instagram_id. El endpoint encuentra-o-crea el contacto + conversación y enruta automáticamente por el canal configurado.',
-    en: 'Send a message to a contact. WhatsApp (Meta Cloud API or RyzeAPI) uses an E.164 phone number; Instagram uses instagram_id. The endpoint finds-or-creates the contact + conversation and auto-routes through the configured channel.',
+    pt: 'Envia uma mensagem para um contato. WhatsApp (Meta Cloud API, RyzeAPI ou Evolution Go) usa número E.164; Instagram usa instagram_id. O endpoint encontra-ou-cria o contato + conversa e roteia automaticamente pelo canal configurado.',
+    es: 'Envía un mensaje a un contacto. WhatsApp (Meta Cloud API, RyzeAPI o Evolution Go) usa número E.164; Instagram usa instagram_id. El endpoint encuentra-o-crea el contacto + conversación y enruta automáticamente por el canal configurado.',
+    en: 'Send a message to a contact. WhatsApp (Meta Cloud API, RyzeAPI, or Evolution Go) uses an E.164 phone number; Instagram uses instagram_id. The endpoint finds-or-creates the contact + conversation and auto-routes through the configured channel.',
   },
   details: [
     'type is text (default), template, a media kind (image / video / document / audio), interactive (buttons / list), or pix.',
-    'Text: needs text (body). Template: needs a template object with name, language, and params. Media: needs media_url (and optional filename); text doubles as the caption.',
-    'Buttons (interactive): needs text (body text), buttons (1–3 items, each with id and title). Optional: header_text, footer_text. Supported on Meta, RyzeAPI, and Instagram.',
-    'List (interactive): needs text (body), button_label, sections (1–10 sections, 1–10 rows total). Each row has id and title. Optional: header_text, footer_text. Supported on Meta, RyzeAPI, and Instagram.',
-    'PIX: needs pix_key, pix_key_type (CPF|CNPJ|EMAIL|PHONE|RANDOM), merchant_name. Optional: text (message), pix_items (array of { name, quantity, unit_price }). Available only via RyzeAPI (native WhatsApp protocol).',
+    'Text: needs text (body). With link_preview: true and a URL in the text, Evolution Go conversations render a link preview card. Template: needs a template object with name, language, and params. Media: needs media_url (and optional filename); text doubles as the caption.',
+    'Buttons (interactive): needs text (body text) and buttons (1–3 items). Each button is one of: reply ({ id, title }), copy ({ title, copy_code }), url ({ title, url }), call ({ title, phone_number }), or pix ({ currency, name, key_type, key }). Optional: header_text, footer_text.',
+    'Button support by provider: reply works on all providers (Meta, RyzeAPI, Evolution Go, Instagram). copy, url, call and pix buttons are exclusive to Evolution Go (Whatsmeow) conversations — they are delivered natively but do not generate a trackable webhook response.',
+    'List (interactive): needs text (body), button_label, sections (1–10 sections, 1–10 rows total). Each row has id and title. Optional: header_text, footer_text. Supported on Meta, RyzeAPI, Evolution Go, and Instagram.',
+    'PIX (type "pix"): needs pix_key, pix_key_type (CPF|CNPJ|EMAIL|PHONE|RANDOM), merchant_name. Available via RyzeAPI (native protocol). For Evolution Go, send a pix button instead.',
     'For RyzeAPI conversations, templates are sent as plain text with [template:name] prefix since RyzeAPI does not support Meta template format.',
     'Instagram conversations use instagram_id instead of phone. Private replies to comments are auto-detected from the conversation.',
     'Instagram interactive buttons are sent as web_url link buttons. List sections are rendered as plain text.',
@@ -85,7 +86,7 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
     "link_preview": true
   }'
 
-# Interactive buttons
+# Interactive buttons (reply)
 curl -X POST https://your-crm.example.com/api/v1/messages \\
   -H "Authorization: Bearer wacrm_live_xxx" \\
   -H "Content-Type: application/json" \\
@@ -98,6 +99,43 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
     "buttons": [
       { "id": "yes", "title": "Yes" },
       { "id": "no", "title": "No" }
+    ]
+  }'
+
+# Buttons with copy / url / call — Evolution Go only
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "+14155550123",
+    "type": "buttons",
+    "text": "Here is everything about your order:",
+    "footer_text": "Can we help with anything else?",
+    "buttons": [
+      { "type": "copy", "title": "Copy tracking code", "copy_code": "ZXN0ZSDDqSB1bSBjw7NkaWdv" },
+      { "type": "url", "title": "Track shipment", "url": "https://example.com/track" },
+      { "type": "call", "title": "Call support", "phone_number": "+14155550199" }
+    ]
+  }'
+
+# Buttons with a PIX button — Evolution Go only
+curl -X POST https://your-crm.example.com/api/v1/messages \\
+  -H "Authorization: Bearer wacrm_live_xxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "+14155550123",
+    "type": "buttons",
+    "text": "Pay your order in one tap:",
+    "header_text": "Order #123",
+    "footer_text": "Payment is confirmed automatically.",
+    "buttons": [
+      {
+        "type": "pix",
+        "currency": "BRL",
+        "name": "Acme Store",
+        "key_type": "RANDOM",
+        "key": "0ea59ac5-f001-4f0e-9785-c772200f1b1e"
+      }
     ]
   }'
 
@@ -202,9 +240,9 @@ curl -X POST https://your-crm.example.com/api/v1/messages \\
   }
 }`,
   notes: [
-    'Domain error codes: whatsapp_not_configured (400), meta_error (502), template_malformed (500), ryzeapi_not_configured (400), ryzeapi_error (502), instagram_not_configured (400), instagram_error (502)',
-    'PIX messages are only available via the RyzeAPI provider (native WhatsApp protocol). Meta Cloud API does not support PIX cards.',
-    'Interactive list and button messages are available via the RyzeAPI provider. Use "buttons" or "list" as the message type with the "buttons" / "sections" / "button_label" fields.',
+    'Domain error codes: whatsapp_not_configured (400), meta_error (502), template_malformed (500), ryzeapi_not_configured (400), ryzeapi_error (502), evolution_not_configured (400), evolution_error (502), instagram_not_configured (400), instagram_error (502)',
+    'PIX messages (type "pix") are only available via the RyzeAPI provider (native WhatsApp protocol). Meta Cloud API does not support PIX cards. On Evolution Go, send a pix button instead.',
+    'copy / url / call / pix buttons are exclusive to Evolution Go (Whatsmeow) conversations. reply buttons work everywhere.',
   ],
 };
 
@@ -294,9 +332,9 @@ const conversationsList: EndpointDoc = {
   path: '/api/v1/conversations',
   scopes: ['conversations:read'],
   description: {
-    pt: 'Lista conversas, da mais recente primeiro. Paginado. Filtros opcionais: ?status= (open / pending / closed) e ?contact_id=. Cada conversa inclui seu contato + tags, além de channel e provider para identificar o canal de origem.',
-    es: 'Lista conversaciones, de la más reciente primero. Paginado. Filtros opcionales: ?status= (open / pending / closed) y ?contact_id=. Cada conversación incluye su contacto + etiquetas, además de channel y provider para identificar el canal de origen.',
-    en: 'List conversations, newest first. Paginated. Optional filters: ?status= (open / pending / closed) and ?contact_id=. Each conversation embeds its contact + tags, plus channel and provider to identify the source channel.',
+    pt: 'Lista conversas, da mais recente primeiro. Paginado. Filtros opcionais: ?status= (open / pending / closed) e ?contact_id=. Cada conversa inclui seu contato + tags, suas labels (sincronizadas do WhatsApp via Evolution Go) e channel/provider para identificar o canal de origem.',
+    es: 'Lista conversaciones, de la más reciente primero. Paginado. Filtros opcionales: ?status= (open / pending / closed) y ?contact_id=. Cada conversación incluye su contacto + etiquetas, sus labels (sincronizadas de WhatsApp vía Evolution Go) y channel/provider para identificar el canal de origen.',
+    en: 'List conversations, newest first. Paginated. Optional filters: ?status= (open / pending / closed) and ?contact_id=. Each conversation embeds its contact + tags, its labels (synced from WhatsApp via Evolution Go), plus channel and provider to identify the source channel.',
   },
   curl: `curl https://your-crm.example.com/api/v1/conversations?status=open&limit=50 \\
   -H "Authorization: Bearer wacrm_live_xxx"`,
@@ -306,7 +344,11 @@ const conversationsList: EndpointDoc = {
       "id": "...",
       "status": "open",
       "channel": "whatsapp",
-      "provider": "meta",
+      "provider": "evolution",
+      "labels": [
+        { "id": "...", "name": "New lead", "color": "#e5473d" },
+        { "id": "...", "name": "VIP", "color": "#53a8e2" }
+      ],
       "contact": { "id": "...", "phone": "+14155550123", "name": "Jane Doe" },
       "tags": [{ "id": "...", "name": "vip", "color": "#f59e0b" }],
       "last_message_at": "...",
@@ -1101,14 +1143,14 @@ export const scopeRows: string[][] = [
 ];
 
 export const webhookEvents: string[][] = [
-  ['message.received', 'An inbound message arrives from a contact. Includes channel + provider fields to identify the source.'],
+  ['message.received', 'An inbound message arrives from a contact. Includes channel + provider fields to identify the source. Button/list clicks include interactive_reply_id (and the payload carries it as interactive_reply_id on Evolution Go).'],
   ['message.status_updated', 'A message you sent changed delivery status. Includes channel + provider.'],
   ['conversation.created', 'A new conversation is opened for a contact. Includes channel + provider.'],
 ];
 
 export const channelProviderTable: string[][] = [
   ['channel', 'whatsapp / instagram', 'The channel the message arrived on'],
-  ['provider', 'meta / ryzeapi', 'For WhatsApp: which backend provider delivered the message. Omitted for Instagram.'],
+  ['provider', 'meta / ryzeapi / zernio / evolution', 'For WhatsApp: which backend provider delivered the message. evolution is the Evolution Go (Whatsmeow) gateway. Omitted for Instagram.'],
 ];
 
 export const authSteps: string[][] = [
