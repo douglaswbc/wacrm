@@ -104,6 +104,14 @@ CREATE TABLE IF NOT EXISTS super_admins (
   created_by UUID REFERENCES auth.users(id)
 );
 
+ALTER TABLE super_admins ENABLE ROW LEVEL SECURITY;
+
+-- A user can only see their own row — enough for requireSuperAdmin()
+-- without exposing the full list.
+DROP POLICY IF EXISTS super_admins_select_own ON super_admins;
+CREATE POLICY super_admins_select_own ON super_admins FOR SELECT
+  USING (user_id = auth.uid());
+
 -- ============================================================
 -- MEMBER_PRESENCE
 -- ============================================================
@@ -2409,6 +2417,15 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 
 CREATE INDEX IF NOT EXISTS idx_ai_usage_account ON ai_usage(account_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_provider ON ai_usage(account_id, provider);
+
+ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS ai_usage_select ON ai_usage;
+CREATE POLICY ai_usage_select ON ai_usage FOR SELECT
+  USING (is_account_member(account_id));
+DROP POLICY IF EXISTS ai_usage_insert ON ai_usage;
+CREATE POLICY ai_usage_insert ON ai_usage FOR INSERT
+  WITH CHECK (is_account_member(account_id));
 
 -- ============================================================
 -- Migration 007_evolution_config.sql
