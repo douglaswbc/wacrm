@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import type { Language } from '@/lib/i18n/types';
@@ -32,6 +32,28 @@ function isLanguage(value: unknown): value is Language {
   return typeof value === 'string' && ALL_LANGUAGES.includes(value as Language);
 }
 
+// Module-level store so the language survives across provider remounts
+// and can be read synchronously via useSyncExternalStore (hydration-safe:
+// React renders with getServerSnapshot first, then adopts the client value).
+let currentLanguage: Language | null = null;
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getSnapshot(): Language {
+  if (currentLanguage === null) {
+    currentLanguage = readInitialLanguage();
+  }
+  return currentLanguage;
+}
+
+function getServerSnapshot(): Language {
+  return DEFAULT_LANGUAGE;
+}
+
 interface LanguageContextValue {
   language: Language;
   setLanguage: (next: Language) => void;
@@ -41,23 +63,22 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
-  const [ready, setReady] = useState(false);
+  const language = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  // Keep the <html> attributes in sync with the active language.
   useEffect(() => {
-    setLanguageState(readInitialLanguage());
-    setReady(true);
-  }, []);
+    document.documentElement.setAttribute(LANGUAGE_ATTR, language);
+    document.documentElement.lang = language === 'pt' ? 'pt-BR' : language;
+  }, [language]);
 
   const setLanguage = useCallback((next: Language) => {
     if (!isLanguage(next)) return;
-    setLanguageState(next);
-    document.documentElement.setAttribute(LANGUAGE_ATTR, next);
-    document.documentElement.lang = next === 'pt' ? 'pt-BR' : next;
+    currentLanguage = next;
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
     }
+    listeners.forEach((notify) => notify());
   }, []);
 
   const t = useCallback(

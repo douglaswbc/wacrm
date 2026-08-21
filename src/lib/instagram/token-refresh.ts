@@ -43,6 +43,7 @@ export async function getRefreshedAccessToken(
 interface InstagramConfigRow {
   account_id: string
   access_token: string
+  instagram_business_account_id: string
   meta_app_id: string | null
   meta_app_secret: string | null
   token_expires_at: string | null
@@ -162,7 +163,7 @@ export async function getValidAccessToken(accountId: string): Promise<DecryptedC
 
   return {
     accessToken,
-    igUserId: (data as any).instagram_business_account_id,
+    igUserId: (data as unknown as InstagramConfigRow).instagram_business_account_id,
     config: current,
   }
 }

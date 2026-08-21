@@ -8,7 +8,7 @@
 //   DELETE — Remove the Instagram config (admin+).
 // ============================================================
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import { encrypt, decrypt } from "@/lib/whatsapp/encryption";
@@ -20,7 +20,7 @@ import {
   debugToken,
 } from "@/lib/instagram/meta-api";
 
-let _adminClient: any = null
+let _adminClient: SupabaseClient | null = null
 function supabaseAdmin() {
   if (!_adminClient) {
     _adminClient = createClient(
@@ -179,7 +179,7 @@ export async function PUT(request: Request) {
         );
       }
       encryptedToken = existing.access_token;
-      tokenExpiresAt = (existing as any).token_expires_at ?? null;
+      tokenExpiresAt = (existing as { token_expires_at?: string | null }).token_expires_at ?? null;
     }
 
     // Encrypt meta_app_secret if provided.
@@ -195,7 +195,7 @@ export async function PUT(request: Request) {
         .select("*")
         .eq("account_id", ctx.accountId)
         .maybeSingle();
-      encryptedAppSecret = (existing as any)?.meta_app_secret ?? undefined;
+      encryptedAppSecret = (existing as { meta_app_secret?: string | null })?.meta_app_secret ?? undefined;
     }
 
     // Build the upsert payload.

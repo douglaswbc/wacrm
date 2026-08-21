@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,40 +9,17 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [platform, setPlatform] = useState<string | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const connected = searchParams.get('connected');
-    const usernameParam = searchParams.get('username');
-    const errorMsg = searchParams.get('error');
+  // Derived directly from the URL — no state or effects needed.
+  const connected = searchParams.get('connected');
+  const usernameParam = searchParams.get('username');
+  const errorMsg = searchParams.get('error');
 
-    if (errorMsg) {
-      setStatus('error');
-      setError(errorMsg);
-    } else if (connected) {
-      setStatus('success');
-      setPlatform(connected);
-      setUsername(usernameParam);
-    } else {
-      setStatus('error');
-      setError('No connection data received');
-    }
-  }, [searchParams]);
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">Processing...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const status: 'success' | 'error' =
+    !errorMsg && connected ? 'success' : 'error';
+  const error = errorMsg ?? (connected ? null : 'No connection data received');
+  const platform = connected;
+  const username = usernameParam;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

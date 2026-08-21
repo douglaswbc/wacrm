@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import {
   Eye,
@@ -29,6 +29,16 @@ import {
 
 const MASKED_TOKEN = '••••••••••••••••';
 
+// Reading the wall clock during render is impure, so route it through
+// useSyncExternalStore — React treats the snapshot as external state.
+const emptySubscribe = () => () => {};
+const getTimeSnapshot = () => Date.now();
+const getServerTimeSnapshot = () => 0;
+
+function useNow(): number {
+  return useSyncExternalStore(emptySubscribe, getTimeSnapshot, getServerTimeSnapshot);
+}
+
 function TokenStatus({
   expiresAt,
   refreshedAt,
@@ -38,8 +48,8 @@ function TokenStatus({
   refreshedAt: string | null;
   refreshError: string | null;
 }) {
+  const now = useNow();
   const expires = new Date(expiresAt);
-  const now = Date.now();
   const diffMs = expires.getTime() - now;
   const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 

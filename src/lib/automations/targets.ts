@@ -79,7 +79,7 @@ async function resolveByTags(
     return []
   }
 
-  const unique = [...new Set(data.map((r: any) => r.contact_id as string))]
+  const unique = [...new Set(data.map((r: { contact_id: string | null }) => r.contact_id as string))]
   console.info('[targets] resolveByTags:', { accountId, tagIds, found: unique.length })
   return unique
 }
@@ -123,7 +123,7 @@ async function resolveByPipeline(
     return []
   }
 
-  const unique = [...new Set(data.map((r: any) => r.contact_id as string))]
+  const unique = [...new Set(data.map((r: { contact_id: string | null }) => r.contact_id as string))]
   console.info('[targets] resolveByPipeline:', {
     accountId,
     pipeline_id: cfg.pipeline_id,

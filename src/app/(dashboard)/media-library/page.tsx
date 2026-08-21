@@ -53,19 +53,19 @@ function ContactSearchDialog({
   const [searching, setSearching] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
+  // Reset search state when the dialog closes — adjusting state during
+  // render (React's documented pattern) instead of in an effect.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (!open) {
       setQuery("");
       setContacts([]);
-      return;
     }
-  }, [open]);
+  }
 
   useEffect(() => {
-    if (!query.trim()) {
-      setContacts([]);
-      return;
-    }
+    if (!query.trim()) return;
     const timer = setTimeout(async () => {
       setSearching(true);
       const { data } = await supabase
@@ -79,6 +79,8 @@ function ContactSearchDialog({
     }, 300);
     return () => clearTimeout(timer);
   }, [query, supabase]);
+
+  const visibleContacts = query.trim() ? contacts : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,10 +101,10 @@ function ContactSearchDialog({
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : contacts.length === 0 && query.trim() ? (
+            ) : visibleContacts.length === 0 && query.trim() ? (
               <p className="text-sm text-muted-foreground text-center py-4">No contacts found</p>
             ) : (
-              contacts.map((c) => (
+              visibleContacts.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => onSelect(c.id)}

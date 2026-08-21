@@ -412,7 +412,7 @@ export default function AdminPage() {
               This action is irreversible.
             </strong>{" "}
             All data will be lost. If you only want to prevent access, use
-            "Disable" instead.
+            &quot;Disable&quot; instead.
           </div>
           <DialogFooter className="bg-popover border-border">
             <Button

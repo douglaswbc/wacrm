@@ -26,7 +26,11 @@ import { getIgUserProfile } from '@/lib/instagram/meta-api'
 import { fireCapiEvent, getCapiConfig } from '@/lib/meta/capi-store'
 import { autoCreateDealForContact } from '@/lib/deals/auto-create'
 
-// Lazy-initialized to avoid build-time crash when env vars are missing
+// Lazy-initialized to avoid build-time crash when env vars are missing.
+// Loosely typed on purpose: this webhook touches several tables that are
+// not represented in generated DB types, so strict generics would force
+// dozens of casts throughout the file.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _adminClient: any = null
 function supabaseAdmin() {
   if (!_adminClient) {
@@ -76,7 +80,7 @@ export async function GET(request: Request) {
     return new NextResponse('Forbidden', { status: 403 })
   }
 
-  let matchedConfig: any = null
+  let matchedConfig: { id: string; account_id: string; instagram_business_account_id: string; verify_token: string } | null = null
   for (const config of configs) {
     if (!config.verify_token) continue
     try {

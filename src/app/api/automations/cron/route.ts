@@ -111,7 +111,15 @@ export async function GET(request: Request) {
       console.info('[cron] checking', automations.length, 'time-based automations at',
         `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`)
 
-      for (const automation of automations as any[]) {
+      for (const automation of automations as {
+        id: string
+        name?: string | null
+        account_id?: string
+        channel?: string | null
+        provider?: string | null
+        last_fired_at?: string | null
+        trigger_config?: unknown
+      }[]) {
         const cfg = (automation.trigger_config ?? {}) as TimeBasedTriggerConfig
         const autoName = automation.name || automation.id
 
@@ -162,7 +170,7 @@ export async function GET(request: Request) {
         // Dedup: skip if already fired within the last 6 minutes.
         // Bypassed when ?now= is set so manual testing can re-fire.
         if (!overrideNow) {
-          const lastFired = automation.last_fired_at ? new Date(automation.last_fired_at as string) : null
+          const lastFired = automation.last_fired_at ? new Date(automation.last_fired_at) : null
           if (lastFired && (now.getTime() - lastFired.getTime()) < 6 * 60 * 1000) {
             console.info('[cron] skip', autoName, '— already fired at', lastFired.toISOString())
             continue
@@ -179,7 +187,7 @@ export async function GET(request: Request) {
         }
 
         // Resolve target contacts.
-        const accountId = automation.account_id as string
+        const accountId = automation.account_id!
         const contactIds = await resolveTargetContacts(accountId, cfg)
 
         if (contactIds.length === 0) {
@@ -191,7 +199,6 @@ export async function GET(request: Request) {
 
         const channel = (automation.channel as 'whatsapp' | 'instagram' | null) ?? undefined
         const provider = (automation.provider as 'meta' | 'ryzeapi' | null) ?? undefined
-
         for (const contactId of contactIds) {
           await runAutomationsForTrigger({
             accountId,

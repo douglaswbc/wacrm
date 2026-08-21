@@ -21,7 +21,7 @@ export async function createConnection(
 ): Promise<ZernioConnectionRecord> {
   const db = supabaseAdmin();
 
-  const { data, error } = await (db as any)
+  const { data, error } = await db
     .from('zernio_connections')
     .insert({
       account_id: accountId,
@@ -106,7 +106,7 @@ export async function updateConnectedAccounts(
 ): Promise<void> {
   const db = supabaseAdmin();
 
-  await (db as any)
+  await db
     .from('zernio_connections')
     .update({
       connected_accounts: accounts,

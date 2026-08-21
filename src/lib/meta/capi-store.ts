@@ -1,9 +1,9 @@
 import crypto from 'crypto'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { MetaCapiConfig } from '@/types'
 import { decrypt } from '@/lib/whatsapp/encryption'
 
-let _adminClient: any = null
+let _adminClient: SupabaseClient | null = null
 
 function supabaseAdmin() {
   if (!_adminClient) {

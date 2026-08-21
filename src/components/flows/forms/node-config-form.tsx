@@ -243,7 +243,7 @@ export function NodeConfigForm({
           />
           <p className="mb-3 text-[10px] text-muted-foreground">
             The model will classify the conversation and branch to TRUE or FALSE.
-            Example: "Is this a support request?"
+            Example: &quot;Is this a support request?&quot;
           </p>
           <NextNodeRow
             value={(cfg as { true_next?: string }).true_next ?? ""}

@@ -107,8 +107,8 @@ export async function POST(request: Request) {
     // Parse message content.
     let messageType = 'text'
     let contentText: string | null = null
-    let interactiveReplyId: string | null = null
-    let interactiveReplyTitle: string | null = null
+    const interactiveReplyId: string | null = null
+    const interactiveReplyTitle: string | null = null
 
     const msg = data.Message ?? {}
 

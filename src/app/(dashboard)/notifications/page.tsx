@@ -110,7 +110,7 @@ export default function NotificationsPage() {
         load();
       }
     },
-    [load],
+    [load, t],
   );
 
   const handleClick = useCallback(
@@ -142,7 +142,7 @@ export default function NotificationsPage() {
       toast.error(t('notifications.markAllFailed'));
       load();
     }
-  }, [unreadIds.length, load]);
+  }, [unreadIds.length, load, t]);
 
   if (error) {
     return (
