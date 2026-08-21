@@ -116,7 +116,7 @@ const t: Record<Lang, TranslationSet> = {
 
     webhooksTitle: 'Webhooks',
     webhooksDesc: 'Em vez de fazer polling, registre um endpoint e o wacrm fará POST para ele quando algo acontecer na sua conta.',
-    webhooksMigration: 'Migração necessária: aplique supabase/migrations/028_webhook_endpoints.sql.',
+    webhooksMigration: 'A tabela webhook_endpoints já vem criada pelo supabase/schema.sql — nenhuma migration extra é necessária.',
     webhooksEventsTitle: 'Eventos',
     webhooksEventsHeaderEvent: 'Evento',
     webhooksEventsHeaderFires: 'Dispara quando',
@@ -191,7 +191,7 @@ const t: Record<Lang, TranslationSet> = {
 
     webhooksTitle: 'Webhooks',
     webhooksDesc: 'En lugar de hacer polling, registre un endpoint y wacrm hará POST cuando algo ocurra en su cuenta.',
-    webhooksMigration: 'Migración requerida: aplique supabase/migrations/028_webhook_endpoints.sql.',
+    webhooksMigration: 'La tabla webhook_endpoints ya viene creada por supabase/schema.sql — no se necesita ninguna migración extra.',
     webhooksEventsTitle: 'Eventos',
     webhooksEventsHeaderEvent: 'Evento',
     webhooksEventsHeaderFires: 'Se dispara cuando',
@@ -266,7 +266,7 @@ const t: Record<Lang, TranslationSet> = {
 
     webhooksTitle: 'Webhooks',
     webhooksDesc: 'Rather than polling, register an endpoint and wacrm will POST to it when things happen in your account.',
-    webhooksMigration: 'Migration required: apply supabase/migrations/028_webhook_endpoints.sql.',
+    webhooksMigration: 'The webhook_endpoints table is already created by supabase/schema.sql — no extra migration is needed.',
     webhooksEventsTitle: 'Events',
     webhooksEventsHeaderEvent: 'Event',
     webhooksEventsHeaderFires: 'Fires when',

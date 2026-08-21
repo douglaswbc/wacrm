@@ -651,7 +651,7 @@ async function processMessage(
   }
 
   // Insert message — field names MUST match the messages table schema
-  // (see supabase/migrations/001_initial_schema.sql):
+  // (see supabase/schema.sql):
   //   conversation_id, sender_type, content_type, content_text,
   //   media_url, template_name, message_id, status, created_at
   // `mediaType` is intentionally unused — the schema has no media_type
