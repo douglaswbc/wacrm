@@ -2456,6 +2456,19 @@ CREATE INDEX IF NOT EXISTS idx_evolution_config_account ON evolution_config(acco
 
 ALTER TABLE evolution_config ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS evolution_config_select ON evolution_config;
+CREATE POLICY evolution_config_select ON evolution_config FOR SELECT
+  USING (is_account_member(account_id));
+DROP POLICY IF EXISTS evolution_config_insert ON evolution_config;
+CREATE POLICY evolution_config_insert ON evolution_config FOR INSERT
+  WITH CHECK (is_account_member(account_id, 'admin'));
+DROP POLICY IF EXISTS evolution_config_update ON evolution_config;
+CREATE POLICY evolution_config_update ON evolution_config FOR UPDATE
+  USING (is_account_member(account_id, 'admin'));
+DROP POLICY IF EXISTS evolution_config_delete ON evolution_config;
+CREATE POLICY evolution_config_delete ON evolution_config FOR DELETE
+  USING (is_account_member(account_id, 'admin'));
+
 -- Update provider constraints to include 'evolution'
 ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_provider_check;
 ALTER TABLE conversations

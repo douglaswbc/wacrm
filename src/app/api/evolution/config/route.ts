@@ -298,6 +298,7 @@ async function handleCreate(
     .upsert(row, { onConflict: 'account_id' })
 
   if (upsertErr) {
+    console.error('[evolution config] upsert error:', upsertErr)
     return NextResponse.json({ error: 'Failed to save config' }, { status: 500 })
   }
 
