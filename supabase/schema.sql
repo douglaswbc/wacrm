@@ -5,8 +5,9 @@
 -- How to run in the Supabase dashboard:
 --   SQL Editor -> New query -> paste this whole file -> Run.
 --
--- Generated from the numbered migrations in supabase/migrations/.
--- For fresh installs this single file is sufficient.
+-- This is the single source of truth for the database schema.
+-- New schema changes should be applied by editing this file and
+-- keeping every statement idempotent (IF NOT EXISTS / IF EXISTS).
 -- ============================================================
 
 -- ============================================================
