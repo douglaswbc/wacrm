@@ -12,6 +12,13 @@ const categoryColors: Record<string, string> = {
   Authentication: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
 };
 
+const providerLabels: Record<string, string> = {
+  meta: 'Meta',
+  zernio: 'Zernio',
+  evolution: 'Evolution Go',
+  ryzeapi: 'RyzeAPI',
+};
+
 interface Step1Props {
   selectedTemplate: MessageTemplate | null;
   onSelect: (template: MessageTemplate) => void;
@@ -106,6 +113,9 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
                 </div>
                 <p className="line-clamp-3 text-xs text-muted-foreground">{template.body_text}</p>
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                    {providerLabels[template.provider ?? 'meta']}
+                  </span>
                   <span>{template.language ?? 'en_US'}</span>
                   {/* Status is omitted on purpose — every template
                       shown here is already filtered to APPROVED,

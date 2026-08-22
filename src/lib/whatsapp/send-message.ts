@@ -451,14 +451,27 @@ async function sendRyzeMessage(
   } = params;
 
   let ryzeMessageId = '';
+  // Rendered body for direct-provider templates (persisted below).
+  let ryzeRenderedText: string | null = null;
   try {
     if (messageType === 'template') {
+      const rendered = await renderDirectTemplate(
+        db, params.templateName || '', params.templateLanguage, params.templateParams,
+      );
+      if (!rendered) {
+        throw new SendMessageError(
+          'template_malformed',
+          `Template "${params.templateName}" not found`,
+          404,
+        );
+      }
+      ryzeRenderedText = rendered.body;
       const r = await sendRyzeText({
         apiUrl: config.api_url,
         instanceToken,
         instance: config.instance_name,
         number: phone,
-        message: `[template:${params.templateName}]`,
+        message: ryzeRenderedText ?? `[template:${params.templateName}]`,
       });
       ryzeMessageId = r.messageId;
     } else if (messageType === 'buttons') {
@@ -537,6 +550,7 @@ async function sendRyzeMessage(
   }
 
   // Persist the sent message.
+  const ryzeOutboundText = ryzeRenderedText ?? contentText;
   const { data: messageRecord, error: msgError } = await db
     .from('messages')
     .insert({
@@ -544,7 +558,7 @@ async function sendRyzeMessage(
       conversation_id: conversationId,
     sender_type: 'agent',
       content_type: messageType,
-      content_text: contentText || null,
+      content_text: ryzeOutboundText || null,
       media_url: mediaUrl || null,
       message_id: ryzeMessageId,
       status: 'sent',
@@ -566,7 +580,7 @@ async function sendRyzeMessage(
     message_id: messageRecord.id,
     sender_type: 'agent',
     content_type: messageType,
-    text: contentText || null,
+    text: ryzeOutboundText || null,
     channel: 'whatsapp',
     provider: 'ryzeapi',
   }).catch((err) => console.error('[webhook] message.sent dispatch failed:', err))
@@ -574,7 +588,7 @@ async function sendRyzeMessage(
   await db
     .from('conversations')
     .update({
-      last_message_text: contentText || `[${messageType}]`,
+      last_message_text: ryzeOutboundText || `[${messageType}]`,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -613,6 +627,9 @@ async function sendEvolutionMessage(
     contentText,
     mediaUrl,
     filename,
+    templateName,
+    templateLanguage,
+    templateParams,
     replyToMessageId,
     buttons,
     headerText,
@@ -623,6 +640,9 @@ async function sendEvolutionMessage(
   } = params;
 
   let evoMessageId = '';
+  // Rendered body for direct-provider templates — persisted in
+  // content_text so the inbox shows the real message, not a placeholder.
+  let renderedText: string | null = null;
   try {
     const extractId = (r: {
       data?: { Info?: { ID?: string }; key?: { id?: string } };
@@ -631,7 +651,55 @@ async function sendEvolutionMessage(
       messageID?: string;
     }) => r.data?.Info?.ID ?? r.data?.key?.id ?? r.key?.id ?? r.messageId ?? r.messageID ?? ''
 
-    if (messageType === 'template' || messageType === 'text') {
+    if (messageType === 'template') {
+      const rendered = await renderDirectTemplate(
+        db, templateName || '', templateLanguage, templateParams,
+      );
+      if (!rendered) {
+        throw new SendMessageError(
+          'template_malformed',
+          `Template "${templateName}" not found`,
+          404,
+        );
+      }
+      renderedText = rendered.body;
+      if (rendered.buttons.length > 0) {
+        // Template with buttons → interactive button message.
+        const evoButtons: EvolutionButton[] = rendered.buttons.map((btn) => {
+          if (btn.type === 'url') {
+            return { type: 'url', displayText: btn.title, url: btn.url };
+          }
+          if (btn.type === 'call') {
+            return { type: 'call', displayText: btn.title, phoneNumber: btn.phoneNumber };
+          }
+          if (btn.type === 'copy') {
+            return { type: 'copy', displayText: btn.title, copyCode: btn.copyCode };
+          }
+          const reply = btn as Extract<OutboundButton, { type?: 'reply' }>;
+          return { type: 'reply' as const, displayText: reply.title, id: reply.id };
+        });
+        const r = await sendEvoButtons({
+          apiUrl: config.api_url,
+          instanceToken,
+          number: phone,
+          headerText: rendered.headerContent ?? undefined,
+          contentText: rendered.body,
+          footerText: rendered.footer ?? undefined,
+          buttons: evoButtons,
+        });
+        evoMessageId = extractId(r);
+      } else {
+        const useLink = Boolean(linkPreview) && /https?:\/\//.test(rendered.body);
+        const payload = {
+          apiUrl: config.api_url,
+          instanceToken,
+          number: phone,
+          message: rendered.body,
+        };
+        const r = useLink ? await sendEvoLink(payload) : await sendEvoText(payload);
+        evoMessageId = extractId(r);
+      }
+    } else if (messageType === 'text') {
       // Evolution Go has a dedicated /send/link endpoint for messages
       // that should render a link preview card.
       const useLink = Boolean(linkPreview) && /https?:\/\//.test(contentText || '');
@@ -727,6 +795,8 @@ async function sendEvolutionMessage(
     throw new SendMessageError('evolution_error', `Evolution API error: ${message}`, 502);
   }
 
+  const outboundText = renderedText ?? contentText;
+
   const { data: messageRecord, error: msgError } = await db
     .from('messages')
     .insert({
@@ -734,7 +804,7 @@ async function sendEvolutionMessage(
       conversation_id: conversationId,
       sender_type: 'agent',
       content_type: messageType,
-      content_text: contentText || null,
+      content_text: outboundText || null,
       media_url: mediaUrl || null,
       message_id: evoMessageId,
       status: 'sent',
@@ -756,7 +826,7 @@ async function sendEvolutionMessage(
     message_id: messageRecord.id,
     sender_type: 'agent',
     content_type: messageType,
-    text: contentText || null,
+    text: outboundText || null,
     channel: 'whatsapp',
     provider: 'evolution',
   }).catch((err) => console.error('[webhook] message.sent dispatch failed:', err))
@@ -764,7 +834,7 @@ async function sendEvolutionMessage(
   await db
     .from('conversations')
     .update({
-      last_message_text: contentText || `[${messageType}]`,
+      last_message_text: outboundText || `[${messageType}]`,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -774,6 +844,95 @@ async function sendEvolutionMessage(
 }
 
 // ── Zernio send (primary: WhatsApp + Instagram) ────────────
+
+/**
+ * Replace `{{1}} … {{n}}` placeholders in a template body with the
+ * provided positional params. Missing params render as "." (matching
+ * Meta's own padding behaviour).
+ */
+export function substituteTemplateVars(body: string, params: string[]): string {
+  return body.replace(/\{\{(\d+)\}\}/g, (_match, idxStr: string) => {
+    const i = Number.parseInt(idxStr, 10) - 1;
+    return i >= 0 && i < params.length ? params[i] : '.';
+  });
+}
+
+/** Map a Meta-format template buttons JSONB to OutboundButton shapes. */
+function mapMetaButtonsToOutbound(raw: unknown): OutboundButton[] {
+  if (!Array.isArray(raw)) return [];
+  const buttons: OutboundButton[] = [];
+  for (const entry of raw.slice(0, 3)) {
+    const b = entry as Record<string, unknown>;
+    const type = String(b.type ?? '').toUpperCase();
+    const text = String(b.text ?? '').trim();
+    switch (type) {
+      case 'URL':
+        if (b.url) {
+          buttons.push({ type: 'url', title: text || 'Open link', url: String(b.url) });
+        }
+        break;
+      case 'PHONE_NUMBER':
+      case 'CALL':
+        if (b.phone_number) {
+          buttons.push({ type: 'call', title: text || 'Call', phoneNumber: String(b.phone_number) });
+        }
+        break;
+      case 'COPY_CODE':
+        if (b.example ?? b.copy_code) {
+          buttons.push({ type: 'copy', title: text || 'Copy code', copyCode: String(b.example ?? b.copy_code) });
+        }
+        break;
+      default:
+        // QUICK_REPLY (or untyped) — always usable as a reply button.
+        buttons.push({
+          type: 'reply',
+          id: String(b.id ?? (text || 'reply')),
+          title: text || 'Reply',
+        });
+    }
+  }
+  return buttons;
+}
+
+interface RenderedDirectTemplate {
+  body: string;
+  headerContent: string | null;
+  footer: string | null;
+  buttons: OutboundButton[];
+}
+
+/**
+ * Render a locally-stored template for direct providers (Evolution Go,
+ * RyzeAPI). These providers have no approval flow — the template body
+ * is rendered with `{{n}}` substitution and sent as plain text, or as
+ * an interactive button message when the template defines buttons.
+ */
+async function renderDirectTemplate(
+  db: SupabaseClient,
+  templateName: string,
+  templateLanguage: string | null | undefined,
+  providedParams: string[] | undefined,
+): Promise<RenderedDirectTemplate | null> {
+  const lang = templateLanguage || 'en_US';
+  const { data: tmpl } = await db
+    .from('message_templates')
+    .select('body_text, footer_text, header_content, header_type, buttons')
+    .eq('name', templateName)
+    .eq('language', lang)
+    .maybeSingle();
+  if (!tmpl?.body_text) return null;
+
+  const varCount = extractVariableIndices(tmpl.body_text).length;
+  const params = [...(providedParams ?? [])];
+  while (params.length < varCount) params.push('.');
+
+  return {
+    body: substituteTemplateVars(tmpl.body_text, params),
+    headerContent: tmpl.header_type === 'text' ? tmpl.header_content ?? null : null,
+    footer: tmpl.footer_text ?? null,
+    buttons: mapMetaButtonsToOutbound(tmpl.buttons),
+  };
+}
 
 async function padTemplateParams(
   db: SupabaseClient,

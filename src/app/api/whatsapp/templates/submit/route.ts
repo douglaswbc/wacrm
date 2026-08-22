@@ -17,6 +17,7 @@ async function upsertTemplateRow(
   metaTemplateId: string | null,
   status: string,
   submissionError: string | null,
+  provider: string = 'meta',
 ) {
   return supabase
     .from('message_templates')
@@ -39,6 +40,7 @@ async function upsertTemplateRow(
         meta_template_id: metaTemplateId,
         submission_error: submissionError,
         last_submitted_at: new Date().toISOString(),
+        provider,
       },
       { onConflict: 'user_id,name,language' },
     )
@@ -94,6 +96,33 @@ export async function POST(request: Request) {
         { error: e instanceof Error ? e.message : 'Validation failed.' },
         { status: 400 },
       )
+    }
+
+    // Direct providers (Evolution Go, RyzeAPI) have no approval flow —
+    // the template is saved ready-to-use and renders as plain text or an
+    // interactive button message at send time.
+    const rawProvider = (payload as TemplatePayload & { provider?: string }).provider
+    const provider =
+      rawProvider === 'evolution' || rawProvider === 'ryzeapi' ? rawProvider : 'meta'
+
+    if (provider !== 'meta') {
+      const { data: row, error: upsertErr } = await upsertTemplateRow(
+        supabase,
+        accountId,
+        user.id,
+        payload,
+        null,
+        'APPROVED',
+        null,
+        provider,
+      )
+      if (upsertErr) {
+        return NextResponse.json(
+          { error: `Failed to save template: ${upsertErr.message}` },
+          { status: 500 },
+        )
+      }
+      return NextResponse.json({ success: true, template: row })
     }
 
     const zernioAccountId = await getSocialAccountId(accountId, 'whatsapp')

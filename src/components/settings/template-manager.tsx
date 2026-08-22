@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/select';
 import type {
   MessageTemplate,
+  MessageTemplateProvider,
   TemplateButton,
   TemplateSampleValues,
 } from '@/types';
@@ -62,7 +63,28 @@ const categoryColors: Record<string, string> = {
   Authentication: 'bg-amber-600/20 text-amber-400 border-amber-600/30',
 };
 
+const PROVIDER_OPTIONS: { value: MessageTemplateProvider; label: string }[] = [
+  { value: 'meta', label: 'Meta Cloud (aprovado pela Meta)' },
+  { value: 'evolution', label: 'Evolution Go' },
+  { value: 'ryzeapi', label: 'RyzeAPI' },
+];
+
+const providerLabels: Record<MessageTemplateProvider, string> = {
+  meta: 'Meta',
+  zernio: 'Zernio',
+  evolution: 'Evolution Go',
+  ryzeapi: 'RyzeAPI',
+};
+
+const providerColors: Record<MessageTemplateProvider, string> = {
+  meta: 'bg-emerald-600/20 text-emerald-400 border-emerald-600/30',
+  zernio: 'bg-sky-600/20 text-sky-400 border-sky-600/30',
+  evolution: 'bg-violet-600/20 text-violet-400 border-violet-600/30',
+  ryzeapi: 'bg-rose-600/20 text-rose-400 border-rose-600/30',
+};
+
 interface TemplateFormData {
+  provider: MessageTemplateProvider;
   name: string;
   category: MessageTemplate['category'];
   language: string;
@@ -77,6 +99,7 @@ interface TemplateFormData {
 }
 
 const emptyForm: TemplateFormData = {
+  provider: 'meta',
   name: '',
   category: 'Marketing',
   language: 'en_US',
@@ -319,23 +342,36 @@ export function TemplateManager() {
   }
 
   function buildSubmitPayload() {
+    const isDirect = form.provider !== 'meta';
     const sample_values: TemplateSampleValues = {};
-    if (form.body_samples.some((v) => v.trim())) {
+    if (!isDirect && form.body_samples.some((v) => v.trim())) {
       sample_values.body = form.body_samples.map((v) => v.trim());
     }
-    if (form.header_format === 'text' && form.header_sample.trim()) {
+    if (
+      !isDirect &&
+      form.header_format === 'text' &&
+      form.header_sample.trim()
+    ) {
       sample_values.header = [form.header_sample.trim()];
     }
 
     return {
+      provider: form.provider,
       name: form.name.trim(),
-      category: form.category,
+      category: isDirect ? ('Marketing' as const) : form.category,
       language: form.language.trim() || 'en_US',
-      header_type: form.header_format === 'none' ? undefined : form.header_format,
+      header_type:
+        isDirect && form.header_format !== 'text'
+          ? undefined
+          : form.header_format === 'none'
+            ? undefined
+            : form.header_format,
       header_content:
         form.header_format === 'text' ? form.header_content.trim() : undefined,
       header_media_url:
-        form.header_format !== 'none' && form.header_format !== 'text'
+        !isDirect &&
+        form.header_format !== 'none' &&
+        form.header_format !== 'text'
           ? form.header_media_url.trim() || undefined
           : undefined,
       body_text: form.body_text.trim(),
@@ -349,6 +385,7 @@ export function TemplateManager() {
   function openEdit(template: MessageTemplate) {
     setEditingId(template.id);
     setForm({
+      provider: template.provider ?? 'meta',
       name: template.name,
       category: template.category,
       language: template.language || 'en_US',
@@ -373,6 +410,8 @@ export function TemplateManager() {
   function handleSelectModel(model: TemplateModel) {
     const varCount = extractVariableIndices(model.body_text).length;
     setForm({
+      ...emptyForm,
+      provider: form.provider,
       name: model.name,
       category: model.category,
       language: model.language,
@@ -390,7 +429,8 @@ export function TemplateManager() {
   async function handleSubmit() {
     // AUTHENTICATION is blocked by the persistent banner + disabled
     // submit button; this is a defensive second line of defense.
-    if (form.category === 'Authentication') return;
+    if (form.provider === 'meta' && form.category === 'Authentication') return;
+    const direct = form.provider !== 'meta';
     try {
       setSubmitting(true);
       const isEdit = editingId !== null;
@@ -416,9 +456,13 @@ export function TemplateManager() {
           ? isEdit
             ? 'Template updated (dry-run — no submission)'
             : 'Template saved (dry-run — no submission)'
-          : isEdit
-            ? 'Edit submitted via Zernio — Meta typically reviews within 24 hours.'
-            : 'Submitted via Zernio — typical review time is 24 hours.',
+          : direct
+            ? isEdit
+              ? `Template saved on ${providerLabels[form.provider]}.`
+              : `Template created and ready to use on ${providerLabels[form.provider]} — no Meta approval needed.`
+            : isEdit
+              ? 'Edit submitted via Zernio — Meta typically reviews within 24 hours.'
+              : 'Submitted via Zernio — typical review time is 24 hours.',
       );
       setDialogOpen(false);
       setForm(emptyForm);
@@ -581,8 +625,10 @@ export function TemplateManager() {
     );
   }
 
+  const isDirect = form.provider !== 'meta';
+
   const headerNeedsMedia =
-    form.header_format !== 'none' && form.header_format !== 'text';
+    !isDirect && form.header_format !== 'none' && form.header_format !== 'text';
 
   async function handleHeaderImageFile(file: File) {
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
@@ -612,7 +658,7 @@ export function TemplateManager() {
       <SettingsPanelHead
         title="Message templates"
         description={
-          'Create templates and submit them via Zernio for approval. Use "Sync from Zernio" to pull templates approved elsewhere.'
+          'Meta Cloud templates are submitted via Zernio for Meta approval. Evolution Go and RyzeAPI templates are saved instantly, ready to use with no review. Use "Sync from Zernio" to pull Meta-approved templates created elsewhere.'
         }
         action={
           <div className="flex items-center gap-2">
@@ -647,12 +693,20 @@ export function TemplateManager() {
           {templates.map((template) => {
             const statusKey = template.status || 'DRAFT';
             const status = templateStatusConfig[statusKey];
+            const providerKey: MessageTemplateProvider =
+              template.provider ?? 'meta';
+            const isMetaRow = providerKey === 'meta' || providerKey === 'zernio';
             return (
               <Card key={template.id}>
                 <CardContent className="flex items-start justify-between pt-4">
                   <div className="space-y-2 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-medium text-foreground">{template.name}</h3>
+                      <Badge
+                        className={`text-xs border ${providerColors[providerKey]}`}
+                      >
+                        {providerLabels[providerKey]}
+                      </Badge>
                       <Badge
                         className={`text-xs border ${categoryColors[template.category] || ''}`}
                       >
@@ -704,7 +758,11 @@ export function TemplateManager() {
                         variant="ghost"
                         size="sm"
                         onClick={() => openEdit(template)}
-                        title="Editing triggers Meta re-review — status flips to PENDING."
+                        title={
+                          isMetaRow
+                            ? 'Editing triggers Meta re-review — status flips to PENDING.'
+                            : 'Save your changes directly — no review needed.'
+                        }
                         aria-label="Edit template"
                         className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
                       >
@@ -712,19 +770,32 @@ export function TemplateManager() {
                         Edit
                       </Button>
                     )}
-                    {(statusKey === 'REJECTED' || statusKey === 'PAUSED') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(template)}
-                        title="Edit the template and resubmit to Meta for review."
-                        aria-label="Edit and resubmit template"
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
-                      >
-                        <RotateCcw className="size-3.5" />
-                        Resubmit
-                      </Button>
-                    )}
+                    {(statusKey === 'REJECTED' || statusKey === 'PAUSED') &&
+                      (isMetaRow ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(template)}
+                          title="Edit the template and resubmit to Meta for review."
+                          aria-label="Edit and resubmit template"
+                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
+                        >
+                          <RotateCcw className="size-3.5" />
+                          Resubmit
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(template)}
+                          title="Save your changes directly — no review needed."
+                          aria-label="Edit template"
+                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
+                        >
+                          <Pencil className="size-3.5" />
+                          Edit
+                        </Button>
+                      ))}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -773,8 +844,12 @@ export function TemplateManager() {
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               {editingId
-                ? 'Save your changes to re-submit via Zernio. Status will flip back to PENDING during review.'
-                : 'Build a template and submit it via Zernio for approval. Once approved, you can use it in broadcasts and the inbox.'}
+                ? form.provider !== 'meta'
+                  ? 'Save your changes — Evolution Go and RyzeAPI templates need no review.'
+                  : 'Save your changes to re-submit via Zernio. Status will flip back to PENDING during review.'
+                : form.provider !== 'meta'
+                  ? 'Build a template and save it instantly — no Meta approval needed. It becomes available in broadcasts right away.'
+                  : 'Build a template and submit it via Zernio for approval. Once approved, you can use it in broadcasts and the inbox.'}
             </DialogDescription>
 
             {!editingId && (
@@ -802,7 +877,7 @@ export function TemplateManager() {
             )}
           </DialogHeader>
 
-          {form.category === 'Authentication' && (
+          {form.provider === 'meta' && form.category === 'Authentication' && (
             <div className="flex items-start gap-2 rounded border border-amber-700/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
               <AlertCircle className="size-4 mt-0.5 shrink-0" />
               <p>
@@ -815,6 +890,47 @@ export function TemplateManager() {
           )}
 
           <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Provider</Label>
+              <Select
+                value={form.provider}
+                onValueChange={(val) => {
+                  if (!val) return;
+                  setForm({
+                    ...form,
+                    provider: val as MessageTemplateProvider,
+                  });
+                }}
+                disabled={editingId !== null}
+              >
+                <SelectTrigger
+                  className={`w-full bg-muted border-border text-foreground ${
+                    editingId !== null
+                      ? 'disabled:opacity-60 disabled:cursor-not-allowed'
+                      : ''
+                  }`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {PROVIDER_OPTIONS.map((opt) => (
+                    <SelectItem
+                      key={opt.value}
+                      value={opt.value}
+                      className="text-popover-foreground focus:bg-muted focus:text-popover-foreground"
+                    >
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {form.provider === 'meta'
+                  ? 'Submitted through Zernio and reviewed by Meta (usually within 24 hours).'
+                  : 'Saved instantly as approved — no Meta review. Buttons are sent as an interactive message.'}
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label className="text-muted-foreground">Template Name</Label>
               <Input
@@ -831,34 +947,36 @@ export function TemplateManager() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Category</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(val) =>
-                    setForm({
-                      ...form,
-                      category: val as MessageTemplate['category'],
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-full bg-muted border-border text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem
-                        key={cat}
-                        value={cat}
-                        className="text-popover-foreground focus:bg-muted focus:text-popover-foreground"
-                      >
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className={`grid gap-4 ${isDirect ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {!isDirect && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Category</Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(val) =>
+                      setForm({
+                        ...form,
+                        category: val as MessageTemplate['category'],
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-muted border-border text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem
+                          key={cat}
+                          value={cat}
+                          className="text-popover-foreground focus:bg-muted focus:text-popover-foreground"
+                        >
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Language</Label>
@@ -915,7 +1033,9 @@ export function TemplateManager() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
-                  {HEADER_FORMATS.map((type) => (
+                  {HEADER_FORMATS.filter(
+                    (type) => !isDirect || type === 'none' || type === 'text',
+                  ).map((type) => (
                     <SelectItem
                       key={type}
                       value={type}
@@ -942,7 +1062,7 @@ export function TemplateManager() {
                     maxLength={TEMPLATE_LIMITS.headerTextMaxLength}
                     className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
-                  {headerVarCount > 0 && (
+                  {!isDirect && headerVarCount > 0 && (
                     <Input
                       id="template-header-sample"
                       aria-label="Sample value for header variable"
@@ -1037,7 +1157,7 @@ export function TemplateManager() {
                 starting at {`{{1}}`}).
               </p>
 
-              {bodyVarCount > 0 && (
+              {!isDirect && bodyVarCount > 0 && (
                 <div className="space-y-1.5 pt-1">
                   <Label className="text-[11px] text-muted-foreground">
                     Sample values (Meta uses these to review your template)
@@ -1223,16 +1343,25 @@ export function TemplateManager() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={submitting || form.category === 'Authentication'}
+              disabled={
+                submitting ||
+                (form.provider === 'meta' && form.category === 'Authentication')
+              }
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  {editingId ? 'Saving…' : 'Submitting…'}
+                  {editingId ? 'Saving…' : isDirect ? 'Saving…' : 'Submitting…'}
                 </>
               ) : editingId ? (
-                'Save & Resubmit'
+                isDirect ? (
+                  'Save template'
+                ) : (
+                  'Save & Resubmit'
+                )
+              ) : isDirect ? (
+                'Save template'
               ) : (
                 'Submit for Approval'
               )}

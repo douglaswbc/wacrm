@@ -370,10 +370,13 @@ export interface TemplateSampleValues {
   header?: string[];
 }
 
+export type MessageTemplateProvider = 'meta' | 'zernio' | 'evolution' | 'ryzeapi';
+
 export interface MessageTemplate {
   id: string;
   user_id: string;
   name: string;
+  provider?: MessageTemplateProvider;
   category: 'Marketing' | 'Utility' | 'Authentication';
   language?: string;
   header_type?: 'text' | 'image' | 'video' | 'document';

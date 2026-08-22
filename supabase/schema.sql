@@ -401,6 +401,11 @@ CREATE TABLE IF NOT EXISTS message_templates (
   submission_error  TEXT,
   last_submitted_at TIMESTAMPTZ,
   account_id        UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  -- Which provider this template targets: 'meta' templates go through
+  -- Meta's approval flow; 'zernio' rows were pulled via Zernio sync;
+  -- 'evolution'/'ryzeapi' are local reusable models that need no
+  -- approval and render as plain text / interactive buttons.
+  provider          TEXT NOT NULL DEFAULT 'meta' CHECK (provider IN ('meta', 'zernio', 'evolution', 'ryzeapi')),
   CONSTRAINT message_templates_buttons_shape_check CHECK (
     buttons IS NULL OR (
       jsonb_typeof(buttons) = 'array' AND jsonb_array_length(buttons) <= 10
@@ -411,6 +416,10 @@ CREATE TABLE IF NOT EXISTS message_templates (
 CREATE INDEX IF NOT EXISTS idx_message_templates_account              ON message_templates(account_id);
 CREATE INDEX IF NOT EXISTS idx_message_templates_meta_template_id     ON message_templates(meta_template_id) WHERE meta_template_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS message_templates_user_name_language_key ON message_templates (user_id, name, language);
+
+-- Patch for existing installs: add the provider column (the CREATE TABLE
+-- above only covers fresh installs).
+ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'meta';
 
 ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
 

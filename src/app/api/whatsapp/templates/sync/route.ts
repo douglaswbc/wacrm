@@ -117,6 +117,7 @@ export async function POST() {
         sample_values: sampleValues,
         status: normalizeStatus(t.status),
         meta_template_id: t.id ?? null,
+        provider: 'zernio',
         updated_at: new Date().toISOString(),
       }
 
