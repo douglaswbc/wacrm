@@ -375,5 +375,11 @@ export function validateDirectTemplatePayload(payload: TemplatePayload): void {
       `Interactive templates support at most 3 buttons (got ${buttons.length}).`,
     );
   }
+  // Evolution Go requires a non-empty footer on /send/button messages.
+  if (buttons.length > 0 && !payload.footer_text?.trim()) {
+    throw new Error(
+      'Templates with buttons require a footer text (Evolution Go requirement).',
+    );
+  }
   validateButtonFields(buttons);
 }

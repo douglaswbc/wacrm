@@ -321,6 +321,7 @@ describe('validateDirectTemplatePayload', () => {
     expect(() =>
       validateDirectTemplatePayload({
         ...directBase,
+        footer_text: 'Acme Store',
         buttons: [
           { type: 'URL', text: 'A', url: 'https://a.com' },
           { type: 'URL', text: 'B', url: 'https://b.com' },
@@ -332,6 +333,7 @@ describe('validateDirectTemplatePayload', () => {
     expect(() =>
       validateDirectTemplatePayload({
         ...directBase,
+        footer_text: 'Acme Store',
         buttons: [
           { type: 'QUICK_REPLY', text: '1' },
           { type: 'QUICK_REPLY', text: '2' },
@@ -340,5 +342,25 @@ describe('validateDirectTemplatePayload', () => {
         ],
       }),
     ).toThrow(/at most 3 buttons/);
+  });
+
+  it('requires a footer when buttons are present (Evolution Go rule)', () => {
+    expect(() =>
+      validateDirectTemplatePayload({
+        ...directBase,
+        buttons: [{ type: 'QUICK_REPLY', text: 'Yes' }],
+      }),
+    ).toThrow(/require a footer/);
+
+    expect(() =>
+      validateDirectTemplatePayload({
+        ...directBase,
+        footer_text: 'Acme Store',
+        buttons: [{ type: 'QUICK_REPLY', text: 'Yes' }],
+      }),
+    ).not.toThrow();
+
+    // No buttons → no footer needed.
+    expect(() => validateDirectTemplatePayload(directBase)).not.toThrow();
   });
 });

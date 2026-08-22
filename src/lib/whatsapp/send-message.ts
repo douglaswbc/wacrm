@@ -665,6 +665,14 @@ async function sendEvolutionMessage(
       renderedText = rendered.body;
       if (rendered.buttons.length > 0) {
         // Template with buttons → interactive button message.
+        // Evolution Go rejects /send/button without a footer.
+        if (!rendered.footer?.trim()) {
+          throw new SendMessageError(
+            'template_malformed',
+            `Template "${templateName}" has buttons but no footer — edit it in Settings → Templates and add a footer text.`,
+            400,
+          );
+        }
         const evoButtons: EvolutionButton[] = rendered.buttons.map((btn) => {
           if (btn.type === 'url') {
             return { type: 'url', displayText: btn.title, url: btn.url };
