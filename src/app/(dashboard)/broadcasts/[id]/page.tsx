@@ -351,6 +351,23 @@ export default function BroadcastDetailPage() {
         )}
       </div>
 
+      {/* Draft resume banner — drafts are dead-ends otherwise: no
+          recipients were stored, so the funnel below is all zeros and
+          the only way forward is re-running the wizard prefilled. */}
+      {broadcast.status === 'draft' && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-2.5">
+          <p className="text-xs text-amber-400">
+            {t('broadcasts.draftBanner')}
+          </p>
+          <Button
+            size="sm"
+            onClick={() => router.push(`/broadcasts/new?draft=${broadcastId}`)}
+          >
+            {t('broadcasts.continueDraft')}
+          </Button>
+        </div>
+      )}
+
       {/* Stats — 6 cards: Total / Sent / Delivered / Read / Replied / Failed */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard

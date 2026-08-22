@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
@@ -45,6 +45,45 @@ export default function NewBroadcastPage() {
   >({});
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');
+  // Draft being resumed via /broadcasts/new?draft=<id> (deleted after send).
+  const [resumedDraftId, setResumedDraftId] = useState<string | null>(null);
+
+  // Resume a saved draft: prefill name + template. Drafts store no
+  // audience config, so the wizard restarts at step 2 (template already
+  // chosen). Read from window.location to avoid a Suspense boundary.
+  useEffect(() => {
+    const draftId = new URLSearchParams(window.location.search).get('draft');
+    if (!draftId) return;
+    setResumedDraftId(draftId);
+    void (async () => {
+      try {
+        const supabase = createClient();
+        const { data: draft } = await supabase
+          .from('broadcasts')
+          .select('name, template_name, template_language')
+          .eq('id', draftId)
+          .maybeSingle();
+        if (!draft) {
+          toast.error(t('broadcastNew.draftNotFound'));
+          return;
+        }
+        setName(draft.name ?? '');
+        const { data: tmpl } = await supabase
+          .from('message_templates')
+          .select('*')
+          .eq('name', draft.template_name ?? '')
+          .eq('language', draft.template_language ?? 'en_US')
+          .maybeSingle();
+        if (tmpl) {
+          setTemplate(tmpl as MessageTemplate);
+          setCurrentStep(1);
+        }
+      } catch {
+        /* best-effort prefill */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSend() {
     if (!template) return;
@@ -63,6 +102,13 @@ export default function NewBroadcastPage() {
         variables,
         headerMediaUrl,
       });
+      // The resumed draft was replaced by this fresh broadcast — drop it.
+      if (resumedDraftId) {
+        await createClient()
+          .from('broadcasts')
+          .delete()
+          .eq('id', resumedDraftId);
+      }
       router.push(`/broadcasts/${broadcastId}`);
     } catch (err) {
       // Previously swallowed with console.error — the wizard would
