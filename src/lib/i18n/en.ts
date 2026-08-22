@@ -34,6 +34,8 @@ const en: TranslationDict = {
   // Aria labels
   'aria.closeMenu': 'Close menu',
   'aria.openMenu': 'Open menu',
+  'aria.collapseMenu': 'Collapse menu',
+  'aria.expandMenu': 'Expand menu',
   'aria.openAccountMenu': 'Open account menu',
   'aria.switchToLight': 'Switch to light mode',
   'aria.switchToDark': 'Switch to dark mode',

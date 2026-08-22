@@ -30,6 +30,8 @@ const es: TranslationDict = {
 
   'aria.closeMenu': 'Cerrar menú',
   'aria.openMenu': 'Abrir menú',
+  'aria.collapseMenu': 'Contraer menú',
+  'aria.expandMenu': 'Expandir menú',
   'aria.openAccountMenu': 'Abrir menú de cuenta',
   'aria.switchToLight': 'Cambiar a modo claro',
   'aria.switchToDark': 'Cambiar a modo oscuro',
