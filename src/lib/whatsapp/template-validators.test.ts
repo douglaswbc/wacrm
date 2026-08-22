@@ -4,6 +4,7 @@ import {
   TEMPLATE_LIMITS,
   validateBody,
   validateButtons,
+  validateDirectTemplatePayload,
   validateFooter,
   validateHeader,
   validateSampleValues,
@@ -273,5 +274,71 @@ describe('validateTemplatePayload — integration', () => {
         body_text: 'Hi {{1}}',
       }),
     ).toThrow(/exactly 1 sample/);
+  });
+});
+
+describe('validateDirectTemplatePayload', () => {
+  const directBase: TemplatePayload = {
+    ...baseValid,
+    body_text: 'Hi {{1}}, your order is ready!',
+  };
+
+  it('accepts body variables WITHOUT sample values (no Meta flow)', () => {
+    expect(() => validateDirectTemplatePayload(directBase)).not.toThrow();
+  });
+
+  it('still requires name, language and non-empty body', () => {
+    expect(() =>
+      validateDirectTemplatePayload({ ...directBase, name: 'Bad Name!' }),
+    ).toThrow(/lowercase letters/);
+    expect(() =>
+      validateDirectTemplatePayload({ ...directBase, language: '' }),
+    ).toThrow(/Language is required/);
+    expect(() =>
+      validateDirectTemplatePayload({ ...directBase, body_text: '  ' }),
+    ).toThrow(/Body text is required/);
+  });
+
+  it('rejects media headers — text only for direct providers', () => {
+    expect(() =>
+      validateDirectTemplatePayload({
+        ...directBase,
+        header_type: 'image',
+        header_media_url: 'https://example.com/a.png',
+      }),
+    ).toThrow(/Media headers are a Meta Cloud feature/);
+    expect(() =>
+      validateDirectTemplatePayload({
+        ...directBase,
+        header_type: 'text',
+        header_content: 'Acme Store',
+      }),
+    ).not.toThrow();
+  });
+
+  it('caps buttons at 3 but skips Meta per-type quotas', () => {
+    // 3 URL buttons would violate Meta's max-2 quota — fine for Evolution.
+    expect(() =>
+      validateDirectTemplatePayload({
+        ...directBase,
+        buttons: [
+          { type: 'URL', text: 'A', url: 'https://a.com' },
+          { type: 'URL', text: 'B', url: 'https://b.com' },
+          { type: 'URL', text: 'C', url: 'https://c.com' },
+        ],
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      validateDirectTemplatePayload({
+        ...directBase,
+        buttons: [
+          { type: 'QUICK_REPLY', text: '1' },
+          { type: 'QUICK_REPLY', text: '2' },
+          { type: 'QUICK_REPLY', text: '3' },
+          { type: 'QUICK_REPLY', text: '4' },
+        ],
+      }),
+    ).toThrow(/at most 3 buttons/);
   });
 });

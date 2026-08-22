@@ -5,6 +5,7 @@ import { createTemplate } from '@/lib/zernio/client'
 import { getSocialAccountId } from '@/lib/zernio/store'
 import {
   validateTemplatePayload,
+  validateDirectTemplatePayload,
   type TemplatePayload,
 } from '@/lib/whatsapp/template-validators'
 import { buildMetaTemplatePayload } from '@/lib/whatsapp/template-components'
@@ -89,21 +90,27 @@ export async function POST(request: Request) {
       )
     }
 
+    // Direct providers (Evolution Go, RyzeAPI) have no approval flow —
+    // the template is saved ready-to-use and renders as plain text or an
+    // interactive button message at send time. Provider must be resolved
+    // BEFORE validation: direct templates skip Meta-only rules (samples,
+    // media headers, per-type button quotas).
+    const rawProvider = (payload as TemplatePayload & { provider?: string }).provider
+    const provider =
+      rawProvider === 'evolution' || rawProvider === 'ryzeapi' ? rawProvider : 'meta'
+
     try {
-      validateTemplatePayload(payload)
+      if (provider === 'meta') {
+        validateTemplatePayload(payload)
+      } else {
+        validateDirectTemplatePayload(payload)
+      }
     } catch (e) {
       return NextResponse.json(
         { error: e instanceof Error ? e.message : 'Validation failed.' },
         { status: 400 },
       )
     }
-
-    // Direct providers (Evolution Go, RyzeAPI) have no approval flow —
-    // the template is saved ready-to-use and renders as plain text or an
-    // interactive button message at send time.
-    const rawProvider = (payload as TemplatePayload & { provider?: string }).provider
-    const provider =
-      rawProvider === 'evolution' || rawProvider === 'ryzeapi' ? rawProvider : 'meta'
 
     if (provider !== 'meta') {
       const { data: row, error: upsertErr } = await upsertTemplateRow(

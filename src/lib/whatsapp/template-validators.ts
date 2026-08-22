@@ -179,47 +179,8 @@ function countButtonsByType(
   return counts;
 }
 
-export function validateButtons(buttons: TemplateButton[] | undefined): void {
-  if (!buttons || buttons.length === 0) return;
-  if (buttons.length > TEMPLATE_LIMITS.maxButtonsTotal) {
-    throw new Error(
-      `Templates can have at most ${TEMPLATE_LIMITS.maxButtonsTotal} buttons (got ${buttons.length}).`,
-    );
-  }
-
-  const counts = countButtonsByType(buttons);
-  if (counts.URL > TEMPLATE_LIMITS.maxUrlButtons) {
-    throw new Error(
-      `At most ${TEMPLATE_LIMITS.maxUrlButtons} URL buttons allowed (got ${counts.URL}).`,
-    );
-  }
-  if (counts.PHONE_NUMBER > TEMPLATE_LIMITS.maxPhoneButtons) {
-    throw new Error(
-      `At most ${TEMPLATE_LIMITS.maxPhoneButtons} PHONE_NUMBER button allowed (got ${counts.PHONE_NUMBER}).`,
-    );
-  }
-  if (counts.COPY_CODE > TEMPLATE_LIMITS.maxCopyCodeButtons) {
-    throw new Error(
-      `At most ${TEMPLATE_LIMITS.maxCopyCodeButtons} COPY_CODE button allowed (got ${counts.COPY_CODE}).`,
-    );
-  }
-
-  // Meta rule: QUICK_REPLY buttons must be contiguous — they can't be
-  // interleaved with CTA buttons. Easiest check: walk the array; once
-  // we leave the QUICK_REPLY block, we must not see another.
-  let sawNonQR = false;
-  for (const b of buttons) {
-    if (b.type === 'QUICK_REPLY') {
-      if (sawNonQR) {
-        throw new Error(
-          'QUICK_REPLY buttons cannot be interleaved with URL / PHONE_NUMBER / COPY_CODE buttons — group them at the start.',
-        );
-      }
-    } else {
-      sawNonQR = true;
-    }
-  }
-
+/** Per-button field checks shared by the Meta and direct validators. */
+function validateButtonFields(buttons: TemplateButton[]): void {
   for (let i = 0; i < buttons.length; i++) {
     const b = buttons[i];
     if (!b.text?.trim()) {
@@ -276,6 +237,50 @@ export function validateButtons(buttons: TemplateButton[] | undefined): void {
         break;
     }
   }
+}
+
+export function validateButtons(buttons: TemplateButton[] | undefined): void {
+  if (!buttons || buttons.length === 0) return;
+  if (buttons.length > TEMPLATE_LIMITS.maxButtonsTotal) {
+    throw new Error(
+      `Templates can have at most ${TEMPLATE_LIMITS.maxButtonsTotal} buttons (got ${buttons.length}).`,
+    );
+  }
+
+  const counts = countButtonsByType(buttons);
+  if (counts.URL > TEMPLATE_LIMITS.maxUrlButtons) {
+    throw new Error(
+      `At most ${TEMPLATE_LIMITS.maxUrlButtons} URL buttons allowed (got ${counts.URL}).`,
+    );
+  }
+  if (counts.PHONE_NUMBER > TEMPLATE_LIMITS.maxPhoneButtons) {
+    throw new Error(
+      `At most ${TEMPLATE_LIMITS.maxPhoneButtons} PHONE_NUMBER button allowed (got ${counts.PHONE_NUMBER}).`,
+    );
+  }
+  if (counts.COPY_CODE > TEMPLATE_LIMITS.maxCopyCodeButtons) {
+    throw new Error(
+      `At most ${TEMPLATE_LIMITS.maxCopyCodeButtons} COPY_CODE button allowed (got ${counts.COPY_CODE}).`,
+    );
+  }
+
+  // Meta rule: QUICK_REPLY buttons must be contiguous — they can't be
+  // interleaved with CTA buttons. Easiest check: walk the array; once
+  // we leave the QUICK_REPLY block, we must not see another.
+  let sawNonQR = false;
+  for (const b of buttons) {
+    if (b.type === 'QUICK_REPLY') {
+      if (sawNonQR) {
+        throw new Error(
+          'QUICK_REPLY buttons cannot be interleaved with URL / PHONE_NUMBER / COPY_CODE buttons — group them at the start.',
+        );
+      }
+    } else {
+      sawNonQR = true;
+    }
+  }
+
+  validateButtonFields(buttons);
 }
 
 /**
@@ -335,4 +340,40 @@ export function validateTemplatePayload(payload: TemplatePayload): {
     bodyVarCount: bodyVars.length,
     headerVarCount: headerResult.variableCount,
   };
+}
+
+/**
+ * Validation for DIRECT providers (Evolution Go, RyzeAPI) — these have
+ * no Meta approval flow, so sample values and Meta-only quotas don't
+ * apply. Structure that DOES matter for the local render path is kept:
+ * name format, language, contiguous body variables, text-only header
+ * (the only one the direct render path supports) and up to 3 buttons.
+ */
+export function validateDirectTemplatePayload(payload: TemplatePayload): void {
+  validateTemplateName(payload.name);
+  if (!payload.language?.trim()) {
+    throw new Error('Language is required.');
+  }
+  validateBody(payload.body_text);
+  validateFooter(payload.footer_text);
+
+  if (payload.header_type && payload.header_type !== 'text') {
+    throw new Error(
+      'Media headers are a Meta Cloud feature — use a text header or none.',
+    );
+  }
+  if (payload.header_type === 'text') {
+    validateHeader({
+      header_type: 'text',
+      header_content: payload.header_content,
+    });
+  }
+
+  const buttons = payload.buttons ?? [];
+  if (buttons.length > 3) {
+    throw new Error(
+      `Interactive templates support at most 3 buttons (got ${buttons.length}).`,
+    );
+  }
+  validateButtonFields(buttons);
 }
