@@ -194,13 +194,40 @@ export default function InboxPage() {
         return;
       }
 
-      const { data } = await supabase
-        .from("whatsapp_config")
-        .select("status")
-        .eq("account_id", accountId)
-        .maybeSingle();
+      // WhatsApp connectivity banner. Meta Cloud is just one of several
+      // supported providers — Evolution Go, RyzeAPI and Zernio also
+      // deliver WhatsApp. Show the "not connected" banner only when
+      // NONE of them has a connected configuration.
+      const [metaCfg, evoCfg, ryzeCfg, zernioCfg] = await Promise.all([
+        supabase
+          .from("whatsapp_config")
+          .select("status")
+          .eq("account_id", accountId)
+          .maybeSingle(),
+        supabase
+          .from("evolution_config")
+          .select("status")
+          .eq("account_id", accountId)
+          .maybeSingle(),
+        supabase
+          .from("ryzeapi_config")
+          .select("status")
+          .eq("account_id", accountId)
+          .maybeSingle(),
+        supabase
+          .from("zernio_connections")
+          .select("account_id")
+          .eq("account_id", accountId)
+          .maybeSingle(),
+      ]);
 
-      setWhatsappConnected(data?.status === "connected");
+      const whatsappConnected =
+        metaCfg.data?.status === "connected" ||
+        evoCfg.data?.status === "connected" ||
+        ryzeCfg.data?.status === "connected" ||
+        !!zernioCfg.data;
+
+      setWhatsappConnected(whatsappConnected);
     };
 
     checkConnection();
