@@ -29,11 +29,11 @@ export function SystemStatusBar({
 }) {
   if (loading || !status) {
     return (
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="flex h-10 w-36 shrink-0 animate-pulse items-center gap-2 rounded-lg bg-muted px-3"
+            className="flex h-10 animate-pulse items-center gap-2 rounded-lg bg-muted px-3"
           />
         ))}
       </div>
@@ -79,21 +79,21 @@ export function SystemStatusBar({
   ]
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
       {pills.map((pill) => (
         <div
           key={pill.key}
-          className="flex shrink-0 items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-sm"
+          className="flex min-w-0 items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-sm"
         >
           <pill.icon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="text-xs font-medium">{pill.label}</span>
-          <span className="flex items-center gap-1 text-xs">
+          <span className="truncate text-xs font-medium">{pill.label}</span>
+          <span className="ml-auto flex shrink-0 items-center gap-1 text-xs">
             {pill.ok ? (
               <CheckCircle2 className="size-3 shrink-0 text-emerald-400" />
             ) : (
               <XCircle className="size-3 shrink-0 text-muted-foreground/60" />
             )}
-            <span className={pill.ok ? 'text-emerald-600' : 'text-muted-foreground'}>
+            <span className={`hidden sm:inline ${pill.ok ? 'text-emerald-600' : 'text-muted-foreground'}`}>
               {pill.detail}
             </span>
           </span>

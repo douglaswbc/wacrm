@@ -403,16 +403,39 @@ export async function loadActivity(db: DB, limit = 20): Promise<ActivityItem[]> 
 
 export async function loadSystemStatus(db: DB): Promise<SystemStatus> {
   const [
-    whatsapp,
+    metaWhatsapp,
+    evolution,
+    ryzeapi,
+    zernio,
     instagram,
     capi,
     automations,
     broadcasts,
   ] = await Promise.all([
+    // WhatsApp is multi-provider: Meta Cloud, Evolution Go and RyzeAPI
+    // each have their own connected config; Zernio delivers WhatsApp
+    // (and Instagram) whenever a connection row exists.
     db
       .from('whatsapp_config')
       .select('status')
       .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('evolution_config')
+      .select('status')
+      .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('ryzeapi_config')
+      .select('status')
+      .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('zernio_connections')
+      .select('account_id')
       .limit(1)
       .maybeSingle(),
     db
@@ -437,8 +460,13 @@ export async function loadSystemStatus(db: DB): Promise<SystemStatus> {
   ])
 
   return {
-    whatsappConnected: whatsapp.data !== null,
-    instagramConnected: instagram.data !== null,
+    whatsappConnected:
+      metaWhatsapp.data !== null ||
+      evolution.data !== null ||
+      ryzeapi.data !== null ||
+      zernio.data !== null,
+    instagramConnected:
+      instagram.data !== null || zernio.data !== null,
     capiConfigured: Boolean(
       capi.data?.pixel_id && capi.data?.access_token,
     ),
