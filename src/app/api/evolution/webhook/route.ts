@@ -90,7 +90,11 @@ export async function POST(request: Request) {
 
     console.log('[evolution webhook] event:', event, 'instance:', instanceName || '(empty)')
 
-    if (event !== 'Message') continue
+    // Whatsmeow delivers interactive replies (button/list clicks) as
+    // DEDICATED events — not embedded in "Message" — so they must be
+    // accepted here or every automation reacting to buttons is dead.
+    const INTERACTIVE_EVENTS = new Set(['ButtonClick', 'ListClick'])
+    if (event !== 'Message' && !INTERACTIVE_EVENTS.has(event)) continue
     if (!info || !instanceName) continue
 
     const chat = info.Chat ?? ''
@@ -132,6 +136,11 @@ export async function POST(request: Request) {
         interactiveReplyId = ssr?.selectedRowId ? String(ssr.selectedRowId) : null
         interactiveReplyTitle = listResp.title ? String(listResp.title) : interactiveReplyId
       }
+    }
+    // Surface the clicked label as the message text so keyword_match,
+    // message_content conditions and AI steps can act on the choice.
+    if (!contentText && interactiveReplyTitle) {
+      contentText = interactiveReplyTitle
     }
 
     // Raw WhatsApp media message object — needed for /message/downloadmedia.
