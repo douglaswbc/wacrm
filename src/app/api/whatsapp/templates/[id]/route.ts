@@ -4,6 +4,7 @@ import { updateTemplate, deleteTemplate } from '@/lib/zernio/client'
 import { getSocialAccountId } from '@/lib/zernio/store'
 import {
   validateTemplatePayload,
+  validateDirectTemplatePayload,
   type TemplatePayload,
 } from '@/lib/whatsapp/template-validators'
 import { buildMetaTemplatePayload } from '@/lib/whatsapp/template-components'
@@ -63,7 +64,7 @@ export async function PATCH(
 
     const { data: existing, error: lookupErr } = await supabase
       .from('message_templates')
-      .select('id, name, status, meta_template_id, language')
+      .select('id, name, status, meta_template_id, language, provider')
       .eq('id', id)
       .eq('account_id', accountId)
       .maybeSingle()
@@ -71,37 +72,48 @@ export async function PATCH(
       return NextResponse.json({ error: 'Template not found.' }, { status: 404 })
     }
 
-    if (!existing.meta_template_id) {
-      return NextResponse.json(
-        {
-          error:
-            'This template was never submitted — use New Template to submit it instead.',
-        },
-        { status: 400 },
-      )
-    }
+    // Direct-provider templates (Evolution Go, RyzeAPI) have no Meta
+    // review — they're always editable and always stay APPROVED.
+    const isDirect =
+      existing.provider === 'evolution' || existing.provider === 'ryzeapi'
 
-    if (!EDITABLE_STATUSES.has(existing.status)) {
-      return NextResponse.json(
-        {
-          error: `Templates in status ${existing.status} cannot be edited. Allowed: APPROVED, REJECTED, PAUSED.`,
-        },
-        { status: 400 },
-      )
-    }
+    if (!isDirect) {
+      if (!existing.meta_template_id) {
+        return NextResponse.json(
+          {
+            error:
+              'This template was never submitted — use New Template to submit it instead.',
+          },
+          { status: 400 },
+        )
+      }
 
-    if (payload.category === 'Authentication') {
-      return NextResponse.json(
-        {
-          error:
-            'AUTHENTICATION templates are not editable here — manage them in Meta WhatsApp Manager.',
-        },
-        { status: 400 },
-      )
+      if (!EDITABLE_STATUSES.has(existing.status)) {
+        return NextResponse.json(
+          {
+            error: `Templates in status ${existing.status} cannot be edited. Allowed: APPROVED, REJECTED, PAUSED.`,
+          },
+          { status: 400 },
+        )
+      }
+
+      if (payload.category === 'Authentication') {
+        return NextResponse.json(
+          {
+            error:
+              'AUTHENTICATION templates are not editable here — manage them in Meta WhatsApp Manager.',
+          },
+          { status: 400 },
+        )
+      }
     }
 
     try {
-      validateTemplatePayload(payload)
+      if (isDirect) {
+        validateDirectTemplatePayload(payload)
+      } else {
+        validateTemplatePayload(payload)
+      }
     } catch (e) {
       return NextResponse.json(
         { error: e instanceof Error ? e.message : 'Validation failed.' },
@@ -109,7 +121,7 @@ export async function PATCH(
       )
     }
 
-    if (!isDryRun()) {
+    if (!isDirect && !isDryRun()) {
       const zernioAccountId = await getSocialAccountId(accountId, 'whatsapp')
       if (!zernioAccountId) {
         return NextResponse.json(
@@ -152,7 +164,8 @@ export async function PATCH(
         footer_text: payload.footer_text ?? null,
         buttons: payload.buttons ?? null,
         sample_values: payload.sample_values ?? null,
-        status: 'PENDING',
+        // Direct templates skip review entirely — always usable.
+        status: isDirect ? 'APPROVED' : 'PENDING',
         submission_error: null,
         rejection_reason: null,
         last_submitted_at: new Date().toISOString(),

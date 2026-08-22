@@ -753,7 +753,9 @@ export function TemplateManager() {
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
-                    {statusKey === 'APPROVED' && (
+                    {/* Direct-provider templates have no review flow —
+                        editable in ANY status. Meta rows keep the old rules. */}
+                    {(statusKey === 'APPROVED' || !isMetaRow) && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -771,7 +773,7 @@ export function TemplateManager() {
                       </Button>
                     )}
                     {(statusKey === 'REJECTED' || statusKey === 'PAUSED') &&
-                      (isMetaRow ? (
+                      isMetaRow && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -783,19 +785,7 @@ export function TemplateManager() {
                           <RotateCcw className="size-3.5" />
                           Resubmit
                         </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEdit(template)}
-                          title="Save your changes directly — no review needed."
-                          aria-label="Edit template"
-                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
-                        >
-                          <Pencil className="size-3.5" />
-                          Edit
-                        </Button>
-                      ))}
+                      )}
                     <Button
                       variant="ghost"
                       size="icon"
