@@ -12,6 +12,7 @@ import {
   Pencil,
   RotateCcw,
   Upload,
+  Copy,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -742,6 +743,35 @@ export function TemplateManager() {
                       <p className="text-xs text-muted-foreground italic">
                         {template.footer_text}
                       </p>
+                    )}
+                    {/* Quick-reply buttons — copy the exact label that
+                        arrives as the interactive reply, so automations
+                        can match on it (message_content / keyword). */}
+                    {Array.isArray(template.buttons) && template.buttons.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Buttons:
+                        </span>
+                        {(template.buttons as TemplateButton[]).map((btn, bi) => (
+                          <button
+                            key={bi}
+                            type="button"
+                            title={`Copy button text for use in automations: "${btn.text}"`}
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(btn.text);
+                                toast.success(`Copied: ${btn.text}`);
+                              } catch {
+                                toast.error('Failed to copy');
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Copy className="size-3" />
+                            {btn.text}
+                          </button>
+                        ))}
+                      </div>
                     )}
                     {(template.rejection_reason || template.submission_error) && (
                       <div className="flex items-start gap-1.5 text-xs text-red-400 bg-red-950/20 border border-red-900/40 rounded px-2 py-1.5">

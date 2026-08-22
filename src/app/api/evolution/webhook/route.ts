@@ -119,15 +119,34 @@ export async function POST(request: Request) {
 
     // Interactive replies (button / list clicks from messages WE sent).
     // Whatsmeow surfaces them as buttonsResponseMessage (reply buttons)
-    // or listResponseMessage (list rows).
+    // or listResponseMessage (list rows). Evolution Go's real shape:
+    //   buttonsResponseMessage: {
+    //     selectedButtonID: "Tenho interesse",
+    //     Response: { SelectedDisplayText: "Tenho interesse" }
+    //   }
     let interactiveReplyId: string | null = null
     let interactiveReplyTitle: string | null = null
+    const firstNonEmpty = (...vals: unknown[]): string | null => {
+      for (const v of vals) {
+        const s = v == null ? '' : String(v)
+        if (s.trim()) return s
+      }
+      return null
+    }
     const buttonsResp = msg.buttonsResponseMessage as Record<string, unknown> | null
     if (buttonsResp && typeof buttonsResp === 'object') {
-      interactiveReplyId = buttonsResp.selectedId ? String(buttonsResp.selectedId) : null
-      interactiveReplyTitle = buttonsResp.selectedDisplayText
-        ? String(buttonsResp.selectedDisplayText)
-        : interactiveReplyId
+      const resp = buttonsResp.Response as Record<string, unknown> | null
+      interactiveReplyId = firstNonEmpty(
+        buttonsResp.selectedButtonID,
+        buttonsResp.selectedId,
+        resp?.SelectedDisplayText,
+        resp?.selectedId,
+      )
+      interactiveReplyTitle = firstNonEmpty(
+        buttonsResp.selectedDisplayText,
+        resp?.SelectedDisplayText,
+        interactiveReplyId,
+      )
     }
     if (!interactiveReplyId) {
       const listResp = msg.listResponseMessage as Record<string, unknown> | null
