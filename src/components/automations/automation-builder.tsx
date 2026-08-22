@@ -1391,12 +1391,23 @@ function StepRenderer({
   parentPath: StepPath
   channel?: 'whatsapp' | 'instagram' | null
 } & Omit<StepListProps, "steps" | "parentPath" | "channel">) {
-  const path: StepPath = [
-    ...parentPath,
+  // Path resolution. For branch children, ConditionBranches already
+  // appended a branch marker (with placeholder index 0) to parentPath —
+  // REPLACE its index with this step's real position instead of adding
+  // another marker. Appending would double the marker and make every
+  // mutation resolve to a nonexistent node (edits silently dropped).
+  const path: StepPath =
     parentScope.kind === "root"
-      ? { kind: "root", index }
-      : { kind: "branch", parentCid: parentScope.parentCid, branch: parentScope.branch, index },
-  ]
+      ? [{ kind: "root", index }]
+      : [
+          ...parentPath.slice(0, -1),
+          {
+            kind: "branch",
+            parentCid: parentScope.parentCid,
+            branch: parentScope.branch,
+            index,
+          },
+        ]
   const meta = STEP_META[step.step_type]
   const Icon = meta.icon
   const expanded = props.expandedId === step.cid
@@ -1704,6 +1715,57 @@ function SendButtonFields({
 // Per-step config editor
 // ------------------------------------------------------------
 
+/** Tag picker for the condition step — lists the account's real tags
+ *  so users never have to paste a raw tag id. */
+function ConditionTagSelect({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [tags, setTags] = useState<TagRecord[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    void createClient()
+      .from("tags")
+      .select("id, name")
+      .order("name")
+      .then(({ data }) => {
+        if (!cancelled) {
+          setTags((data ?? []) as TagRecord[])
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (loading) {
+    return <div className="h-9 animate-pulse rounded-md bg-muted" />
+  }
+
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+    >
+      <option value="">
+        {tags.length > 0 ? "Select a tag…" : "No tags found — create one in Contacts"}
+      </option>
+      {tags.map((tg) => (
+        <option key={tg.id} value={tg.id}>
+          {tg.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 function StepEditor({
   step,
   channel,
@@ -2007,53 +2069,116 @@ function StepEditor({
           </FieldBlock>
         </div>
       )
-    case "condition":
+    case "condition": {
+      const subject = (cfg.subject as string) ?? "tag_presence"
       return (
         <>
-          <FieldBlock label="Subject">
+          <FieldBlock label="Condition type">
             <select
-              value={(cfg.subject as string) ?? "tag_presence"}
+              value={subject}
               onChange={(e) => set({ subject: e.target.value })}
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
-              <option value="tag_presence">Tag presence</option>
-              <option value="contact_field">Contact field</option>
-              <option value="message_content">Message content</option>
-              <option value="time_of_day">Time of day</option>
-              <option value="var_equals">Workflow variable</option>
+              <option value="tag_presence">Contact has tag</option>
+              <option value="contact_field">Contact field equals value</option>
+              <option value="message_content">Last message contains text</option>
+              <option value="time_of_day">Current time is within range</option>
+              <option value="var_equals">Workflow variable equals value</option>
             </select>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {subject === "tag_presence" &&
+                "YES branch fires when the contact has this tag; NO when they don't."}
+              {subject === "contact_field" &&
+                "YES fires when the contact's field matches the value exactly."}
+              {subject === "message_content" &&
+                "YES fires when the last inbound message contains the text (case-insensitive)."}
+              {subject === "time_of_day" &&
+                "YES fires while the current time is inside the range (overnight ranges like 18:00-09:00 are supported)."}
+              {subject === "var_equals" &&
+                "YES fires when a variable saved earlier (AI Classify / Extract) matches the expected value."}
+            </p>
           </FieldBlock>
-          <FieldBlock label="Operand">
-            <Input
-              placeholder={
-                cfg.subject === "time_of_day"
-                  ? "HH:mm-HH:mm"
-                  : cfg.subject === "contact_field"
-                  ? "name / email / company"
-                  : cfg.subject === "var_equals"
-                  ? "var name (e.g. setor)"
-                  : cfg.subject === "tag_presence"
-                  ? "tag id"
-                  : ""
-              }
-              value={(cfg.operand as string) ?? ""}
-              onChange={(e) => set({ operand: e.target.value })}
-              className="bg-muted text-foreground"
-            />
-          </FieldBlock>
-          {(cfg.subject === "contact_field" ||
-            cfg.subject === "message_content" ||
-            cfg.subject === "var_equals") && (
-            <FieldBlock label="Value">
+
+          {subject === "tag_presence" && (
+            <FieldBlock label="Tag">
+              <ConditionTagSelect
+                value={(cfg.operand as string) ?? ""}
+                onChange={(v) => set({ operand: v })}
+              />
+            </FieldBlock>
+          )}
+
+          {subject === "contact_field" && (
+            <>
+              <FieldBlock label="Field">
+                <select
+                  value={(cfg.operand as string) ?? ""}
+                  onChange={(e) => set({ operand: e.target.value })}
+                  className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
+                >
+                  <option value="">Select a field…</option>
+                  <option value="name">Name</option>
+                  <option value="email">E-mail</option>
+                  <option value="company">Company</option>
+                  <option value="phone">Phone</option>
+                </select>
+              </FieldBlock>
+              <FieldBlock label="Value (exact match)">
+                <Input
+                  value={(cfg.value as string) ?? ""}
+                  onChange={(e) => set({ value: e.target.value })}
+                  placeholder="e.g. acme.com"
+                  className="bg-muted text-foreground"
+                />
+              </FieldBlock>
+            </>
+          )}
+
+          {subject === "message_content" && (
+            <FieldBlock label="Text to look for">
               <Input
                 value={(cfg.value as string) ?? ""}
                 onChange={(e) => set({ value: e.target.value })}
+                placeholder="e.g. pricing"
+                className="bg-muted text-foreground"
+              />
+            </FieldBlock>
+          )}
+
+          {subject === "var_equals" && (
+            <>
+              <FieldBlock label="Variable name">
+                <Input
+                  value={(cfg.operand as string) ?? ""}
+                  onChange={(e) => set({ operand: e.target.value })}
+                  placeholder="classification"
+                  className="bg-muted text-foreground"
+                />
+              </FieldBlock>
+              <FieldBlock label="Expected value">
+                <Input
+                  value={(cfg.value as string) ?? ""}
+                  onChange={(e) => set({ value: e.target.value })}
+                  placeholder="HOT"
+                  className="bg-muted text-foreground"
+                />
+              </FieldBlock>
+            </>
+          )}
+
+          {subject === "time_of_day" && (
+            <FieldBlock label="Time range (HH:mm-HH:mm)">
+              <Input
+                value={(cfg.operand as string) ?? ""}
+                onChange={(e) => set({ operand: e.target.value })}
+                placeholder="09:00-18:00"
                 className="bg-muted text-foreground"
               />
             </FieldBlock>
           )}
         </>
       )
+    }
     case "send_webhook":
       return (
         <>
@@ -2338,7 +2463,7 @@ function previewFor(step: BuilderStep): string {
 // Tree mutation helpers
 // ------------------------------------------------------------
 
-function insertAt(
+export function insertAt(
   steps: BuilderStep[],
   parent: ParentScope,
   index: number,
@@ -2357,7 +2482,7 @@ function insertAt(
   })
 }
 
-function mapAtPath(
+export function mapAtPath(
   steps: BuilderStep[],
   path: StepPath,
   updater: (s: BuilderStep) => BuilderStep,
@@ -2406,7 +2531,7 @@ function walkBranches(
   return { ...branches, [head.branch]: updated }
 }
 
-function removeAt(steps: BuilderStep[], path: StepPath): BuilderStep[] {
+export function removeAt(steps: BuilderStep[], path: StepPath): BuilderStep[] {
   if (path.length === 0) return steps
   const head = path[0]
   const rest = path.slice(1)
@@ -2451,7 +2576,7 @@ function removeFromBranches(
   return { ...branches, [head.branch]: next }
 }
 
-function moveAt(
+export function moveAt(
   steps: BuilderStep[],
   path: StepPath,
   direction: -1 | 1,
