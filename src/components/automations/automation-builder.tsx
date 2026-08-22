@@ -87,7 +87,7 @@ export interface BuilderInitial {
   /** Channel scope — NULL = both. */
   channel?: 'whatsapp' | 'instagram' | null
   /** WhatsApp provider scope — NULL = both (Zernio + RyzeAPI). */
-  provider?: 'meta' | 'ryzeapi' | 'zernio' | null
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null
   steps: BuilderStep[]
 }
 
@@ -808,11 +808,11 @@ function TriggerCard({
   type: AutomationTriggerType
   config: Record<string, unknown>
   channel?: 'whatsapp' | 'instagram' | null
-  provider?: 'meta' | 'ryzeapi' | 'zernio' | null
+  provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null
   onTypeChange: (t: AutomationTriggerType) => void
   onConfigChange: (c: Record<string, unknown>) => void
   onChannelChange: (ch: 'whatsapp' | 'instagram' | null) => void
-  onProviderChange: (p: 'meta' | 'ryzeapi' | 'zernio' | null) => void
+  onProviderChange: (p: 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null) => void
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -882,12 +882,14 @@ function TriggerCard({
               </label>
               <select
                 value={provider ?? ''}
-                onChange={(e) => onProviderChange((e.target.value || null) as 'meta' | 'ryzeapi' | 'zernio' | null)}
+                onChange={(e) => onProviderChange((e.target.value || null) as 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null)}
                 className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
               >
-                <option value="">Both (Zernio + RyzeAPI)</option>
+                <option value="">All providers</option>
                 <option value="zernio">Zernio (WhatsApp + Instagram)</option>
                 <option value="ryzeapi">RyzeAPI only</option>
+                <option value="evolution">Evolution Go only</option>
+                <option value="meta">Meta Cloud API only</option>
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 Which provider this automation should fire for. &quot;Both&quot; fires regardless of provider.

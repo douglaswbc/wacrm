@@ -28,6 +28,13 @@ import { createClient } from "@/lib/supabase/client"
 import { useCan } from "@/hooks/use-can"
 import type { Automation } from "@/types"
 import { Button } from "@/components/ui/button"
+
+const PROVIDER_LABELS: Record<string, string> = {
+  meta: "Meta Cloud",
+  ryzeapi: "RyzeAPI",
+  zernio: "Zernio",
+  evolution: "Evolution Go",
+}
 import { GatedButton } from "@/components/ui/gated-button"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -340,7 +347,7 @@ function AutomationCard({
             )}
             {automation.provider && automation.channel !== 'instagram' && (
               <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[11px] font-medium bg-muted/50 text-muted-foreground">
-                {automation.provider === 'ryzeapi' ? 'RyzeAPI' : 'Meta'}
+                {PROVIDER_LABELS[automation.provider] ?? automation.provider}
               </span>
             )}
             <span className="tabular-nums">

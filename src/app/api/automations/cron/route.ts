@@ -198,7 +198,7 @@ export async function GET(request: Request) {
         console.info('[cron] dispatching', autoName, 'to', contactIds.length, 'contacts:', contactIds)
 
         const channel = (automation.channel as 'whatsapp' | 'instagram' | null) ?? undefined
-        const provider = (automation.provider as 'meta' | 'ryzeapi' | null) ?? undefined
+        const provider = (automation.provider as 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null) ?? undefined
         for (const contactId of contactIds) {
           await runAutomationsForTrigger({
             accountId,
