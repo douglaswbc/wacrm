@@ -40,6 +40,8 @@ import {
   PlusCircle,
   FolderOpen,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -639,6 +641,23 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
   const [state, setState] = useState<BuilderInitial>(initial)
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // Canvas zoom — persisted per browser. CSS `zoom` (not transform) keeps
+  // native scrolling/layout so the flow stays navigable at any scale.
+  const [zoom, setZoomState] = useState(1)
+
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem("wacrm-builder-zoom"))
+      if (!Number.isNaN(saved) && saved >= 0.5 && saved <= 1.5) setZoomState(saved)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const setZoom = (z: number) => {
+    setZoomState(z)
+    try { localStorage.setItem("wacrm-builder-zoom", String(z)) } catch {}
+  }
 
   function patchTop<K extends keyof BuilderInitial>(key: K, value: BuilderInitial[K]) {
     setState((s) => ({ ...s, [key]: value }))
@@ -759,9 +778,57 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
       </header>
 
       {/* Canvas */}
-      <div className="relative flex-1 overflow-y-auto">
+      <div className="relative flex-1 overflow-auto">
         <div className="absolute inset-0 bg-[radial-gradient(circle,var(--border)_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
-        <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-0 px-4 py-10">
+
+        {/* Floating zoom controls — deep flows (nested conditions) get
+            unwieldy at 100%; zoom out to see the whole tree at a glance. */}
+        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-card/95 p-1 shadow-lg backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setZoom(Math.max(0.5, Number((zoom - 0.1).toFixed(2))))}
+            disabled={zoom <= 0.5}
+            aria-label="Zoom out"
+            title="Zoom out"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setZoom(1);
+              try { localStorage.setItem("wacrm-builder-zoom", "1"); } catch {}
+            }}
+            title="Reset zoom (100%)"
+            aria-label="Reset zoom"
+            className="min-w-12 rounded-md px-1 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoom(Math.min(1.5, Number((zoom + 0.1).toFixed(2))))}
+            disabled={zoom >= 1.5}
+            aria-label="Zoom in"
+            title="Zoom in"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div
+          className="relative mx-auto flex w-full max-w-2xl flex-col items-center gap-0 px-4 py-10"
+          style={{
+            zoom,
+            // Zoomed out → widen the flow so the whole tree uses the freed
+            // space instead of shrinking inside the narrow column.
+            ...(zoom < 1
+              ? { maxWidth: `${Math.min(220, Math.round(100 / zoom))}%` }
+              : null),
+          }}
+        >
           <ResourcesProvider>
             <TriggerCard
               type={state.trigger_type}
