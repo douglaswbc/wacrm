@@ -1555,20 +1555,16 @@ function StepRenderer({
             </div>
           )}
         </div>
-
         {isCondition && (
           <ConditionBranches step={step} parentPath={path} {...props} />
         )}
       </div>
 
-      {/* A condition branches into Yes/No (rendered above by
-          ConditionBranches), so it has no linear "continue" path — adding
-          the trailing connector here would produce a spurious third output. */}
-      {!isCondition && (
-        <AddButton
-          onPick={(t) => props.addStepAt(parentScope, index + 1, t)}
-        />
-      )}
+      {/* Conditions branch into Yes/No (rendered above by
+          ConditionBranches) but execution MERGES back to the linear path
+          afterwards — so the trailing + appends at this level. Without it,
+          an automation ending in a condition is a dead end. */}
+      <AddButton onPick={(t) => props.addStepAt(parentScope, index + 1, t)} />
     </>
   )
 }
@@ -2542,10 +2538,22 @@ export function insertAt(
     return copy
   }
   return steps.map((s) => {
-    if (s.cid !== parent.parentCid || !s.branches) return s
-    const list = [...s.branches[parent.branch]]
-    list.splice(index, 0, node)
-    return { ...s, branches: { ...s.branches, [parent.branch]: list } }
+    if (s.cid === parent.parentCid && s.branches) {
+      const list = [...s.branches[parent.branch]]
+      list.splice(index, 0, node)
+      return { ...s, branches: { ...s.branches, [parent.branch]: list } }
+    }
+    // Recurse into children so NESTED conditions (a condition living
+    // inside another condition's branch) are found too — a root-only
+    // lookup silently dropped every insert aimed at them.
+    if (!s.branches) return s
+    return {
+      ...s,
+      branches: {
+        yes: insertAt(s.branches.yes, parent, index, node),
+        no: insertAt(s.branches.no, parent, index, node),
+      },
+    }
   })
 }
 

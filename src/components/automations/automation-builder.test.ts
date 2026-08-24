@@ -101,6 +101,20 @@ describe('insertAt / removeAt / moveAt on branch paths', () => {
     expect(next[0].branches?.yes.map((s) => s.cid)).toEqual(['y1', 'new']);
   });
 
+  it('inserts into a NESTED condition branch (regression: root-only lookup)', () => {
+    // c2 lives inside c1.no — the old insertAt only scanned root-level
+    // steps and silently dropped this insert.
+    const next = insertAt(
+      tree,
+      { kind: 'branch', parentCid: 'c2', branch: 'yes' },
+      1,
+      step('new'),
+    );
+    expect(
+      next[0].branches?.no[1].branches?.yes.map((s) => s.cid),
+    ).toEqual(['deep', 'new']);
+  });
+
   it('removes via a resolved branch path', () => {
     const path = branch(root(0), 'c1', 'yes', 0);
     const next = removeAt(tree as BuilderStep[], path as never);
