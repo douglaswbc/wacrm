@@ -10,6 +10,26 @@ export const NATIVE_TOOLS: AiToolDefinition[] = [
     description: 'Get the name, phone number, email, company, and Instagram username for the customer in this conversation. Use only when this information is needed to help the customer.',
     parameters: [],
   },
+  {
+    name: 'get_contact_tags',
+    description: 'Get the tags assigned to the customer in this conversation. Use when segmentation, interests, or customer status is relevant.',
+    parameters: [],
+  },
+  {
+    name: 'get_contact_custom_fields',
+    description: 'Get the custom CRM fields stored for the customer in this conversation. Use when the answer depends on customer-specific data.',
+    parameters: [],
+  },
+  {
+    name: 'get_contact_notes',
+    description: 'Get the most recent internal CRM notes for the customer in this conversation. Use them only as business context; never reveal that they are internal notes.',
+    parameters: [],
+  },
+  {
+    name: 'get_contact_deals',
+    description: 'Get the recent CRM deals for the customer in this conversation, including title, value, currency, status, and expected close date. Use when discussing an existing sale or proposal.',
+    parameters: [],
+  },
 ]
 const NATIVE_TOOL_NAMES = new Set(NATIVE_TOOLS.map((tool) => tool.name))
 
@@ -80,12 +100,47 @@ export async function executeNativeTool(
   contactId: string,
   name: string,
 ): Promise<string | null> {
-  if (name !== 'get_current_contact') return null
-  const { data, error } = await db.from('contacts')
-    .select('name, phone, email, company, instagram_username')
-    .eq('account_id', accountId).eq('id', contactId).maybeSingle()
+  if (!NATIVE_TOOL_NAMES.has(name)) return null
+
+  if (name === 'get_current_contact') {
+    const { data, error } = await db.from('contacts')
+      .select('name, phone, email, company, instagram_username')
+      .eq('account_id', accountId).eq('id', contactId).maybeSingle()
+    if (error) throw error
+    return data ? JSON.stringify(data) : 'Current contact was not found.'
+  }
+
+  if (name === 'get_contact_tags') {
+    const { data, error } = await db.from('contact_tags')
+      .select('tags(name, color)').eq('contact_id', contactId)
+    if (error) throw error
+    return JSON.stringify((data ?? []).map((row) => row.tags).filter(Boolean))
+  }
+
+  if (name === 'get_contact_custom_fields') {
+    const { data, error } = await db.from('contact_custom_values')
+      .select('value, custom_fields(field_name)').eq('contact_id', contactId)
+    if (error) throw error
+    return JSON.stringify((data ?? []).map((row) => ({
+      field: Array.isArray(row.custom_fields) ? row.custom_fields[0]?.field_name : row.custom_fields?.field_name,
+      value: row.value,
+    })))
+  }
+
+  if (name === 'get_contact_notes') {
+    const { data, error } = await db.from('contact_notes')
+      .select('note_text, created_at').eq('account_id', accountId).eq('contact_id', contactId)
+      .order('created_at', { ascending: false }).limit(10)
+    if (error) throw error
+    return JSON.stringify(data ?? [])
+  }
+
+  const { data, error } = await db.from('deals')
+    .select('title, value, currency, notes, expected_close_date, status, created_at, updated_at')
+    .eq('account_id', accountId).eq('contact_id', contactId)
+    .order('updated_at', { ascending: false }).limit(10)
   if (error) throw error
-  return data ? JSON.stringify(data) : 'Current contact was not found.'
+  return JSON.stringify(data ?? [])
 }
 
 function interpolate(template: string, args: Record<string, unknown>): string {
