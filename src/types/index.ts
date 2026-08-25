@@ -838,6 +838,18 @@ export interface CalendarConnectionPublic {
   updated_at: string;
 }
 
+export interface AccountCalendar {
+  id: string;
+  account_id: string;
+  connection_id: string;
+  google_calendar_id: string;
+  name: string | null;
+  is_default: boolean;
+  is_agent_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CalendarEventAttendee {
   email: string;
   name?: string;

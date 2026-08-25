@@ -2613,3 +2613,48 @@ CREATE POLICY conv_labels_modify ON conversation_labels FOR ALL
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_mimetype TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_filename TEXT;
+
+-- ============================================================
+-- Migration 009_account_calendars.sql
+-- ============================================================
+
+-- 009_account_calendars
+-- Multiple Google calendars per account (Model A: a single clinic Google
+-- account whose connection can see every professional's shared calendar).
+-- Populated from calendarList.list() at OAuth connect time; admins pick
+-- which agendas the AI agent may use and which one is the default.
+
+CREATE TABLE IF NOT EXISTS account_calendars (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id          UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  connection_id       UUID NOT NULL REFERENCES calendar_connections(id) ON DELETE CASCADE,
+  google_calendar_id  TEXT NOT NULL,
+  name                TEXT,
+  is_default          BOOLEAN NOT NULL DEFAULT false,
+  is_agent_enabled    BOOLEAN NOT NULL DEFAULT false,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT unique_account_calendar UNIQUE (account_id, google_calendar_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_calendars_account ON account_calendars(account_id);
+CREATE INDEX IF NOT EXISTS idx_account_calendars_connection ON account_calendars(connection_id);
+
+-- At most one default agenda per account.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_calendars_default
+  ON account_calendars(account_id) WHERE is_default;
+
+ALTER TABLE account_calendars ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS account_calendars_select ON account_calendars;
+CREATE POLICY account_calendars_select ON account_calendars FOR SELECT
+  USING (is_account_member(account_id));
+DROP POLICY IF EXISTS account_calendars_insert ON account_calendars;
+CREATE POLICY account_calendars_insert ON account_calendars FOR INSERT
+  WITH CHECK (is_account_member(account_id, 'admin'));
+DROP POLICY IF EXISTS account_calendars_update ON account_calendars;
+CREATE POLICY account_calendars_update ON account_calendars FOR UPDATE
+  USING (is_account_member(account_id, 'admin'));
+DROP POLICY IF EXISTS account_calendars_delete ON account_calendars;
+CREATE POLICY account_calendars_delete ON account_calendars FOR DELETE
+  USING (is_account_member(account_id, 'admin'));

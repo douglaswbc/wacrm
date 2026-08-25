@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { exchangeCode, getUserEmail, listCalendars } from '@/lib/calendar/oauth2';
-import { storeConnection } from '@/lib/calendar/store';
+import { storeConnection, syncAccountCalendars } from '@/lib/calendar/store';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
 
 export async function GET(request: Request) {
@@ -56,6 +56,13 @@ export async function GET(request: Request) {
       tokens.expiry_date,
       primary.id,
       primary.summary ?? null
+    );
+
+    // Mirror every agenda visible to this Google account (primary +
+    // shared professional calendars) so admins can enable them for the
+    // AI agent. Non-fatal: connect still succeeds if listing fails.
+    await syncAccountCalendars(accountId, tokens.access_token).catch(
+      (err) => console.error('[api/calendar/callback] calendar sync:', err)
     );
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? url.origin;

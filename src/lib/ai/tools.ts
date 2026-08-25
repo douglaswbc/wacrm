@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { getConnection } from '@/lib/calendar/store'
+import {
+  CALENDAR_TOOLS,
+  executeCalendarTool,
+  validateNativeToolArgs,
+} from './calendar-tools'
 
 export const TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,63}$/
 const MAX_RESPONSE_CHARS = 12_000
@@ -83,8 +89,21 @@ export async function listActiveTools(db: SupabaseClient, accountId: string): Pr
     .select('name, description, parameters')
     .eq('account_id', accountId).eq('is_active', true).order('name')
   if (error) throw error
+  // Calendar tools are only offered when the account actually has a live
+  // Google Calendar connection — otherwise the model would call tools
+  // that can never succeed.
+  let calendarTools: AiToolDefinition[] = []
+  try {
+    const connection = await getConnection(accountId)
+    if (connection?.sync_enabled !== false) {
+      calendarTools = CALENDAR_TOOLS
+    }
+  } catch {
+    // Connection lookup failed — treat as not connected.
+  }
   return [
     ...NATIVE_TOOLS,
+    ...calendarTools,
     ...(data ?? []).map((row) => ({
     name: row.name,
     description: row.description,
@@ -99,8 +118,20 @@ export async function executeNativeTool(
   accountId: string,
   contactId: string,
   name: string,
+  args: Record<string, unknown> = {},
 ): Promise<string | null> {
-  if (!NATIVE_TOOL_NAMES.has(name)) return null
+  if (!NATIVE_TOOL_NAMES.has(name)) {
+    return executeCalendarTool(db, accountId, contactId, name, args)
+  }
+
+  if (Object.keys(args).length > 0) {
+    const validation = validateNativeToolArgs(
+      name,
+      NATIVE_TOOLS as AiToolDefinition[],
+      args
+    )
+    if (validation) return JSON.stringify({ error: validation })
+  }
 
   if (name === 'get_current_contact') {
     const { data, error } = await db.from('contacts')

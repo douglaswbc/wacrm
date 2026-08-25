@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import { requireApiKey } from '@/lib/auth/api-context';
 import { exchangeCode, getUserEmail, listCalendars } from '@/lib/calendar/oauth2';
-import { storeConnection } from '@/lib/calendar/store';
+import { storeConnection, syncAccountCalendars } from '@/lib/calendar/store';
 
 export async function GET(request: Request) {
   try {
@@ -39,6 +39,10 @@ export async function GET(request: Request) {
       tokens.expiry_date,
       primary.id,
       primary.summary ?? null
+    );
+
+    await syncAccountCalendars(ctx.accountId, tokens.access_token).catch(
+      (err) => console.error('[api/v1/calendar/callback] calendar sync:', err)
     );
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? url.origin;

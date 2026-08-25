@@ -20,6 +20,10 @@ vi.mock('./config', () => ({ loadAiConfig: h.loadAiConfig }))
 vi.mock('./context', () => ({ buildConversationContext: h.buildConversationContext }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
+vi.mock('@/lib/calendar/store', () => ({
+  // No calendar connection in these tests → calendar tools stay hidden.
+  getConnection: vi.fn(async () => null),
+}))
 vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
     from: (table: string) => {
@@ -31,6 +35,15 @@ vi.mock('./admin-client', () => ({
           in: () => chain,
           limit: () =>
             Promise.resolve({ data: h.state.autoResponders, error: null }),
+        }
+        return chain
+      }
+      if (table === 'ai_tools') {
+        // .select().eq().eq().order() → external tools
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          order: () => Promise.resolve({ data: [], error: null }),
         }
         return chain
       }

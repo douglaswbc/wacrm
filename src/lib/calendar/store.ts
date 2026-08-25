@@ -1,12 +1,15 @@
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  AccountCalendar,
   CalendarConnection,
   CalendarConnectionPublic,
 } from '@/types';
 import {
   getValidAccessToken,
   refreshAccessToken,
+  listCalendars,
 } from './oauth2';
 
 export async function storeConnection(
@@ -186,4 +189,77 @@ export function serializeConnection(
     created_at: conn.created_at,
     updated_at: conn.updated_at,
   };
+}
+
+/**
+ * Mirror every agenda visible to the connected Google account into
+ * `account_calendars`. Called right after OAuth connect; the primary
+ * calendar starts as default and agent-enabled, shared agendas (e.g.
+ * professionals' calendars in a clinic Workspace) start disabled so an
+ * admin can opt them in.
+ */
+export async function syncAccountCalendars(
+  accountId: string,
+  accessToken: string
+): Promise<void> {
+  const db = supabaseAdmin();
+
+  const connection = await getConnection(accountId);
+  if (!connection) return;
+
+  let entries;
+  try {
+    entries = await listCalendars(accessToken);
+  } catch {
+    return;
+  }
+
+  const usable = entries.filter((entry) => entry.id && !entry.deleted);
+  if (usable.length === 0) return;
+
+  await db.from('account_calendars').delete().eq('account_id', accountId);
+
+  const rows = usable.map((entry) => ({
+    account_id: accountId,
+    connection_id: connection.id,
+    google_calendar_id: entry.id as string,
+    name: entry.summaryOverride ?? entry.summary ?? null,
+    is_default: Boolean(entry.primary) || entry.id === connection.calendar_id,
+    is_agent_enabled:
+      Boolean(entry.primary) || entry.id === connection.calendar_id,
+    updated_at: new Date().toISOString(),
+  }));
+
+  await db.from('account_calendars').upsert(rows, {
+    onConflict: 'account_id,google_calendar_id',
+  });
+
+  // Exactly one default — prefer the primary, else the first row.
+  const fallback = rows.find((row) => row.is_default) ?? rows[0];
+  if (fallback) {
+    await db
+      .from('account_calendars')
+      .update({ is_default: true, updated_at: new Date().toISOString() })
+      .eq('account_id', accountId)
+      .eq('google_calendar_id', fallback.google_calendar_id);
+  }
+}
+
+/** Agendas the AI agent may operate on (admin-curated via Settings). */
+export async function listAgentCalendars(
+  db: SupabaseClient,
+  accountId: string
+): Promise<AccountCalendar[]> {
+  const { data, error } = await db
+    .from('account_calendars')
+    .select(
+      'id, account_id, connection_id, google_calendar_id, name, is_default, is_agent_enabled, created_at, updated_at'
+    )
+    .eq('account_id', accountId)
+    .eq('is_agent_enabled', true)
+    .order('is_default', { ascending: false })
+    .order('name', { ascending: true });
+
+  if (error || !data) return [];
+  return data as unknown as AccountCalendar[];
 }

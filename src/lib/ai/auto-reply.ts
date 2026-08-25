@@ -106,7 +106,7 @@ export async function dispatchInboundToAiReply(
       messages,
       tools,
       executeTool: async (name, toolArgs) =>
-        await executeNativeTool(db, accountId, contactId, name)
+        await executeNativeTool(db, accountId, contactId, name, toolArgs)
           ?? executeExternalTool(db, accountId, name, toolArgs),
     })
 

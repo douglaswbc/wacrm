@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     const { text } = await generateReply({
       config, systemPrompt, messages, tools,
       executeTool: async (name, args) =>
-        await executeNativeTool(supabase, accountId, conversation.contact_id, name)
+        await executeNativeTool(supabase, accountId, conversation.contact_id, name, args)
           ?? executeExternalTool(supabase, accountId, name, args),
     })
     return NextResponse.json({ draft: text })
