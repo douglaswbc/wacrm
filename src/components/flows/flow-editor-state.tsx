@@ -50,6 +50,7 @@ import {
   type ValidationIssue,
 } from "@/lib/flows/validate";
 import { unlinkNodeReferences } from "@/lib/flows/edges";
+import { useLanguage } from "@/hooks/use-language";
 import type { FlowNodeRow, FlowRow } from "@/lib/flows/types";
 import { NODE_META, slugify, type BuilderNode, type NodeType } from "./shared";
 
@@ -249,6 +250,7 @@ export function FlowEditorProvider({
   children,
 }: ProviderProps) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [state, setStateRaw] = useState<BuilderState>(() => ({
     name: initialFlow.name,
@@ -358,23 +360,26 @@ export function FlowEditorProvider({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? `Save failed: ${res.status}`);
+        throw new Error(
+          json.error ?? `${t("flows.editor.saveFailed")}: ${res.status}`,
+        );
       }
       setDirty(false);
-      toast.success("Saved.");
+      toast.success(t("flows.editor.toastSaved"));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Save failed";
+      const msg =
+        err instanceof Error ? err.message : t("flows.editor.saveFailed");
       toast.error(msg);
     } finally {
       setSaving(false);
     }
-  }, [initialFlow.id, state]);
+  }, [initialFlow.id, state, t]);
 
   // ---- Activate / Pause / Archive ----
   const setStatus = useCallback(
     async (next: BuilderState["status"]) => {
       if (next === "active" && !canActivate) {
-        toast.error("Fix the issues below before activating.");
+        toast.error(t("flows.editor.fixIssuesToActivate"));
         return;
       }
       setActivating(true);
@@ -392,43 +397,53 @@ export function FlowEditorProvider({
         });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          throw new Error(json.error ?? `Status update failed: ${res.status}`);
+          throw new Error(
+            json.error ??
+              `${t("flows.editor.statusUpdateFailed")}: ${res.status}`,
+          );
         }
         setStateRaw((s) => ({ ...s, status: next }));
         toast.success(
           next === "active"
-            ? "Flow activated."
+            ? t("flows.editor.toastActivated")
             : next === "archived"
-              ? "Archived."
-              : "Saved as draft.",
+              ? t("flows.editor.toastArchived")
+              : t("flows.editor.toastSavedDraft"),
         );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Status update failed";
+        const msg =
+          err instanceof Error
+            ? err.message
+            : t("flows.editor.statusUpdateFailed");
         toast.error(msg);
       } finally {
         setActivating(false);
       }
     },
-    [canActivate, save, initialFlow.id],
+    [canActivate, save, initialFlow.id, t],
   );
 
   // ---- Delete ----
   const deleteFlow = useCallback(async () => {
     const yes = window.confirm(
-      `Delete "${state.name}"? Any active runs end immediately. This can't be undone.`,
+      `${t("flows.editor.deleteConfirmPre")} "${state.name}"? ${t("flows.editor.deleteConfirmPost")}`,
     );
     if (!yes) return;
     try {
       const res = await fetch(`/api/flows/${initialFlow.id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      if (!res.ok)
+        throw new Error(
+          `${t("flows.editor.deleteFailed")}: ${res.status}`,
+        );
       router.push("/flows");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Delete failed";
+      const msg =
+        err instanceof Error ? err.message : t("flows.editor.deleteFailed");
       toast.error(msg);
     }
-  }, [initialFlow.id, router, state.name]);
+  }, [initialFlow.id, router, state.name, t]);
 
   // ---- Node mutations ----
   const updateNode = useCallback(

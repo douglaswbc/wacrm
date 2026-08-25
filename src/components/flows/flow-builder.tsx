@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/use-language';
 import { type ValidationIssue } from '@/lib/flows/validate';
 import {
   NODE_META,
@@ -73,6 +74,7 @@ import { useFlowEditor, type BuilderState } from './flow-editor-state';
 // ============================================================
 
 export function FlowBuilder() {
+  const { t } = useLanguage();
   const {
     state,
     setState,
@@ -165,16 +167,20 @@ export function FlowBuilder() {
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-foreground text-sm font-semibold">
-            Nodes ({state.nodes.length})
+            {t('flows.nodes', state.nodes.length)}
           </h2>
           <AddNodeButton onAdd={addNode} />
         </div>
 
         {state.nodes.length === 0 ? (
           <div className="border-border bg-card/50 text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-            Add a <strong>Start</strong> node, then a{' '}
-            <strong>Send buttons</strong> node, then a <strong>Handoff</strong>{' '}
-            — that&apos;s the welcome-menu shape from the brief.
+            {t('flows.builder.emptyAddA')}{' '}
+            <strong>{t('flows.builder.nodeTypeStart')}</strong>
+            {t('flows.builder.emptyThenA')}{' '}
+            <strong>{t('flows.builder.nodeTypeButtons')}</strong>
+            {t('flows.builder.emptyThenA')}{' '}
+            <strong>{t('flows.builder.nodeTypeHandoff')}</strong>
+            {t('flows.builder.emptyTail')}
           </div>
         ) : (
           state.nodes.map((node) => (
@@ -225,6 +231,7 @@ function KeywordsInput({
   keywords: string[];
   onChange: (keywords: string[]) => void;
 }) {
+  const { t } = useLanguage();
   const [draft, setDraft] = useState(keywords.join(', '));
 
   function commit() {
@@ -247,7 +254,7 @@ function KeywordsInput({
           commit();
         }
       }}
-      placeholder="support, help, hi"
+      placeholder={t('flows.builder.keywordsPlaceholder')}
       className="bg-muted"
     />
   );
@@ -266,6 +273,7 @@ function TriggerPanel({
   setState: React.Dispatch<React.SetStateAction<BuilderState>>;
   triggerIssues: ValidationIssue[];
 }) {
+  const { t } = useLanguage();
   const [igPosts, setIgPosts] = useState<{ id: string; content: string }[]>([]);
   const [igPostsLoading, setIgPostsLoading] = useState(false);
   const igSelectedPostId =
@@ -291,11 +299,11 @@ function TriggerPanel({
   }, [state.channel]);
   return (
     <section className="border-border bg-card rounded-lg border p-4">
-      <h2 className="text-foreground mb-3 text-sm font-semibold">Trigger</h2>
+      <h2 className="text-foreground mb-3 text-sm font-semibold">{t('flows.builder.trigger')}</h2>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
           <label className="text-muted-foreground mb-1 block text-xs">
-            When…
+            {t('flows.builder.when')}
           </label>
           <Select
             value={state.trigger_type}
@@ -313,13 +321,13 @@ function TriggerPanel({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="keyword">
-                A message contains a keyword
+                {t('flows.builder.triggerKeywordContains')}
               </SelectItem>
               <SelectItem value="first_inbound_message">
-                Customer&apos;s first ever inbound message
+                {t('flows.builder.triggerFirstInbound')}
               </SelectItem>
               <SelectItem value="manual">
-                Manual only (no auto-trigger)
+                {t('flows.builder.triggerManualOnly')}
               </SelectItem>
             </SelectContent>
           </Select>
@@ -327,7 +335,7 @@ function TriggerPanel({
         {state.trigger_type === 'keyword' && (
           <div>
             <label className="text-muted-foreground mb-1 block text-xs">
-              Keywords (comma-separated)
+              {t('flows.builder.keywordsLabel')}
             </label>
             <KeywordsInput
               keywords={
@@ -349,7 +357,7 @@ function TriggerPanel({
       {state.trigger_type === 'keyword' && state.channel === 'instagram' && (
         <div className="mt-3">
           <label className="text-muted-foreground mb-1 block text-xs">
-            Scope to post (optional)
+            {t('flows.builder.scopeToPost')}
           </label>
           <Select
             value={igSelectedPostId}
@@ -365,10 +373,10 @@ function TriggerPanel({
             disabled={igPostsLoading}
           >
             <SelectTrigger className="bg-muted w-full md:w-64">
-              <SelectValue placeholder="Any post" />
+              <SelectValue placeholder={t('flows.builder.anyPost')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Any post</SelectItem>
+              <SelectItem value="">{t('flows.builder.anyPost')}</SelectItem>
               {igPosts.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.content.substring(0, 60)}{p.content.length > 60 ? '...' : ''}
@@ -378,17 +386,17 @@ function TriggerPanel({
           </Select>
           <p className="mt-1 text-[11px] text-muted-foreground">
             {igPostsLoading
-              ? 'Loading posts...'
+              ? t('flows.builder.loadingPosts')
               : igPosts.length === 0
-                ? 'No posts found. Connect Instagram in Settings > Social.'
-                : 'Limit this trigger to comments on a specific post.'}
+                ? t('flows.builder.noPostsFound')
+                : t('flows.builder.scopeHint')}
           </p>
         </div>
       )}
 
       <div className="mt-3">
         <label className="text-muted-foreground mb-1 block text-xs">
-          Channel
+          {t('flows.builder.channel')}
         </label>
         <Select
           value={state.channel ?? ''}
@@ -400,16 +408,16 @@ function TriggerPanel({
           }
         >
           <SelectTrigger className="bg-muted w-full md:w-64">
-            <SelectValue placeholder="Both (WhatsApp + Instagram)" />
+            <SelectValue placeholder={t('flows.builder.channelBoth')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Both (WhatsApp + Instagram)</SelectItem>
-            <SelectItem value="whatsapp">WhatsApp only</SelectItem>
-            <SelectItem value="instagram">Instagram only</SelectItem>
+            <SelectItem value="">{t('flows.builder.channelBoth')}</SelectItem>
+            <SelectItem value="whatsapp">{t('flows.builder.channelWhatsapp')}</SelectItem>
+            <SelectItem value="instagram">{t('flows.builder.channelInstagram')}</SelectItem>
           </SelectContent>
         </Select>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Limit this flow to a specific channel, or leave on &quot;Both&quot;.
+          {t('flows.builder.channelHint')}
         </p>
       </div>
       {triggerIssues.length > 0 && (
@@ -434,16 +442,17 @@ function EntryPicker({
   state: BuilderState;
   setState: React.Dispatch<React.SetStateAction<BuilderState>>;
 }) {
+  const { t } = useLanguage();
   if (state.nodes.length === 0) return null;
   return (
     <section className="border-border bg-card flex items-center gap-3 rounded-lg border p-3">
       <CornerDownRight className="text-primary h-4 w-4 shrink-0" />
-      <span className="text-muted-foreground text-xs">Entry node:</span>
+      <span className="text-muted-foreground text-xs">{t('flows.builder.entryNode')}</span>
       <NodeKeySelect
         value={state.entry_node_id}
         nodes={state.nodes}
         onChange={(key) => setState((s) => ({ ...s, entry_node_id: key }))}
-        placeholder="Pick the first node…"
+        placeholder={t('flows.builder.entryPickPlaceholder')}
         className="max-w-xs flex-1"
       />
     </section>
@@ -481,10 +490,11 @@ function NodeCard({
   onRemove: () => void;
   onSetEntry: () => void;
 }) {
+  const { t } = useLanguage();
   const meta = NODE_META[node.node_type];
   const c = nodeColors(node.node_type);
   const hasError = issues.some((i) => i.severity === 'error');
-  const preview = summarizeNode(node);
+  const preview = summarizeNode(node, t);
   return (
     <div
       ref={cardRef}
@@ -515,7 +525,7 @@ function NodeCard({
               className="truncate text-[11px] font-semibold tracking-wider uppercase"
               style={{ color: c.text }}
             >
-              {meta.label}
+              {t(meta.labelKey)}
             </span>
             <code className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px]">
               {node.node_key}
@@ -525,7 +535,7 @@ function NodeCard({
                 variant="outline"
                 className="border-primary/40 bg-primary/10 text-primary text-[10px]"
               >
-                Entry
+                {t('flows.entryBadge')}
               </Badge>
             )}
           </div>
@@ -556,7 +566,7 @@ function NodeCard({
             <div className="flex items-center gap-2">
               {!isEntry && (
                 <Button variant="ghost" size="sm" onClick={onSetEntry}>
-                  Set as entry
+                  {t('flows.setAsEntry')}
                 </Button>
               )}
             </div>
@@ -567,7 +577,7 @@ function NodeCard({
               className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Remove node
+              {t('flows.removeNode')}
             </Button>
           </div>
           {issues.length > 0 && (
@@ -600,6 +610,7 @@ function NodeConfigWithAdvanced({
   onUpdate: (patch: Partial<BuilderNode>) => void;
   onUpdateConfig: (patch: Record<string, unknown>) => void;
 }) {
+  const { t } = useLanguage();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const hasReplyIds =
     node.node_type === 'send_buttons' || node.node_type === 'send_list';
@@ -622,13 +633,15 @@ function NodeConfigWithAdvanced({
           ) : (
             <ChevronDown className="h-3 w-3" />
           )}
-          {showAdvanced ? 'Hide' : 'Show'} advanced
+          {showAdvanced
+            ? t('flows.builder.hideAdvanced')
+            : t('flows.builder.showAdvanced')}
         </button>
         {showAdvanced && (
           <div className="mt-3 flex flex-col gap-3">
             <div>
               <label className="text-muted-foreground mb-1 block text-xs">
-                Node key (internal identifier — keep stable for analytics)
+                {t('flows.builder.nodeKeyLabel')}
               </label>
               <Input
                 value={node.node_key}
@@ -640,9 +653,7 @@ function NodeConfigWithAdvanced({
             </div>
             {hasReplyIds && (
               <p className="text-muted-foreground text-[10px]">
-                Reply IDs for each option are shown inline above. They&apos;re
-                returned by WhatsApp when a customer taps; you usually
-                don&apos;t need to touch them.
+                {t('flows.builder.replyIdsNote')}
               </p>
             )}
           </div>
@@ -657,6 +668,7 @@ function NodeConfigWithAdvanced({
 // ============================================================
 
 function AddNodeButton({ onAdd }: { onAdd: (type: NodeType) => void }) {
+  const { t } = useLanguage();
   const types: NodeType[] = [
     'start',
     'send_buttons',
@@ -675,24 +687,24 @@ function AddNodeButton({ onAdd }: { onAdd: (type: NodeType) => void }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className="border-border bg-card text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
-        aria-label="Add node"
+        aria-label={t('flows.addNode')}
       >
         <Plus className="h-3.5 w-3.5" />
-        Add node
+        {t('flows.addNode')}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="border-border bg-popover">
         {groupNodeTypesByCategory(types).map((group, i) => (
           <DropdownMenuGroup key={group.id}>
             {i > 0 && <DropdownMenuSeparator />}
             <DropdownMenuLabel className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
-              {group.label}
+              {t(group.labelKey)}
             </DropdownMenuLabel>
-            {group.types.map((t) => {
-              const meta = NODE_META[t];
+            {group.types.map((nt) => {
+              const meta = NODE_META[nt];
               return (
-                <DropdownMenuItem key={t} onClick={() => onAdd(t)}>
+                <DropdownMenuItem key={nt} onClick={() => onAdd(nt)}>
                   <meta.icon className={cn('h-3.5 w-3.5', meta.color)} />
-                  {meta.label}
+                  {t(meta.labelKey)}
                 </DropdownMenuItem>
               );
             })}

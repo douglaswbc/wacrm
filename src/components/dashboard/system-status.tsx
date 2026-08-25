@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import type { SystemStatus } from '@/lib/dashboard/types'
+import { useLanguage } from '@/hooks/use-language'
 
 interface StatusPill {
   key: string
@@ -27,6 +28,7 @@ export function SystemStatusBar({
   status: SystemStatus | null
   loading?: boolean
 }) {
+  const { t } = useLanguage()
   if (loading || !status) {
     return (
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
@@ -40,41 +42,55 @@ export function SystemStatusBar({
     )
   }
 
+  const connectedLabel = status.whatsappConnected
+    ? t('dashboard.systemStatus.connected')
+    : t('dashboard.systemStatus.disconnected')
   const pills: StatusPill[] = [
     {
       key: 'whatsapp',
       icon: PlugZap,
       label: 'WhatsApp',
       ok: status.whatsappConnected,
-      detail: status.whatsappConnected ? 'Conectado' : 'Desconectado',
+      detail: connectedLabel,
     },
     {
       key: 'instagram',
       icon: Camera,
       label: 'Instagram',
       ok: status.instagramConnected,
-      detail: status.instagramConnected ? 'Conectado' : 'Desconectado',
+      detail:
+        status.instagramConnected
+          ? t('dashboard.systemStatus.connected')
+          : t('dashboard.systemStatus.disconnected'),
     },
     {
       key: 'capi',
       icon: BarChart3,
       label: 'Meta CAPI',
       ok: status.capiConfigured,
-      detail: status.capiConfigured ? 'Configurado' : 'Não configurado',
+      detail: status.capiConfigured
+        ? t('dashboard.systemStatus.configured')
+        : t('dashboard.systemStatus.notConfigured'),
     },
     {
       key: 'automations',
       icon: Bot,
-      label: 'Automações',
+      label: t('automations.title'),
       ok: status.activeAutomations > 0,
-      detail: `${status.activeAutomations} ativa${status.activeAutomations !== 1 ? 's' : ''}`,
+      detail:
+        status.activeAutomations === 1
+          ? t('dashboard.systemStatus.activeOne', status.activeAutomations)
+          : t('dashboard.systemStatus.activeMany', status.activeAutomations),
     },
     {
       key: 'broadcasts',
       icon: Radio,
-      label: 'Broadcasts',
+      label: t('broadcasts.title'),
       ok: true,
-      detail: `${status.scheduledBroadcasts} agendado${status.scheduledBroadcasts !== 1 ? 's' : ''}`,
+      detail:
+        status.scheduledBroadcasts === 1
+          ? t('dashboard.systemStatus.scheduledOne', status.scheduledBroadcasts)
+          : t('dashboard.systemStatus.scheduledMany', status.scheduledBroadcasts),
     },
   ]
 

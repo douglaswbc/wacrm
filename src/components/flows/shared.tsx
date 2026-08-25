@@ -83,105 +83,143 @@ export interface BuilderNode {
 
 export type NodeCategory = 'messaging' | 'logic' | 'flow';
 
+export type TranslateFn = (key: string, count?: number) => string;
+
+const CATEGORY_LABEL_KEYS: Record<NodeCategory, string> = {
+  messaging: 'flows.category.messaging',
+  logic: 'flows.category.logic',
+  flow: 'flows.category.flow',
+};
+
 /** Category labels + the order they render in the add-step menu. */
-export const NODE_CATEGORIES: { id: NodeCategory; label: string }[] = [
-  { id: 'messaging', label: 'Messaging' },
-  { id: 'logic', label: 'Logic & data' },
-  { id: 'flow', label: 'Flow control' },
+export const NODE_CATEGORIES: {
+  id: NodeCategory;
+  label: string;
+  labelKey: string;
+}[] = [
+  { id: 'messaging', label: 'Messaging', labelKey: CATEGORY_LABEL_KEYS.messaging },
+  { id: 'logic', label: 'Logic & data', labelKey: CATEGORY_LABEL_KEYS.logic },
+  { id: 'flow', label: 'Flow control', labelKey: CATEGORY_LABEL_KEYS.flow },
 ];
 
 export const NODE_META: Record<
   NodeType,
   {
     label: string;
+    labelKey: string;
     icon: typeof Workflow;
     color: string;
     blurb: string;
+    blurbKey: string;
     category: NodeCategory;
   }
 > = {
   start: {
     label: 'Start',
+    labelKey: 'flows.node.start.label',
     icon: PlayCircle,
     color: 'text-emerald-400',
     blurb: 'Entry point of the flow',
+    blurbKey: 'flows.node.start.blurb',
     category: 'flow',
   },
   send_message: {
     label: 'Send message',
+    labelKey: 'flows.node.send_message.label',
     icon: MessageCircle,
     color: 'text-sky-400',
     blurb: 'Sends a WhatsApp text message',
+    blurbKey: 'flows.node.send_message.blurb',
     category: 'messaging',
   },
   send_buttons: {
     label: 'Send buttons',
+    labelKey: 'flows.node.send_buttons.label',
     icon: ListChecks,
     color: 'text-primary',
     blurb: 'Sends quick-reply buttons',
+    blurbKey: 'flows.node.send_buttons.blurb',
     category: 'messaging',
   },
   send_list: {
     label: 'Send list',
+    labelKey: 'flows.node.send_list.label',
     icon: ListPlus,
     color: 'text-indigo-400',
     blurb: 'Sends a tappable list of options',
+    blurbKey: 'flows.node.send_list.blurb',
     category: 'messaging',
   },
   send_media: {
     label: 'Send media',
+    labelKey: 'flows.node.send_media.label',
     icon: Paperclip,
     color: 'text-cyan-400',
     blurb: 'Sends an image, video, or document',
+    blurbKey: 'flows.node.send_media.blurb',
     category: 'messaging',
   },
   collect_input: {
     label: 'Collect input',
+    labelKey: 'flows.node.collect_input.label',
     icon: Inbox,
     color: 'text-teal-400',
     blurb: 'Asks a question, saves the reply',
+    blurbKey: 'flows.node.collect_input.blurb',
     category: 'logic',
   },
   condition: {
     label: 'If / else',
+    labelKey: 'flows.node.condition.label',
     icon: GitFork,
     color: 'text-fuchsia-400',
     blurb: 'Branches on a rule',
+    blurbKey: 'flows.node.condition.blurb',
     category: 'logic',
   },
   ai_condition: {
     label: 'AI if / else',
+    labelKey: 'flows.node.ai_condition.label',
     icon: BrainCircuit,
     color: 'text-purple-400',
     blurb: 'Branches on AI classification',
+    blurbKey: 'flows.node.ai_condition.blurb',
     category: 'logic',
   },
   ai_extract: {
     label: 'AI extract',
+    labelKey: 'flows.node.ai_extract.label',
     icon: ScanText,
     color: 'text-violet-400',
     blurb: 'Asks a question, uses AI to extract data',
+    blurbKey: 'flows.node.ai_extract.blurb',
     category: 'logic',
   },
   set_tag: {
     label: 'Tag contact',
+    labelKey: 'flows.node.set_tag.label',
     icon: Tag,
     color: 'text-pink-400',
     blurb: 'Adds or removes a contact tag',
+    blurbKey: 'flows.node.set_tag.blurb',
     category: 'logic',
   },
   handoff: {
     label: 'Handoff to agent',
+    labelKey: 'flows.node.handoff.label',
     icon: UserPlus,
     color: 'text-amber-400',
     blurb: 'Hands the conversation to a human',
+    blurbKey: 'flows.node.handoff.blurb',
     category: 'flow',
   },
   end: {
     label: 'End',
+    labelKey: 'flows.node.end.label',
     icon: Flag,
     color: 'text-muted-foreground',
     blurb: 'Ends the flow',
+    blurbKey: 'flows.node.end.blurb',
     category: 'flow',
   },
 };
@@ -194,10 +232,11 @@ export const NODE_META: Record<
  */
 export function groupNodeTypesByCategory(
   types: NodeType[]
-): { id: NodeCategory; label: string; types: NodeType[] }[] {
-  return NODE_CATEGORIES.map(({ id, label }) => ({
+): { id: NodeCategory; label: string; labelKey: string; types: NodeType[] }[] {
+  return NODE_CATEGORIES.map(({ id, label, labelKey }) => ({
     id,
     label,
+    labelKey,
     types: types.filter((t) => NODE_META[t].category === id),
   })).filter((group) => group.types.length > 0);
 }
@@ -325,7 +364,13 @@ export function truncate(s: string, max = 80): string {
   return clean.slice(0, max - 1) + '…';
 }
 
-export function summarizeNode(node: BuilderNode): string | null {
+const MEDIA_TYPE_LABEL_KEYS: Record<string, string> = {
+  image: 'flows.mediaType.image',
+  video: 'flows.mediaType.video',
+  document: 'flows.mediaType.document',
+};
+
+export function summarizeNode(node: BuilderNode, t: TranslateFn): string | null {
   const cfg = node.config;
   switch (node.node_type) {
     case 'start':
@@ -360,13 +405,15 @@ export function summarizeNode(node: BuilderNode): string | null {
         const rows = Array.isArray(s.rows) ? s.rows : [];
         return sum + rows.length;
       }, 0);
+      const optionsLabel = (n: number) =>
+        t(n === 1 ? 'flows.summary.option' : 'flows.summary.options', n);
       if (text.length > 0) {
         return rowCount > 0
-          ? `${truncate(text, 50)} · ${rowCount} option${rowCount === 1 ? '' : 's'}`
+          ? `${truncate(text, 50)} · ${optionsLabel(rowCount)}`
           : truncate(text);
       }
       return rowCount > 0
-        ? `${rowCount} option${rowCount === 1 ? '' : 's'} across ${sections.length} section${sections.length === 1 ? '' : 's'}`
+        ? `${optionsLabel(rowCount)} ${t('flows.summary.across')} ${t(sections.length === 1 ? 'flows.summary.section' : 'flows.summary.sections', sections.length)}`
         : null;
     }
     case 'send_media': {
@@ -375,10 +422,11 @@ export function summarizeNode(node: BuilderNode): string | null {
       const filename = typeof cfg.filename === 'string' ? cfg.filename : '';
       const url = typeof cfg.media_url === 'string' ? cfg.media_url : '';
       const caption = typeof cfg.caption === 'string' ? cfg.caption : '';
-      const label = mediaType
-        ? mediaType.charAt(0).toUpperCase() + mediaType.slice(1)
-        : 'Media';
-      if (!url) return `${label} (no file uploaded)`;
+      const label =
+        mediaType && MEDIA_TYPE_LABEL_KEYS[mediaType]
+          ? t(MEDIA_TYPE_LABEL_KEYS[mediaType])
+          : t('flows.mediaType.default');
+      if (!url) return `${label} ${t('flows.summary.noFileUploaded')}`;
       const name = filename || url.split('/').pop() || 'file';
       return caption
         ? `${label}: ${truncate(name, 30)} · ${truncate(caption, 40)}`
@@ -406,17 +454,17 @@ export function summarizeNode(node: BuilderNode): string | null {
             : 'var';
       const subjectStr =
         subject === 'tag'
-          ? `has tag ${truncate(subjectKey, 24)}`
+          ? `${t('flows.summary.hasTag')} ${truncate(subjectKey, 24)}`
           : `${subject}.${subjectKey}`;
       const op =
         cfg.operator === 'equals'
           ? '=='
           : cfg.operator === 'contains'
-            ? 'contains'
+            ? t('flows.summary.opContains')
             : cfg.operator === 'present'
-              ? 'exists'
+              ? t('flows.summary.opExists')
               : cfg.operator === 'absent'
-                ? 'missing'
+                ? t('flows.summary.opMissing')
                 : '';
       const value = typeof cfg.value === 'string' ? cfg.value : '';
       const valStr =
@@ -426,14 +474,17 @@ export function summarizeNode(node: BuilderNode): string | null {
       return subject === 'tag' ? subjectStr : `${subjectStr} ${op}${valStr}`;
     }
     case 'set_tag': {
-      const mode = cfg.mode === 'remove' ? 'Remove' : 'Add';
+      const mode =
+        cfg.mode === 'remove'
+          ? t('flows.summary.remove')
+          : t('flows.summary.add');
       const tagId = typeof cfg.tag_id === 'string' ? cfg.tag_id : '';
       // No tag name available without an async lookup here; show a
       // short prefix of the UUID so users can disambiguate between
       // multiple set_tag nodes at a glance.
       return tagId
-        ? `${mode} tag ${tagId.slice(0, 8)}…`
-        : `${mode} tag (none picked)`;
+        ? `${mode} ${t('flows.summary.tag')} ${tagId.slice(0, 8)}…`
+        : `${mode} ${t('flows.summary.tag')} ${t('flows.summary.nonePicked')}`;
     }
     case 'handoff': {
       const note = typeof cfg.note === 'string' ? cfg.note : '';
@@ -441,7 +492,9 @@ export function summarizeNode(node: BuilderNode): string | null {
     }
     case 'ai_condition': {
       const prompt = typeof cfg.prompt === 'string' ? cfg.prompt : '';
-      return prompt ? `AI: ${truncate(prompt, 60)}` : null;
+      return prompt
+        ? `${t('flows.summary.aiPrefix')}${truncate(prompt, 60)}`
+        : null;
     }
     case 'ai_extract': {
       const prompt = typeof cfg.prompt_text === 'string' ? cfg.prompt_text : '';
@@ -452,7 +505,7 @@ export function summarizeNode(node: BuilderNode): string | null {
       const fieldNames = fields.map((f) => f.field_name).join(', ');
       if (prompt.length > 0) {
         return fieldNames
-          ? `AI extract → ${truncate(fieldNames, 50)}`
+          ? `${t('flows.node.ai_extract.label')} → ${truncate(fieldNames, 50)}`
           : `${truncate(prompt, 50)} → vars.${varKey}`;
       }
       return varKey ? `→ vars.${varKey}` : null;

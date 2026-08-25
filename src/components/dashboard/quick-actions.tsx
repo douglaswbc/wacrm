@@ -3,22 +3,24 @@
 import Link from 'next/link'
 import { UserPlus, Briefcase, Radio, Zap } from 'lucide-react'
 import type { ComponentType } from 'react'
+import { useLanguage } from '@/hooks/use-language'
 
 interface Action {
-  label: string
+  labelKey: string
   href: string
   icon: ComponentType<{ className?: string }>
   tint: string
 }
 
 const ACTIONS: Action[] = [
-  { label: 'New Contact', href: '/contacts', icon: UserPlus, tint: 'text-primary' },
-  { label: 'New Deal', href: '/pipelines', icon: Briefcase, tint: 'text-blue-400' },
-  { label: 'New Broadcast', href: '/broadcasts/new', icon: Radio, tint: 'text-amber-400' },
-  { label: 'New Automation', href: '/automations/new', icon: Zap, tint: 'text-primary' },
+  { labelKey: 'dashboard.quickActions.newContact', href: '/contacts', icon: UserPlus, tint: 'text-primary' },
+  { labelKey: 'dashboard.quickActions.newDeal', href: '/pipelines', icon: Briefcase, tint: 'text-blue-400' },
+  { labelKey: 'dashboard.quickActions.newBroadcast', href: '/broadcasts/new', icon: Radio, tint: 'text-amber-400' },
+  { labelKey: 'dashboard.quickActions.newAutomation', href: '/automations/new', icon: Zap, tint: 'text-primary' },
 ]
 
 export function QuickActions({ compact }: { compact?: boolean }) {
+  const { t } = useLanguage()
   if (compact) {
     return (
       <div className="flex items-center gap-1">
@@ -29,10 +31,10 @@ export function QuickActions({ compact }: { compact?: boolean }) {
               key={a.href}
               href={a.href}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted ${a.tint}`}
-              title={a.label}
+              title={t(a.labelKey)}
             >
               <Icon className="size-3.5" />
-              <span className="hidden sm:inline">{a.label}</span>
+              <span className="hidden sm:inline">{t(a.labelKey)}</span>
             </Link>
           )
         })}
@@ -53,7 +55,7 @@ export function QuickActions({ compact }: { compact?: boolean }) {
             <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-muted ${a.tint}`}>
               <Icon className="h-4 w-4" />
             </div>
-            <span className="text-sm font-medium text-foreground">{a.label}</span>
+            <span className="text-sm font-medium text-foreground">{t(a.labelKey)}</span>
           </Link>
         )
       })}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
+import { useLanguage } from '@/hooks/use-language';
 
 interface CopyButtonProps {
   content: string;
@@ -9,8 +10,11 @@ interface CopyButtonProps {
   copiedLabel?: string;
 }
 
-export function CopyButton({ content, label = 'Copy', copiedLabel = 'Copied!' }: CopyButtonProps) {
+export function CopyButton({ content, label, copiedLabel }: CopyButtonProps) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const finalLabel = label ?? t('apiDocs.copy');
+  const finalCopiedLabel = copiedLabel ?? t('apiDocs.copied');
 
   async function handleCopy() {
     try {
@@ -25,17 +29,17 @@ export function CopyButton({ content, label = 'Copy', copiedLabel = 'Copied!' }:
     <button
       onClick={handleCopy}
       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      title={label}
+      title={finalLabel}
     >
       {copied ? (
         <>
           <Check className="h-3.5 w-3.5 text-green-500" />
-          {copiedLabel}
+          {finalCopiedLabel}
         </>
       ) : (
         <>
           <Copy className="h-3.5 w-3.5" />
-          {label}
+          {finalLabel}
         </>
       )}
     </button>

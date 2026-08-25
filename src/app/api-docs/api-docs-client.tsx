@@ -3,8 +3,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import type { Lang } from './translations';
-import t from './translations';
+import { useLanguage } from '@/hooks/use-language';
+import type { Language } from '@/lib/i18n/types';
 import { CopyButton } from './copy-button';
 import {
   endpoints,
@@ -21,7 +21,7 @@ import {
   verifyExample,
 } from './content';
 
-const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
+const LANG_OPTIONS: { value: Language; label: string; flag: string }[] = [
   { value: 'pt', label: 'Português', flag: '🇧🇷' },
   { value: 'es', label: 'Español', flag: '🇪🇸' },
   { value: 'en', label: 'English', flag: '🇺🇸' },
@@ -74,14 +74,14 @@ function methodColor(m: string): string {
   return 'text-muted-foreground';
 }
 
-function CodeBlock({ content, copyLabel, copiedLabel }: { content: string; copyLabel?: string; copiedLabel?: string }) {
+function CodeBlock({ content }: { content: string }) {
   return (
     <div className="group relative">
       <pre className="overflow-x-auto rounded-lg border border-border bg-muted/50 p-4 text-sm leading-relaxed">
         <code className="text-foreground">{content}</code>
       </pre>
       <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
-        <CopyButton content={content} label={copyLabel} copiedLabel={copiedLabel} />
+        <CopyButton content={content} />
       </div>
     </div>
   );
@@ -129,8 +129,9 @@ function methodBadge(m: string, small?: boolean) {
   );
 }
 
-function EndpointView({ ep, lang, copyLabel, copiedLabel }: { ep: typeof endpoints[number]; lang: Lang; copyLabel: string; copiedLabel: string }) {
-  const desc = ep.description[lang] || ep.description.en;
+function EndpointView({ ep }: { ep: typeof endpoints[number] }) {
+  const { t, language } = useLanguage();
+  const desc = ep.description[language] || ep.description.en;
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -142,7 +143,7 @@ function EndpointView({ ep, lang, copyLabel, copiedLabel }: { ep: typeof endpoin
 
       {ep.scopes.length > 0 && (
         <p className="mb-3 text-sm text-muted-foreground">
-          Scope: <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{ep.scopes.join(', ')}</code>
+          {t('apiDocs.scopePrefix')}{' '}<code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{ep.scopes.join(', ')}</code>
         </p>
       )}
 
@@ -163,14 +164,14 @@ function EndpointView({ ep, lang, copyLabel, copiedLabel }: { ep: typeof endpoin
       {ep.curl && (
         <div className="mb-4">
           <p className="mb-1.5 text-xs font-medium text-muted-foreground">curl</p>
-          <CodeBlock content={ep.curl} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+          <CodeBlock content={ep.curl} />
         </div>
       )}
 
       {ep.json && (
         <div>
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Response</p>
-          <CodeBlock content={ep.json} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('apiDocs.response')}</p>
+          <CodeBlock content={ep.json} />
         </div>
       )}
     </div>
@@ -178,11 +179,10 @@ function EndpointView({ ep, lang, copyLabel, copiedLabel }: { ep: typeof endpoin
 }
 
 export function ApiDocsClient() {
-  const [lang, setLang] = useState<Lang>('pt');
+  const { t, language, setLanguage } = useLanguage();
   const [activeNav, setActiveNav] = useState<NavId>('auth');
   const [search, setSearch] = useState('');
   const mainRef = useRef<HTMLElement>(null);
-  const tr = t[lang];
 
   const endpointNav: NavEntry[] = useMemo(() =>
     endpoints.map((ep, i) => ({
@@ -216,71 +216,64 @@ export function ApiDocsClient() {
       const idx = parseInt(activeNav.replace('endpoint-', ''), 10);
       const ep = endpoints[idx];
       if (!ep) return null;
-      return (
-        <EndpointView
-          ep={ep}
-          lang={lang}
-          copyLabel={tr.copyLabel}
-          copiedLabel={tr.copiedLabel}
-        />
-      );
+      return <EndpointView ep={ep} />;
     }
 
     switch (activeNav) {
       case 'auth':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.authTitle}</h2>
-            <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{tr.authDesc}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.authTitle')}</h2>
+            <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{t('apiDocs.authDesc')}</p>
             <div className="mb-3">
-              <CodeBlock content="Authorization: Bearer wacrm_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" copyLabel={tr.copyLabel} copiedLabel={tr.copiedLabel} />
+              <CodeBlock content="Authorization: Bearer wacrm_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
             </div>
-            <p className="mb-4 text-sm text-muted-foreground">{tr.authKeyDesc}</p>
-            <h3 className="mb-2 text-lg font-semibold text-foreground">{tr.authCreatingTitle}</h3>
+            <p className="mb-4 text-sm text-muted-foreground">{t('apiDocs.authKeyDesc')}</p>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">{t('apiDocs.authCreatingTitle')}</h3>
             <ol className="mb-4 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
               {authSteps.map(([num, text]) => (
                 <li key={num}>{text}</li>
               ))}
             </ol>
-            <h3 className="mb-2 text-lg font-semibold text-foreground">{tr.authRevokingTitle}</h3>
-            <p className="text-sm text-muted-foreground">{tr.authRevokingDesc}</p>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">{t('apiDocs.authRevokingTitle')}</h3>
+            <p className="text-sm text-muted-foreground">{t('apiDocs.authRevokingDesc')}</p>
           </div>
         );
 
       case 'scopes':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.scopesTitle}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">{tr.scopesDesc}</p>
-            <Table headers={[tr.scopesHeaderScope, tr.scopesHeaderAllows]} rows={scopeRows} />
-            <p className="mt-3 text-sm text-muted-foreground">{tr.scopesNoScopes}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.scopesTitle')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{t('apiDocs.scopesDesc')}</p>
+            <Table headers={[t('apiDocs.scopesHeaderScope'), t('apiDocs.scopesHeaderAllows')]} rows={scopeRows} />
+            <p className="mt-3 text-sm text-muted-foreground">{t('apiDocs.scopesNoScopes')}</p>
           </div>
         );
 
       case 'envelope':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.envelopeTitle}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">{tr.envelopeDesc}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.envelopeTitle')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{t('apiDocs.envelopeDesc')}</p>
             <div className="mb-3 space-y-2">
-              <CodeBlock content={successEnvelope} copyLabel={tr.copyLabel} copiedLabel={tr.copiedLabel} />
-              <CodeBlock content={errorEnvelope} copyLabel={tr.copyLabel} copiedLabel={tr.copiedLabel} />
+              <CodeBlock content={successEnvelope} />
+              <CodeBlock content={errorEnvelope} />
             </div>
-            <Table headers={['Status', tr.envelopeCode, tr.envelopeMeaning]} rows={statusCodes} />
+            <Table headers={[t('apiDocs.envelopeStatus'), t('apiDocs.envelopeCode'), t('apiDocs.envelopeMeaning')]} rows={statusCodes} />
           </div>
         );
 
       case 'rate-limits':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.rateLimitTitle}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">{tr.rateLimitDesc}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.rateLimitTitle')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{t('apiDocs.rateLimitDesc')}</p>
             <ul className="mb-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>Retry-After — seconds until the window resets</li>
+              <li>{t('apiDocs.rateLimitHeaderRetryAfter')}</li>
               <li>X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset</li>
             </ul>
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              <p>{tr.rateLimitNote}</p>
+              <p>{t('apiDocs.rateLimitNote')}</p>
             </div>
           </div>
         );
@@ -288,34 +281,34 @@ export function ApiDocsClient() {
       case 'pagination':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.paginationTitle}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">{tr.paginationDesc}</p>
-            <CodeBlock content={paginationExample} copyLabel={tr.copyLabel} copiedLabel={tr.copiedLabel} />
-            <p className="mt-3 text-sm text-muted-foreground">{tr.paginationCursors}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.paginationTitle')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{t('apiDocs.paginationDesc')}</p>
+            <CodeBlock content={paginationExample} />
+            <p className="mt-3 text-sm text-muted-foreground">{t('apiDocs.paginationCursors')}</p>
           </div>
         );
 
       case 'webhooks':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.webhooksTitle}</h2>
-            <p className="mb-3 text-sm text-muted-foreground">{tr.webhooksDesc}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.webhooksTitle')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{t('apiDocs.webhooksDesc')}</p>
             <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
-              <p>{tr.webhooksMigration}</p>
+              <p>{t('apiDocs.webhooksMigration')}</p>
             </div>
-            <h3 className="mb-3 text-lg font-semibold text-foreground">{tr.webhooksEventsTitle}</h3>
-            <Table headers={[tr.webhooksEventsHeaderEvent, tr.webhooksEventsHeaderFires]} rows={webhookEvents} />
-            <h3 className="mb-3 mt-6 text-lg font-semibold text-foreground">{tr.webhooksChannelFieldsTitle}</h3>
-            <p className="mb-2 text-sm text-muted-foreground">{tr.webhooksChannelFieldsDesc}</p>
-            <Table headers={['Field', 'Values', 'Description']} rows={channelProviderTable} />
-            <h3 className="mb-3 mt-6 text-lg font-semibold text-foreground">{tr.webhooksManageTitle}</h3>
-            <p className="mb-2 text-sm text-muted-foreground">All under scope webhooks:manage.</p>
+            <h3 className="mb-3 text-lg font-semibold text-foreground">{t('apiDocs.webhooksEventsTitle')}</h3>
+            <Table headers={[t('apiDocs.webhooksEventsHeaderEvent'), t('apiDocs.webhooksEventsHeaderFires')]} rows={webhookEvents} />
+            <h3 className="mb-3 mt-6 text-lg font-semibold text-foreground">{t('apiDocs.webhooksChannelFieldsTitle')}</h3>
+            <p className="mb-2 text-sm text-muted-foreground">{t('apiDocs.webhooksChannelFieldsDesc')}</p>
+            <Table headers={[t('apiDocs.tableField'), t('apiDocs.tableValues'), t('apiDocs.tableDescription')]} rows={channelProviderTable} />
+            <h3 className="mb-3 mt-6 text-lg font-semibold text-foreground">{t('apiDocs.webhooksManageTitle')}</h3>
+            <p className="mb-2 text-sm text-muted-foreground">{t('apiDocs.webhooksManageScope')}</p>
             <div className="mb-6 overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Method & Path</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Description</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('apiDocs.tableMethodPath')}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('apiDocs.tableDescription')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -328,23 +321,24 @@ export function ApiDocsClient() {
                 </tbody>
               </table>
             </div>
-            <h3 className="mb-3 text-lg font-semibold text-foreground">{tr.webhooksDeliveryTitle}</h3>
-            <p className="mb-2 text-sm text-muted-foreground">{tr.webhooksDeliveryDesc}</p>
-            <CodeBlock content={deliveryPayload} copyLabel={tr.copyLabel} copiedLabel={tr.copiedLabel} />
+            <h3 className="mb-3 text-lg font-semibold text-foreground">{t('apiDocs.webhooksDeliveryTitle')}</h3>
+            <p className="mb-2 text-sm text-muted-foreground">{t('apiDocs.webhooksDeliveryDesc')}</p>
+            <CodeBlock content={deliveryPayload} />
             <p className="mb-6 mt-2 text-sm text-muted-foreground">
-              Headers: <code className="rounded bg-muted px-1 font-mono">X-Wacrm-Event</code>,{' '}
+              {t('apiDocs.deliveryHeadersPrefix')}{' '}
+              <code className="rounded bg-muted px-1 font-mono">X-Wacrm-Event</code>,{' '}
               <code className="rounded bg-muted px-1 font-mono">X-Wacrm-Webhook-Id</code>,{' '}
               <code className="rounded bg-muted px-1 font-mono">X-Wacrm-Signature</code>.
             </p>
-            <h3 className="mb-3 text-lg font-semibold text-foreground">{tr.webhooksVerifyTitle}</h3>
+            <h3 className="mb-3 text-lg font-semibold text-foreground">{t('apiDocs.webhooksVerifyTitle')}</h3>
             <p className="mb-2 text-sm text-muted-foreground">
-              {'X-Wacrm-Signature: t=&lt;unix_seconds&gt;,v1=&lt;hex&gt; where v1 = HMAC-SHA256(secret, "${t}.${rawBody}"). Recompute over the raw request body and compare in constant time.'}
+              {t('apiDocs.webhooksVerifyBody')}
             </p>
-            <CodeBlock content={verifyExample} copyLabel={tr.copyLabel} copiedLabel={tr.copiedLabel} />
-            <h3 className="mb-3 mt-6 text-lg font-semibold text-foreground">{tr.webhooksSemanticsTitle}</h3>
-            <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{tr.webhooksSemanticsBestEffort}</p>
+            <CodeBlock content={verifyExample} />
+            <h3 className="mb-3 mt-6 text-lg font-semibold text-foreground">{t('apiDocs.webhooksSemanticsTitle')}</h3>
+            <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{t('apiDocs.webhooksSemanticsBestEffort')}</p>
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              <p>{tr.webhooksSemanticsTargetRestrictions}</p>
+              <p>{t('apiDocs.webhooksSemanticsTargetRestrictions')}</p>
             </div>
           </div>
         );
@@ -352,8 +346,8 @@ export function ApiDocsClient() {
       case 'roadmap':
         return (
           <div>
-            <h2 className="mb-4 text-2xl font-bold text-foreground">{tr.roadmapTitle}</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">{tr.roadmapDesc}</p>
+            <h2 className="mb-4 text-2xl font-bold text-foreground">{t('apiDocs.roadmapTitle')}</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">{t('apiDocs.roadmapDesc')}</p>
           </div>
         );
 
@@ -366,12 +360,12 @@ export function ApiDocsClient() {
     <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
       {/* Top bar */}
       <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6">
-        <h1 className="text-lg font-bold text-foreground sm:text-xl">{tr.pageTitle}</h1>
+        <h1 className="text-lg font-bold text-foreground sm:text-xl">{t('apiDocs.pageTitle')}</h1>
         <select
-          value={lang}
-          onChange={(e) => setLang(e.target.value as Lang)}
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as Language)}
           className="h-8 rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          aria-label={tr.languageLabel}
+          aria-label={t('apiDocs.languageLabel')}
         >
           {LANG_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -389,15 +383,15 @@ export function ApiDocsClient() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={tr.searchEndpoints}
+              placeholder={t('apiDocs.searchEndpoints')}
               className="h-8 bg-muted pl-8 text-sm"
-              aria-label={tr.searchEndpoints}
+              aria-label={t('apiDocs.searchEndpoints')}
             />
           </div>
 
           <div className="mb-3">
             <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Introduction
+              {t('apiDocs.introduction')}
             </p>
             <ul className="mt-1 space-y-0.5">
               {introNav.map((item) => (
@@ -410,7 +404,7 @@ export function ApiDocsClient() {
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    {tr[item.labelKey as keyof typeof tr] as string}
+                    {t(`apiDocs.${item.labelKey}`)}
                   </button>
                 </li>
               ))}
@@ -418,12 +412,12 @@ export function ApiDocsClient() {
           </div>
 
           {groupedNav.length === 0 ? (
-            <p className="px-2 py-4 text-sm text-muted-foreground">{tr.searchNoResults}</p>
+            <p className="px-2 py-4 text-sm text-muted-foreground">{t('apiDocs.searchNoResults')}</p>
           ) : (
             groupedNav.map((group) => (
               <div key={group.labelKey} className="mb-3 last:mb-0">
                 <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {tr[group.labelKey as keyof typeof tr] as string}
+                  {t(`apiDocs.${group.labelKey}`)}
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {group.items.map((item) => (
@@ -458,14 +452,14 @@ export function ApiDocsClient() {
             onChange={(e) => handleNav(e.target.value as NavId)}
             className="mx-3 mt-3 h-9 rounded-lg border border-border bg-muted px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           >
-            <optgroup label="Introduction">
+            <optgroup label={t('apiDocs.introduction')}>
               {introNav.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {tr[item.labelKey as keyof typeof tr] as string}
+                  {t(`apiDocs.${item.labelKey}`)}
                 </option>
               ))}
             </optgroup>
-            <optgroup label={tr.endpointsTitle}>
+            <optgroup label={t('apiDocs.endpointsTitle')}>
               {endpointNav.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.method} {item.path}

@@ -17,6 +17,7 @@ import type {
 } from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from "@/hooks/use-language";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -49,22 +50,37 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 type InboxFilter = ConversationStatus | "all" | "unread";
 
-const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = [
-  { label: "All", value: "all" },
-  { label: "Unread", value: "unread" },
-  { label: "Open", value: "open" },
-  { label: "Pending", value: "pending" },
-  { label: "Closed", value: "closed" },
+const FILTER_OPTIONS: InboxFilter[] = [
+  "all",
+  "unread",
+  "open",
+  "pending",
+  "closed",
 ];
+
+const FILTER_LABEL_KEYS: Record<InboxFilter, string> = {
+  all: "inbox.filterAll",
+  unread: "inbox.filterUnread",
+  open: "inbox.filterOpen",
+  pending: "inbox.filterPending",
+  closed: "inbox.filterClosed",
+};
 
 type ChannelFilter = "all" | "whatsapp_meta" | "whatsapp_ryzeapi" | "instagram";
 
-const CHANNEL_FILTER_OPTIONS: { label: string; value: ChannelFilter }[] = [
-  { label: "All channels", value: "all" },
-  { label: "WhatsApp (Meta)", value: "whatsapp_meta" },
-  { label: "WhatsApp (RyzeAPI)", value: "whatsapp_ryzeapi" },
-  { label: "Instagram", value: "instagram" },
+const CHANNEL_FILTER_OPTIONS: ChannelFilter[] = [
+  "all",
+  "whatsapp_meta",
+  "whatsapp_ryzeapi",
+  "instagram",
 ];
+
+const CHANNEL_FILTER_LABEL_KEYS: Record<ChannelFilter, string> = {
+  all: "inbox.channelAll",
+  whatsapp_meta: "inbox.channelWhatsappMeta",
+  whatsapp_ryzeapi: "inbox.channelWhatsappRyzeapi",
+  instagram: "inbox.channelInstagram",
+};
 
 export function ConversationList({
   activeConversationId,
@@ -73,6 +89,7 @@ export function ConversationList({
   onConversationsLoaded,
   resyncToken = 0,
 }: ConversationListProps) {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
@@ -248,13 +265,13 @@ export function ConversationList({
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }, []);
 
   const toggleLabel = useCallback((id: string) => {
     setSelectedLabelIds((prev) =>
-      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }, []);
 
@@ -283,8 +300,8 @@ export function ConversationList({
     [onSelect]
   );
 
-  const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
-  const activeChannelFilter = CHANNEL_FILTER_OPTIONS.find((o) => o.value === channelFilter);
+  const activeFilterKey = FILTER_LABEL_KEYS[filter];
+  const activeChannelFilterKey = CHANNEL_FILTER_LABEL_KEYS[channelFilter];
 
   return (
     // w-full on mobile so the list occupies the whole viewport when it's
@@ -298,7 +315,7 @@ export function ConversationList({
           <Input
             value={search}
             onChange={handleSearchChange}
-            placeholder="Search conversations..."
+            placeholder={t('inbox.searchPlaceholder')}
             className="border-border bg-muted pl-9 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50"
           />
         </div>
@@ -306,7 +323,7 @@ export function ConversationList({
         <div className="flex flex-wrap items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
-                {activeFilter?.label ?? "All"}
+                {t(activeFilterKey)}
                 <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -315,16 +332,16 @@ export function ConversationList({
             >
               {FILTER_OPTIONS.map((opt) => (
                 <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setFilter(opt.value)}
+                  key={opt}
+                  onClick={() => setFilter(opt)}
                   className={cn(
                     "text-sm",
-                    filter === opt.value
+                    filter === opt
                       ? "text-primary"
                       : "text-popover-foreground"
                   )}
                 >
-                  {opt.label}
+                  {t(FILTER_LABEL_KEYS[opt])}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -332,7 +349,7 @@ export function ConversationList({
 
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted text-muted-foreground hover:text-foreground">
-              {activeChannelFilter?.label ?? "All channels"}
+              {t(activeChannelFilterKey)}
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -341,16 +358,16 @@ export function ConversationList({
             >
               {CHANNEL_FILTER_OPTIONS.map((opt) => (
                 <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setChannelFilter(opt.value)}
+                  key={opt}
+                  onClick={() => setChannelFilter(opt)}
                   className={cn(
                     "text-sm",
-                    channelFilter === opt.value
+                    channelFilter === opt
                       ? "text-primary"
                       : "text-popover-foreground"
                   )}
                 >
-                  {opt.label}
+                  {t(CHANNEL_FILTER_LABEL_KEYS[opt])}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -366,7 +383,7 @@ export function ConversationList({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Tags
+                {t('contacts.tags')}
                 {selectedTagIds.length > 0 && (
                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                     {selectedTagIds.length}
@@ -378,19 +395,19 @@ export function ConversationList({
                 align="start"
                 className="max-h-64 w-56 border-border bg-popover"
               >
-                {tags.map((t) => (
+                {tags.map((tag) => (
                   <DropdownMenuCheckboxItem
-                    key={t.id}
-                    checked={selectedTagIds.includes(t.id)}
-                    onCheckedChange={() => toggleTag(t.id)}
+                    key={tag.id}
+                    checked={selectedTagIds.includes(tag.id)}
+                    onCheckedChange={() => toggleTag(tag.id)}
                     className="text-sm text-popover-foreground"
                   >
                     <span className="flex items-center gap-2">
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: t.color }}
+                        style={{ backgroundColor: tag.color }}
                       />
-                      <span className="truncate">{t.name}</span>
+                      <span className="truncate">{tag.name}</span>
                     </span>
                   </DropdownMenuCheckboxItem>
                 ))}
@@ -408,7 +425,7 @@ export function ConversationList({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Labels
+                {t('inbox.labels')}
                 {selectedLabelIds.length > 0 && (
                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                     {selectedLabelIds.length}
@@ -450,7 +467,7 @@ export function ConversationList({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <span className="truncate">{selectedCompany ?? "Company"}</span>
+                <span className="truncate">{selectedCompany ?? t('contacts.company')}</span>
                 <ChevronDown className="h-3 w-3 shrink-0" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -466,7 +483,7 @@ export function ConversationList({
                       : "text-popover-foreground"
                   )}
                 >
-                  All companies
+                  {t('inbox.allCompanies')}
                 </DropdownMenuItem>
                 {companies.map((co) => (
                   <DropdownMenuItem
@@ -501,7 +518,7 @@ export function ConversationList({
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ backgroundColor: tag?.color ?? "var(--muted-foreground)" }}
                   />
-                  <span className="max-w-24 truncate">{tag?.name ?? "Tag"}</span>
+                  <span className="max-w-24 truncate">{tag?.name ?? t('inbox.tagFallback')}</span>
                   <X className="h-3 w-3" />
                 </button>
               );
@@ -518,7 +535,7 @@ export function ConversationList({
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ backgroundColor: label?.color ?? "var(--muted-foreground)" }}
                   />
-                  <span className="max-w-24 truncate">{label?.name ?? "Label"}</span>
+                  <span className="max-w-24 truncate">{label?.name ?? t('inbox.labelFallback')}</span>
                   <X className="h-3 w-3" />
                 </button>
               );
@@ -536,7 +553,7 @@ export function ConversationList({
               onClick={clearContactFilters}
               className="px-1 text-[11px] text-muted-foreground hover:text-foreground"
             >
-              Clear all
+              {t('contacts.clearAll')}
             </button>
           </div>
         )}
@@ -555,7 +572,7 @@ export function ConversationList({
           </div>
         ) : filtered.length === 0 ? (
           <div className="px-4 py-12 text-center">
-            <p className="text-sm text-muted-foreground">No conversations found</p>
+            <p className="text-sm text-muted-foreground">{t('inbox.noConversations')}</p>
           </div>
         ) : (
           <div className="flex flex-col">
@@ -598,10 +615,11 @@ function ConversationItem({
   isActive,
   onSelect,
 }: ConversationItemProps) {
+  const { t } = useLanguage();
   const contact = conversation.contact;
   const channel = conversation.channel || 'whatsapp';
   const provider = conversation.provider;
-  const displayName = contact?.name || contact?.phone || contact?.instagram_username || contact?.instagram_id || "Unknown";
+  const displayName = contact?.name || contact?.phone || contact?.instagram_username || contact?.instagram_id || t('inbox.unknown');
   const initials = displayName.charAt(0).toUpperCase();
 
   const handleClick = useCallback(() => {
@@ -658,7 +676,7 @@ function ConversationItem({
               ) : null;
             })()}
             <p className="truncate text-xs text-muted-foreground">
-              {conversation.last_message_text || "No messages yet"}
+              {conversation.last_message_text || t('inbox.noMessagesYet')}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
