@@ -121,10 +121,15 @@ export async function executeNativeTool(
     const { data, error } = await db.from('contact_custom_values')
       .select('value, custom_fields(field_name)').eq('contact_id', contactId)
     if (error) throw error
-    return JSON.stringify((data ?? []).map((row) => ({
-      field: Array.isArray(row.custom_fields) ? row.custom_fields[0]?.field_name : row.custom_fields?.field_name,
-      value: row.value,
-    })))
+    return JSON.stringify((data ?? []).map((row) => {
+      // Supabase's generated relationship type can be `never` when no
+      // database types are supplied. Normalize its runtime shape explicitly.
+      const related = row.custom_fields as unknown
+      const field = Array.isArray(related)
+        ? (related[0] as { field_name?: string } | undefined)?.field_name
+        : (related as { field_name?: string } | null)?.field_name
+      return { field, value: row.value }
+    }))
   }
 
   if (name === 'get_contact_notes') {
