@@ -11,7 +11,7 @@ import {
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
 interface GroqResponse {
-  choices?: { message?: { content?: string } }[]
+  choices?: { message?: { content?: string | null; tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[] } }[]
   usage?: {
     prompt_tokens: number
     completion_tokens: number
@@ -20,7 +20,7 @@ interface GroqResponse {
 }
 
 export async function generateGroq(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, tools } = args
 
   let res: Response
   try {
@@ -37,6 +37,7 @@ export async function generateGroq(args: ProviderArgs): Promise<ProviderResult> 
           ...mergeConsecutive(messages),
         ],
         max_completion_tokens: MAX_OUTPUT_TOKENS,
+        ...(tools?.length ? { tools: tools.map((tool) => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: { type: 'object', properties: Object.fromEntries(tool.parameters.map((p) => [p.name, { type: p.type, description: p.description }])), required: tool.parameters.filter((p) => p.required).map((p) => p.name), additionalProperties: false } } })) } : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     })
@@ -49,14 +50,19 @@ export async function generateGroq(args: ProviderArgs): Promise<ProviderResult> 
   }
 
   const data = (await res.json().catch(() => null)) as GroqResponse | null
-  const text = data?.choices?.[0]?.message?.content
-  if (!text || typeof text !== 'string' || !text.trim()) {
+  const message = data?.choices?.[0]?.message
+  const calls = message?.tool_calls?.flatMap((call) => {
+    if (!call.id || !call.function?.name || !call.function.arguments) return []
+    try { return [{ id: call.id, name: call.function.name, arguments: JSON.parse(call.function.arguments) as Record<string, unknown> }] } catch { return [] }
+  })
+  const text = message?.content
+  if ((!text || typeof text !== 'string' || !text.trim()) && !calls?.length) {
     throw new AiError('Groq returned an empty response.', {
       code: 'empty_response',
     })
   }
   return {
-    text,
+    text: typeof text === 'string' ? text : '', toolCalls: calls,
     usage: data?.usage ? {
       input_tokens: data.usage.prompt_tokens,
       output_tokens: data.usage.completion_tokens,

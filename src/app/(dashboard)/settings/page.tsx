@@ -24,6 +24,7 @@ import { DealsSettings } from '@/components/settings/deals-settings';
 import { MembersTab } from '@/components/settings/members-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { AiConfig } from '@/components/settings/ai-config';
+import { AiToolsSettings } from '@/components/settings/ai-tools-settings';
 import { WebhooksSettings } from '@/components/settings/webhooks-settings';
 import { MetaCapiConfig } from '@/components/settings/meta-capi-config';
 import {
@@ -97,6 +98,7 @@ function SettingsPageContent() {
     deals: <DealsSettings />,
     members: <MembersTab />,
     ai: <AiConfig />,
+    ai_tools: <AiToolsSettings />,
     api: <ApiKeysSettings />,
     webhooks: <WebhooksSettings />,
     meta_capi: <MetaCapiConfig />,

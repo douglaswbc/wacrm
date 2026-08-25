@@ -5,6 +5,7 @@ import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { recordUsage } from './usage-tracker'
 import { engineSendText } from '@/lib/flows/meta-send'
+import { executeExternalTool, executeNativeTool, listActiveTools } from './tools'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -98,10 +99,15 @@ export async function dispatchInboundToAiReply(
       mode: 'auto_reply',
     })
 
+    const tools = await listActiveTools(db, accountId)
     const { text, handoff, usage } = await generateReply({
       config,
       systemPrompt,
       messages,
+      tools,
+      executeTool: async (name, toolArgs) =>
+        await executeNativeTool(db, accountId, contactId, name)
+          ?? executeExternalTool(db, accountId, name, toolArgs),
     })
 
     if (usage) {

@@ -6,6 +6,7 @@ import { buildConversationContext } from '@/lib/ai/context'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { AiError } from '@/lib/ai/types'
+import { executeExternalTool, executeNativeTool, listActiveTools } from '@/lib/ai/tools'
 
 /**
  * POST /api/ai/draft  (agent+)
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     // row means "not yours / not found" either way.
     const { data: conversation, error: convErr } = await supabase
       .from('conversations')
-      .select('id')
+      .select('id, contact_id')
       .eq('id', conversationId)
       .maybeSingle()
     if (convErr) {
@@ -90,7 +91,13 @@ export async function POST(request: Request) {
       mode: 'draft',
     })
 
-    const { text } = await generateReply({ config, systemPrompt, messages })
+    const tools = await listActiveTools(supabase, accountId)
+    const { text } = await generateReply({
+      config, systemPrompt, messages, tools,
+      executeTool: async (name, args) =>
+        await executeNativeTool(supabase, accountId, conversation.contact_id, name)
+          ?? executeExternalTool(supabase, accountId, name, args),
+    })
     return NextResponse.json({ draft: text })
   } catch (err) {
     if (err instanceof AiError) {

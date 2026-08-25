@@ -886,6 +886,33 @@ CREATE TABLE IF NOT EXISTS ai_configs (
 ALTER TABLE ai_configs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
+-- AI_TOOLS
+-- Account-scoped external HTTP tools callable by the AI assistant.
+-- Secrets are encrypted application-side before being written to
+-- `headers_encrypted`; they are never returned by the management API.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ai_tools (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id        UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  description       TEXT NOT NULL,
+  method            TEXT NOT NULL CHECK (method IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')),
+  endpoint_url      TEXT NOT NULL,
+  headers_encrypted TEXT,
+  query_params      JSONB NOT NULL DEFAULT '{}'::jsonb,
+  parameters        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  timeout_ms        INTEGER NOT NULL DEFAULT 10000 CHECK (timeout_ms BETWEEN 1000 AND 30000),
+  is_active         BOOLEAN NOT NULL DEFAULT true,
+  created_by        UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (account_id, name),
+  CHECK (name ~ '^[a-z][a-z0-9_]{0,63}$')
+);
+
+ALTER TABLE ai_tools ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
 -- MEDIA_LIBRARY TABLES
 -- ============================================================
 
@@ -1792,6 +1819,8 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON accounts          FOR EACH ROW EX
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON automations       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON instagram_config  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON ryzeapi_config    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS ai_tools_updated_at ON ai_tools;
+CREATE TRIGGER ai_tools_updated_at BEFORE UPDATE ON ai_tools FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Signup trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -2127,6 +2156,16 @@ CREATE POLICY ai_configs_select ON ai_configs FOR SELECT USING (is_account_membe
 CREATE POLICY ai_configs_insert ON ai_configs FOR INSERT WITH CHECK (is_account_member(account_id, 'admin'));
 CREATE POLICY ai_configs_update ON ai_configs FOR UPDATE USING (is_account_member(account_id, 'admin'));
 CREATE POLICY ai_configs_delete ON ai_configs FOR DELETE USING (is_account_member(account_id, 'admin'));
+
+-- ---- ai_tools -----------------------------------------------------
+DROP POLICY IF EXISTS ai_tools_select ON ai_tools;
+DROP POLICY IF EXISTS ai_tools_insert ON ai_tools;
+DROP POLICY IF EXISTS ai_tools_update ON ai_tools;
+DROP POLICY IF EXISTS ai_tools_delete ON ai_tools;
+CREATE POLICY ai_tools_select ON ai_tools FOR SELECT USING (is_account_member(account_id));
+CREATE POLICY ai_tools_insert ON ai_tools FOR INSERT WITH CHECK (is_account_member(account_id, 'admin'));
+CREATE POLICY ai_tools_update ON ai_tools FOR UPDATE USING (is_account_member(account_id, 'admin'));
+CREATE POLICY ai_tools_delete ON ai_tools FOR DELETE USING (is_account_member(account_id, 'admin'));
 
 -- ---- media_assets -------------------------------------------------
 DROP POLICY IF EXISTS media_assets_select ON media_assets;

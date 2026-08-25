@@ -1,4 +1,5 @@
 import { AiError, type ChatMessage } from '../types'
+import type { AiToolDefinition } from '../tools'
 
 // ============================================================
 // Bits shared by the OpenAI + Anthropic adapters.
@@ -10,10 +11,12 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
+  tools?: AiToolDefinition[]
 }
 
 export interface ProviderResult {
   text: string
+  toolCalls?: { id: string; name: string; arguments: Record<string, unknown> }[]
   usage?: {
     input_tokens: number
     output_tokens: number
