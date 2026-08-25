@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 
 interface EventDialogProps {
   open: boolean;
@@ -61,6 +62,7 @@ export function EventDialog({
   defaultDate,
 }: EventDialogProps) {
   const { accountId } = useAuth();
+  const { t } = useLanguage();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [title, setTitle] = useState('');
@@ -112,7 +114,7 @@ export function EventDialog({
           setContacts(
             data.map((c: { id: string; name?: string; phone?: string }) => ({
               id: c.id,
-              name: c.name ?? c.phone ?? 'Unknown',
+              name: c.name ?? c.phone ?? t('calendar.unknownContact'),
             }))
           );
         }
@@ -122,15 +124,15 @@ export function EventDialog({
     };
 
     fetchContacts();
-  }, [open, event, defaultDate, accountId]);
+  }, [open, event, defaultDate, accountId, t]);
 
   const handleSave = useCallback(async () => {
     if (!title.trim()) {
-      toast.error('Title is required');
+      toast.error(t('calendar.titleRequired'));
       return;
     }
     if (!startAt || !endAt) {
-      toast.error('Start and end times are required');
+      toast.error(t('calendar.timesRequired'));
       return;
     }
 
@@ -148,11 +150,11 @@ export function EventDialog({
       });
       onClose();
     } catch {
-      toast.error('Failed to save event');
+      toast.error(t('calendar.saveFailed'));
     } finally {
       setSaving(false);
     }
-  }, [title, description, location, startAt, endAt, isAllDay, contactId, color, onSave, onClose]);
+  }, [title, description, location, startAt, endAt, isAllDay, contactId, color, onSave, onClose, t]);
 
   const handleDelete = useCallback(async () => {
     if (!onDelete) return;
@@ -161,11 +163,11 @@ export function EventDialog({
       await onDelete();
       onClose();
     } catch {
-      toast.error('Failed to delete event');
+      toast.error(t('calendar.deleteFailed'));
     } finally {
       setDeleting(false);
     }
-  }, [onDelete, onClose]);
+  }, [onDelete, onClose, t]);
 
   const isEditing = !!event;
 
@@ -173,41 +175,41 @@ export function EventDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Event' : 'New Event'}</DialogTitle>
+          <DialogTitle>{isEditing ? t('calendar.editEvent') : t('calendar.newEvent')}</DialogTitle>
           <DialogDescription>
-            {isEditing ? 'Update the event details below.' : 'Create a new calendar event.'}
+            {isEditing ? t('calendar.editEventDesc') : t('calendar.newEventDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
-            <Label htmlFor="event-title">Title</Label>
+            <Label htmlFor="event-title">{t('calendar.titleLabel')}</Label>
             <Input
               id="event-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Event title"
+              placeholder={t('calendar.titlePlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="event-description">Description</Label>
+            <Label htmlFor="event-description">{t('calendar.descriptionLabel')}</Label>
             <Textarea
               id="event-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Event description"
+              placeholder={t('calendar.descriptionPlaceholder')}
               rows={2}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="event-location">Location</Label>
+            <Label htmlFor="event-location">{t('calendar.locationLabel')}</Label>
             <Input
               id="event-location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Location"
+              placeholder={t('calendar.locationPlaceholder')}
             />
           </div>
 
@@ -218,13 +220,13 @@ export function EventDialog({
               id="event-allday"
             />
             <Label htmlFor="event-allday" className="cursor-pointer">
-              All day
+              {t('calendar.allDay')}
             </Label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="event-start">Start</Label>
+              <Label htmlFor="event-start">{t('calendar.start')}</Label>
               <Input
                 id="event-start"
                 type={isAllDay ? 'date' : 'datetime-local'}
@@ -238,7 +240,7 @@ export function EventDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="event-end">End</Label>
+              <Label htmlFor="event-end">{t('calendar.end')}</Label>
               <Input
                 id="event-end"
                 type={isAllDay ? 'date' : 'datetime-local'}
@@ -254,14 +256,14 @@ export function EventDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="event-contact">Contact</Label>
+            <Label htmlFor="event-contact">{t('calendar.contact')}</Label>
             <select
               id="event-contact"
               value={contactId}
               onChange={(e) => setContactId(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="">None</option>
+              <option value="">{t('calendar.none')}</option>
               {contacts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -271,7 +273,7 @@ export function EventDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Color</Label>
+            <Label>{t('calendar.color')}</Label>
             <div className="flex gap-2">
               {EVENT_COLORS.map((c) => (
                 <button
@@ -282,7 +284,7 @@ export function EventDialog({
                     color === c ? 'border-foreground' : 'border-transparent'
                   }`}
                   style={{ backgroundColor: c }}
-                  aria-label={`Color ${c}`}
+                  aria-label={`${t('calendar.color')} ${c}`}
                 />
               ))}
             </div>
@@ -298,16 +300,16 @@ export function EventDialog({
               disabled={deleting}
             >
               {deleting ? <Loader2 className="size-3.5 animate-spin" /> : null}
-              Delete
+              {t('calendar.delete')}
             </Button>
           )}
           <div className="flex-1" />
           <Button variant="outline" size="sm" onClick={onClose}>
-            Cancel
+            {t('calendar.cancel')}
           </Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
-            {isEditing ? 'Save' : 'Create'}
+            {isEditing ? t('calendar.save') : t('calendar.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

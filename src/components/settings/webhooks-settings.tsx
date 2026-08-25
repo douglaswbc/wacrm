@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { SettingsPanelHead } from './settings-panel-head';
+import { useLanguage } from '@/hooks/use-language';
 import { WEBHOOK_EVENT_DESCRIPTIONS } from '@/lib/webhooks/events';
 
 type WebhookEvent = 'message.received' | 'message.status_updated' | 'message.sent' | 'conversation.created' | 'conversation.updated' | 'contact.created';
@@ -35,6 +36,7 @@ interface WebhookEndpoint {
 }
 
 export function WebhooksSettings() {
+  const { t } = useLanguage();
   const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -82,11 +84,11 @@ export function WebhooksSettings() {
 
   async function handleSave() {
     if (!formUrl.trim()) {
-      toast.error('URL is required');
+      toast.error(t('webhooks.toastUrlRequired'));
       return;
     }
     if (formEvents.length === 0) {
-      toast.error('Select at least one event');
+      toast.error(t('webhooks.toastSelectEvent'));
       return;
     }
 
@@ -101,21 +103,21 @@ export function WebhooksSettings() {
 
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to save webhook');
+        toast.error(data.error || t('webhooks.toastSaveFailed'));
         return;
       }
 
       const data = await res.json();
       if (data.secret) {
         setNewSecret(data.secret);
-        toast.success('Webhook created! Copy the secret now — it will not be shown again.');
+        toast.success(t('webhooks.toastCreated'));
       } else {
-        toast.success('Webhook updated.');
+        toast.success(t('webhooks.toastUpdated'));
         setCreateOpen(false);
       }
       await load();
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('webhooks.toastServerUnreachable'));
     }
   }
 
@@ -125,13 +127,13 @@ export function WebhooksSettings() {
       const res = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to delete webhook');
+        toast.error(data.error || t('webhooks.toastDeleteFailed'));
         return;
       }
-      toast.success('Webhook deleted.');
+      toast.success(t('webhooks.toastDeleted'));
       await load();
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('webhooks.toastServerUnreachable'));
     } finally {
       setDeletingId(null);
     }
@@ -146,13 +148,13 @@ export function WebhooksSettings() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to update webhook');
+        toast.error(data.error || t('webhooks.toastUpdateFailed'));
         return;
       }
-      toast.success(wh.is_active ? 'Webhook disabled.' : 'Webhook enabled.');
+      toast.success(wh.is_active ? t('webhooks.toastDisabled') : t('webhooks.toastEnabled'));
       await load();
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('webhooks.toastServerUnreachable'));
     }
   }
 
@@ -165,19 +167,19 @@ export function WebhooksSettings() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to send test event');
+        toast.error(data.error || t('webhooks.toastTestFailed'));
         return;
       }
-      toast.success('Test event sent.');
+      toast.success(t('webhooks.toastTestSent'));
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('webhooks.toastServerUnreachable'));
     }
   }
 
   if (loading) {
     return (
       <section className="animate-in fade-in-50 duration-200">
-        <SettingsPanelHead title="Webhooks" description="Loading..." />
+        <SettingsPanelHead title={t('webhooks.title')} description={t('webhooks.loading')} />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-6 animate-spin text-primary" />
         </div>
@@ -188,19 +190,19 @@ export function WebhooksSettings() {
   return (
     <section className="animate-in fade-in-50 duration-200">
       <SettingsPanelHead
-        title="Webhooks"
-        description="Receive real-time events from wacrm to your external services (n8n, Zapier, custom servers)."
+        title={t('webhooks.title')}
+        description={t('webhooks.description')}
       />
 
       <div className="mt-6 space-y-4">
         {webhooks.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No webhook endpoints configured yet.
+              {t('webhooks.empty')}
               <div className="mt-4">
                 <Button onClick={openCreate}>
                   <Plus className="size-4 mr-2" />
-                  Add Webhook Endpoint
+                  {t('webhooks.addEndpoint')}
                 </Button>
               </div>
             </CardContent>
@@ -210,7 +212,7 @@ export function WebhooksSettings() {
             <div className="flex justify-end">
               <Button onClick={openCreate} size="sm">
                 <Plus className="size-4 mr-2" />
-                Add Endpoint
+                {t('webhooks.addButton')}
               </Button>
             </div>
 
@@ -223,13 +225,13 @@ export function WebhooksSettings() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm truncate">{wh.url}</span>
                           {wh.is_active ? (
-                            <Badge variant="default" className="bg-green-600 text-white text-[10px]">Active</Badge>
+                            <Badge variant="default" className="bg-green-600 text-white text-[10px]">{t('webhooks.active')}</Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-[10px]">Disabled</Badge>
+                            <Badge variant="secondary" className="text-[10px]">{t('webhooks.disabled')}</Badge>
                           )}
                           {wh.failure_count > 0 && (
                             <Badge variant="destructive" className="text-[10px]">
-                              {wh.failure_count} failures
+                              {t('webhooks.failures', wh.failure_count)}
                             </Badge>
                           )}
                         </div>
@@ -242,21 +244,21 @@ export function WebhooksSettings() {
                         </div>
                         {wh.last_delivery_at && (
                           <p className="text-xs text-muted-foreground">
-                            Last delivery: {new Date(wh.last_delivery_at).toLocaleString()}
+                            {`${t('webhooks.lastDelivery')} ${new Date(wh.last_delivery_at).toLocaleString()}`}
                           </p>
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="sm" onClick={() => handleTest(wh)} title="Send test event">
+                        <Button variant="ghost" size="sm" onClick={() => handleTest(wh)} title={t('webhooks.sendTest')}>
                           <Send className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleToggleActive(wh)} title={wh.is_active ? 'Disable' : 'Enable'}>
+                        <Button variant="ghost" size="sm" onClick={() => handleToggleActive(wh)} title={wh.is_active ? t('webhooks.disable') : t('webhooks.enable')}>
                           {wh.is_active ? <CheckCircle2 className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(wh)} title="Edit">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(wh)} title={t('webhooks.edit')}>
                           <Edit2 className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(wh.id)} disabled={deletingId === wh.id} title="Delete">
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(wh.id)} disabled={deletingId === wh.id} title={t('webhooks.delete')}>
                           {deletingId === wh.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                         </Button>
                       </div>
@@ -275,33 +277,33 @@ export function WebhooksSettings() {
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingWebhook ? 'Edit Webhook' : 'New Webhook Endpoint'}</DialogTitle>
+            <DialogTitle>{editingWebhook ? t('webhooks.editTitle') : t('webhooks.newTitle')}</DialogTitle>
             <DialogDescription>
               {editingWebhook
-                ? 'Update the URL and events for this webhook endpoint.'
-                : 'Register a URL to receive webhook events. The signing secret is shown once at creation.'}
+                ? t('webhooks.editDesc')
+                : t('webhooks.newDesc')}
             </DialogDescription>
           </DialogHeader>
 
           {newSecret ? (
             <div className="space-y-4">
               <div className="p-3 bg-muted rounded-md">
-                <Label className="text-xs text-muted-foreground mb-1 block">Signing Secret (copy now — will not be shown again)</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">{t('webhooks.signingSecret')}</Label>
                 <div className="flex items-center gap-2">
                   <code className="text-sm font-mono break-all flex-1">{newSecret}</code>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(newSecret); toast.success('Copied!'); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(newSecret); toast.success(t('webhooks.copied')); }}>
                     <Copy className="size-3.5" />
                   </Button>
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={() => { setCreateOpen(false); setNewSecret(null); }}>Done</Button>
+                <Button onClick={() => { setCreateOpen(false); setNewSecret(null); }}>{t('webhooks.done')}</Button>
               </DialogFooter>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>URL</Label>
+                <Label>{t('webhooks.url')}</Label>
                 <Input
                   placeholder="https://your-service.com/webhook"
                   value={formUrl}
@@ -310,7 +312,7 @@ export function WebhooksSettings() {
               </div>
 
               <div className="space-y-2">
-                <Label>Events</Label>
+                <Label>{t('webhooks.events')}</Label>
                 <div className="space-y-1.5">
                   {ALL_EVENTS.map((ev) => (
                     <div key={ev} className="flex items-center gap-2">
@@ -326,7 +328,7 @@ export function WebhooksSettings() {
                       <label htmlFor={`ev-${ev}`} className="text-sm cursor-pointer select-none">
                         {ev}
                         <span className="text-xs text-muted-foreground ml-1">
-                          — {WEBHOOK_EVENT_DESCRIPTIONS[ev]}
+                          {`— ${WEBHOOK_EVENT_DESCRIPTIONS[ev]}`}
                         </span>
                       </label>
                     </div>
@@ -335,9 +337,9 @@ export function WebhooksSettings() {
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('webhooks.cancel')}</Button>
                 <Button onClick={handleSave}>
-                  {editingWebhook ? 'Save Changes' : 'Create Endpoint'}
+                  {editingWebhook ? t('webhooks.saveChanges') : t('webhooks.createEndpoint')}
                 </Button>
               </DialogFooter>
             </div>

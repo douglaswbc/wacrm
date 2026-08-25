@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { canEditSettings } from '@/lib/auth/roles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ const KEY_PLACEHOLDER: Record<AiProvider, string> = {
 };
 
 export function AiConfig() {
+  const { t } = useLanguage();
   const { accountId, accountRole, profileLoading } = useAuth();
   const canEdit = accountRole ? canEditSettings(accountRole) : false;
 
@@ -97,7 +99,7 @@ export function AiConfig() {
       const res = await fetch('/api/ai/config');
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? 'Failed to load AI configuration');
+        toast.error(data.error ?? t('ai.loadFailed'));
         return;
       }
       if (data.configured) {
@@ -118,11 +120,11 @@ export function AiConfig() {
         setKeyEdited(false);
       }
     } catch {
-      toast.error('Failed to load AI configuration');
+      toast.error(t('ai.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchUsage = useCallback(async () => {
     try {
@@ -190,10 +192,10 @@ export function AiConfig() {
         }),
       });
       const data = await res.json();
-      if (res.ok) toast.success('Key works — the provider responded.');
-      else toast.error(data.error ?? 'The provider rejected the request.');
+      if (res.ok) toast.success(t('ai.testSuccess'));
+      else toast.error(data.error ?? t('ai.testRejected'));
     } catch {
-      toast.error('Could not reach the provider.');
+      toast.error(t('ai.testUnreachable'));
     } finally {
       setTesting(false);
     }
@@ -201,11 +203,11 @@ export function AiConfig() {
 
   const handleSave = async () => {
     if (!model.trim()) {
-      toast.error('Enter a model name.');
+      toast.error(t('ai.enterModel'));
       return;
     }
     if (!configured && !keyEdited) {
-      toast.error('Enter your API key.');
+      toast.error(t('ai.enterApiKey'));
       return;
     }
     setSaving(true);
@@ -217,13 +219,13 @@ export function AiConfig() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success('AI assistant saved.');
+        toast.success(t('ai.saved'));
         await fetchConfig();
       } else {
-        toast.error(data.error ?? 'Failed to save.');
+        toast.error(data.error ?? t('ai.saveFailed'));
       }
     } catch {
-      toast.error('Failed to save.');
+      toast.error(t('ai.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -234,7 +236,7 @@ export function AiConfig() {
     try {
       const res = await fetch('/api/ai/config', { method: 'DELETE' });
       if (res.ok) {
-        toast.success('AI configuration removed.');
+        toast.success(t('ai.removed'));
         setConfigured(false);
         setHasStoredKey(false);
         setApiKey('');
@@ -244,10 +246,10 @@ export function AiConfig() {
         setSystemPrompt('');
       } else {
         const data = await res.json();
-        toast.error(data.error ?? 'Failed to remove.');
+        toast.error(data.error ?? t('ai.removeFailed'));
       }
     } catch {
-      toast.error('Failed to remove.');
+      toast.error(t('ai.removeFailed'));
     } finally {
       setRemoving(false);
     }
@@ -256,7 +258,7 @@ export function AiConfig() {
   if (loading || profileLoading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('ai.loading')}
       </div>
     );
   }
@@ -266,13 +268,13 @@ export function AiConfig() {
   return (
     <div>
       <SettingsPanelHead
-        title="AI Assistant"
-        description="Bring your own OpenAI, Anthropic, or Groq key. wacrm calls the provider directly with your key — no per-seat AI fees, and your data stays yours. Powers AI-drafted replies in the inbox and an optional auto-reply bot."
+        title={t('ai.title')}
+        description={t('ai.description')}
       />
 
       {!canEdit && (
         <p className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          Only admins and owners can change the AI configuration.
+          {t('ai.onlyAdmins')}
         </p>
       )}
 
@@ -280,17 +282,16 @@ export function AiConfig() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4 text-primary" /> Provider & key
+              <Sparkles className="h-4 w-4 text-primary" /> {t('ai.providerAndKey')}
             </CardTitle>
             <CardDescription>
-              Your key is encrypted at rest (AES-256-GCM) and never shown again
-              after saving.
+              {t('ai.keyEncrypted')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Provider</Label>
+                <Label>{t('ai.provider')}</Label>
                 <Select
                   value={provider}
                   onValueChange={(v) => handleProviderChange(v as AiProvider)}
@@ -312,7 +313,7 @@ export function AiConfig() {
               </div>
 
               <div className="space-y-2">
-                <Label>Model</Label>
+                <Label>{t('ai.model')}</Label>
                 <Select
                   value={model}
                   onValueChange={(v) => setModel(v ?? '')}
@@ -329,7 +330,7 @@ export function AiConfig() {
                     ))}
                     {model.trim() &&
                       !CHAT_MODELS[provider].some((m) => m.value === model) && (
-                        <SelectItem value={model}>{model} (custom)</SelectItem>
+                        <SelectItem value={model}>{model} ({t('ai.custom')})</SelectItem>
                       )}
                   </SelectContent>
                 </Select>
@@ -337,7 +338,7 @@ export function AiConfig() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ai-key">API key</Label>
+              <Label htmlFor="ai-key">{t('ai.apiKey')}</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -381,7 +382,7 @@ export function AiConfig() {
                   ) : (
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  Test key
+                  {t('ai.testKey')}
                 </Button>
               </div>
             </div>
@@ -390,7 +391,7 @@ export function AiConfig() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Behaviour</CardTitle>
+            <CardTitle className="text-base">{t('ai.behaviour')}</CardTitle>
             {nativeTools.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {nativeTools.map((tool) => (
@@ -411,19 +412,17 @@ export function AiConfig() {
               </div>
             )}
             <CardDescription>
-              Tell the assistant about your business — products, tone, what it
-              may and may not promise. This context feeds both drafts and
-              auto-replies.
+              {t('ai.behaviourDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ai-prompt">Business context & instructions</Label>
+              <Label htmlFor="ai-prompt">{t('ai.businessContext')}</Label>
               <Textarea
                 id="ai-prompt"
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="e.g. We are Acme, a coffee-equipment store. Be warm and concise. Never quote prices or delivery dates — hand off to a human for those."
+                placeholder={t('ai.promptPlaceholder')}
                 rows={5}
                 disabled={disabled}
               />
@@ -432,11 +431,10 @@ export function AiConfig() {
             <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  Enable AI assistant
+                  {t('ai.enableAssistant')}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Master switch. Turns on the “Draft with AI” button in the
-                  inbox.
+                  {t('ai.enableAssistantDesc')}
                 </p>
               </div>
               <Switch
@@ -449,12 +447,10 @@ export function AiConfig() {
             <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  Auto-reply to inbound messages
+                  {t('ai.autoReply')}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  The bot answers new inbound messages automatically (only when
-                  no flow handles them and no agent is assigned). Hands off to a
-                  human when it can’t help.
+                  {t('ai.autoReplyDesc')}
                 </p>
               </div>
               <Switch
@@ -466,9 +462,9 @@ export function AiConfig() {
 
             <div className="flex items-center justify-between gap-4">
               <div>
-                <Label htmlFor="ai-max">Max auto-replies per conversation</Label>
+                <Label htmlFor="ai-max">{t('ai.maxReplies')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  After this many bot replies in one thread, the bot goes quiet.
+                  {t('ai.maxRepliesDesc')}
                 </p>
               </div>
               <Input
@@ -491,16 +487,14 @@ export function AiConfig() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Pause on human reply</CardTitle>
+            <CardTitle className="text-base">{t('ai.pauseOnHumanReply')}</CardTitle>
             <CardDescription>
-              When a human agent replies, the auto-reply bot pauses for that
-              conversation. Choose whether the bot stays quiet until manually
-              re-enabled or comes back after a timeout.
+              {t('ai.pauseDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Pause mode</Label>
+              <Label>{t('ai.pauseMode')}</Label>
               <Select
                 value={pauseMode}
                 onValueChange={(v) => setPauseMode(v as 'manual' | 'timed')}
@@ -511,10 +505,10 @@ export function AiConfig() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manual">
-                    Manual — agent must re-enable
+                    {t('ai.pauseManual')}
                   </SelectItem>
                   <SelectItem value="timed">
-                    Timed — auto-resume after
+                    {t('ai.pauseTimed')}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -522,10 +516,9 @@ export function AiConfig() {
             {pauseMode === 'timed' && (
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <Label htmlFor="ai-pause-minutes">Resume after</Label>
+                  <Label htmlFor="ai-pause-minutes">{t('ai.resumeAfter')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    The bot resumes automatically this many minutes after the
-                    last human reply.
+                    {t('ai.resumeAfterDesc')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -546,7 +539,7 @@ export function AiConfig() {
                     disabled={disabled || !autoReplyEnabled}
                     className="w-24"
                   />
-                  <span className="text-xs text-muted-foreground">min</span>
+                  <span className="text-xs text-muted-foreground">{t('ai.minutesShort')}</span>
                 </div>
               </div>
             )}
@@ -556,22 +549,19 @@ export function AiConfig() {
         {autoReplyEnabled && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Transcription</CardTitle>
+            <CardTitle className="text-base">{t('ai.transcription')}</CardTitle>
             <CardDescription>
-              Automatically transcribe audio messages and describe images when
-              they arrive. Transcribed text feeds the auto-reply bot so it can
-              understand voice notes and images.
+              {t('ai.transcriptionDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  Transcribe audio & images
+                  {t('ai.transcribeAudioImages')}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Uses the provider&apos;s Whisper model for audio and vision
-                  model for images. Costs are billed to your provider key.
+                  {t('ai.transcribeDesc')}
                 </p>
               </div>
               <Switch
@@ -584,10 +574,10 @@ export function AiConfig() {
             {transcriptionEnabled && (
               <>
                 <div className="space-y-2">
-                  <Label>Audio model</Label>
+                  <Label>{t('ai.audioModel')}</Label>
                   {provider === 'anthropic' ? (
                     <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                      Not supported — Anthropic does not provide audio transcription.
+                      {t('ai.audioNotSupported')}
                     </div>
                   ) : (
                     <Select
@@ -609,7 +599,7 @@ export function AiConfig() {
                             (m) => m.value === audioModel,
                           ) && (
                             <SelectItem value={audioModel}>
-                              {audioModel} (custom)
+                              {audioModel} ({t('ai.custom')})
                             </SelectItem>
                           )}
                       </SelectContent>
@@ -618,7 +608,7 @@ export function AiConfig() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Vision model</Label>
+                  <Label>{t('ai.visionModel')}</Label>
                   <Select
                     value={visionModel}
                     onValueChange={(v) => setVisionModel(v ?? '')}
@@ -638,14 +628,13 @@ export function AiConfig() {
                           (m) => m.value === visionModel,
                         ) && (
                           <SelectItem value={visionModel}>
-                            {visionModel} (custom)
+                            {visionModel} ({t('ai.custom')})
                           </SelectItem>
                         )}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Used to describe images. The text is injected into the
-                    conversation context.
+                    {t('ai.visionModelDesc')}
                   </p>
                 </div>
               </>
@@ -658,11 +647,10 @@ export function AiConfig() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <BarChart3 className="h-4 w-4 text-primary" /> Usage & Costs
+              <BarChart3 className="h-4 w-4 text-primary" /> {t('ai.usageCosts')}
             </CardTitle>
             <CardDescription>
-              Estimated AI costs (computed from token counts and provider
-              pricing). All values in USD.
+              {t('ai.usageDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -671,30 +659,30 @@ export function AiConfig() {
                 <p className="text-2xl font-bold text-foreground">
                   ${usageData.totals.cost_usd.toFixed(4)}
                 </p>
-                <p className="text-xs text-muted-foreground">Total cost</p>
+                <p className="text-xs text-muted-foreground">{t('ai.totalCost')}</p>
               </div>
               <div className="rounded-md border border-border p-3 text-center">
                 <p className="text-2xl font-bold text-foreground">
                   {usageData.totals.total_tokens.toLocaleString()}
                 </p>
-                <p className="text-xs text-muted-foreground">Total tokens</p>
+                <p className="text-xs text-muted-foreground">{t('ai.totalTokens')}</p>
               </div>
               <div className="rounded-md border border-border p-3 text-center">
                 <p className="text-2xl font-bold text-foreground">
                   {usageData.totals.requests}
                 </p>
-                <p className="text-xs text-muted-foreground">Requests</p>
+                <p className="text-xs text-muted-foreground">{t('ai.requests')}</p>
               </div>
             </div>
 
             {Object.keys(usageData.by_provider).length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">By provider</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('ai.byProvider')}</p>
                 {Object.entries(usageData.by_provider).map(([prov, data]) => (
                   <div key={prov} className="flex items-center justify-between text-sm">
                     <span className="capitalize">{prov}</span>
                     <span className="text-muted-foreground">
-                      ${data.cost.toFixed(5)} ({data.requests} req)
+                      ${data.cost.toFixed(5)} ({data.requests} {t('ai.reqShort')})
                     </span>
                   </div>
                 ))}
@@ -724,7 +712,7 @@ export function AiConfig() {
               ) : (
                 <Trash2 className="mr-2 h-4 w-4" />
               )}
-              Remove
+              {t('ai.remove')}
             </Button>
           ) : (
             <span />
@@ -732,7 +720,7 @@ export function AiConfig() {
 
           <Button onClick={handleSave} disabled={disabled}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save
+            {t('ai.save')}
           </Button>
         </div>
       </div>

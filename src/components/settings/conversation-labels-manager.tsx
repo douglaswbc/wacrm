@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -58,6 +59,7 @@ interface ConversationLabelDef {
  */
 export function ConversationLabelsManager() {
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -100,16 +102,19 @@ export function ConversationLabelsManager() {
       setLabels((data.labels ?? []).filter((l) => l.deleted !== true));
       if (options?.sync) {
         if (data.sync_error) {
-          toast.warning(`Sync issue: ${data.sync_error}`);
+          toast.warning(`${t('convLabels.syncIssue')}: ${data.sync_error}`);
         } else {
+          const synced = data.labels?.length ?? 0;
           toast.success(
-            `Synced ${data.labels?.length ?? 0} label${(data.labels?.length ?? 0) === 1 ? '' : 's'} from WhatsApp`,
+            synced === 1
+              ? t('convLabels.syncedOne', synced)
+              : t('convLabels.syncedMany', synced),
           );
         }
       }
     } catch (err) {
       console.error('Failed to fetch conversation labels:', err);
-      toast.error('Failed to load conversation labels');
+      toast.error(t('convLabels.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -139,13 +144,13 @@ export function ConversationLabelsManager() {
       const data = (await res.json().catch(() => null)) as {
         error?: string;
       } | null;
-      throw new Error(data?.error ?? 'Request failed');
+      throw new Error(data?.error ?? t('convLabels.requestFailed'));
     }
   }
 
   async function handleCreate() {
     if (!newLabelName.trim()) {
-      toast.error('Label name is required');
+      toast.error(t('convLabels.nameRequired'));
       return;
     }
 
@@ -156,14 +161,14 @@ export function ConversationLabelsManager() {
         name: newLabelName.trim(),
         color: selectedColor,
       });
-      toast.success('Label created');
+      toast.success(t('convLabels.created'));
       setNewLabelName('');
       setSelectedColor(PRESET_COLORS[3].value);
       await fetchLabels();
     } catch (err) {
       console.error('Create error:', err);
       toast.error(
-        err instanceof Error ? err.message : 'Failed to create label',
+        err instanceof Error ? err.message : t('convLabels.createFailed'),
       );
     } finally {
       setSaving(false);
@@ -185,7 +190,7 @@ export function ConversationLabelsManager() {
   async function handleUpdate() {
     if (!editingId) return;
     if (!editName.trim()) {
-      toast.error('Label name is required');
+      toast.error(t('convLabels.nameRequired'));
       return;
     }
 
@@ -197,13 +202,13 @@ export function ConversationLabelsManager() {
         name: editName.trim(),
         color: editColor,
       });
-      toast.success('Label updated');
+      toast.success(t('convLabels.updated'));
       cancelEdit();
       await fetchLabels();
     } catch (err) {
       console.error('Update error:', err);
       toast.error(
-        err instanceof Error ? err.message : 'Failed to update label',
+        err instanceof Error ? err.message : t('convLabels.updateFailed'),
       );
     } finally {
       setSaving(false);
@@ -221,14 +226,14 @@ export function ConversationLabelsManager() {
     try {
       setDeleting(true);
       await postLabel({ action: 'delete', id: labelToDelete.id });
-      toast.success('Label deleted');
+      toast.success(t('convLabels.deleted'));
       setLabels((prev) => prev.filter((l) => l.id !== labelToDelete.id));
       setDeleteDialogOpen(false);
       setLabelToDelete(null);
     } catch (err) {
       console.error('Delete error:', err);
       toast.error(
-        err instanceof Error ? err.message : 'Failed to delete label',
+        err instanceof Error ? err.message : t('convLabels.deleteFailed'),
       );
     } finally {
       setDeleting(false);
@@ -241,10 +246,10 @@ export function ConversationLabelsManager() {
         <div className="space-y-1.5">
           <CardTitle className="flex items-center gap-2 text-foreground">
             <MessagesSquare className="size-4 text-primary" />
-            Conversation Labels
+            {t('convLabels.title')}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            WhatsApp labels for organizing conversations.
+            {t('convLabels.description')}
           </CardDescription>
         </div>
         <Button
@@ -256,7 +261,7 @@ export function ConversationLabelsManager() {
           <RefreshCw
             className={cn('size-4', syncing && 'animate-spin')}
           />
-          Sync from WhatsApp
+          {t('convLabels.sync')}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -296,7 +301,7 @@ export function ConversationLabelsManager() {
                             key={color.value}
                             type="button"
                             onClick={() => setEditColor(color.value)}
-                            aria-label={`Use ${color.name}`}
+                            aria-label={`${t('tagsManager.useColor')} ${t(`tagsManager.color.${color.name.toLowerCase()}`)}`}
                             aria-pressed={editColor === color.value}
                             className={cn(
                               'size-4 rounded-full transition-transform hover:scale-110',
@@ -304,14 +309,14 @@ export function ConversationLabelsManager() {
                                 'outline outline-2 outline-offset-1 outline-primary',
                             )}
                             style={{ backgroundColor: color.value }}
-                            title={color.name}
+                            title={t(`tagsManager.color.${color.name.toLowerCase()}`)}
                           />
                         ))}
                       </span>
                       <button
                         type="button"
                         onClick={handleUpdate}
-                        aria-label={`Save ${label.name}`}
+                        aria-label={`${t('convLabels.save')} ${label.name}`}
                         disabled={saving}
                         className="rounded-full p-0.5 transition-opacity hover:bg-black/10 dark:hover:bg-white/10"
                       >
@@ -324,7 +329,7 @@ export function ConversationLabelsManager() {
                       <button
                         type="button"
                         onClick={cancelEdit}
-                        aria-label="Cancel editing"
+                        aria-label={t('convLabels.cancelEditing')}
                         disabled={saving}
                         className="rounded-full p-0.5 transition-opacity hover:bg-black/10 dark:hover:bg-white/10"
                       >
@@ -340,7 +345,7 @@ export function ConversationLabelsManager() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') startEdit(label);
                       }}
-                      title="Click to rename or recolour"
+                      title={t('convLabels.clickToEdit')}
                       className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors hover:opacity-80"
                       style={{
                         backgroundColor: `${label.color}20`,
@@ -365,7 +370,7 @@ export function ConversationLabelsManager() {
                           e.stopPropagation();
                           confirmDelete(label);
                         }}
-                        aria-label={`Delete ${label.name}`}
+                        aria-label={`${t('contacts.delete')} ${label.name}`}
                         className="ml-0.5 rounded-full p-0.5 opacity-60 transition-opacity hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
                       >
                         <X className="size-3" />
@@ -376,15 +381,14 @@ export function ConversationLabelsManager() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No labels yet — create your first one below or sync from
-                WhatsApp.
+                {t('convLabels.empty')}
               </p>
             )}
 
             {/* Inline create row */}
             <div className="flex flex-wrap items-center gap-2.5">
               <Input
-                placeholder="e.g. New lead"
+                placeholder={t('convLabels.placeholder')}
                 value={newLabelName}
                 onChange={(e) => setNewLabelName(e.target.value)}
                 onKeyDown={(e) => {
@@ -400,7 +404,7 @@ export function ConversationLabelsManager() {
                     key={color.value}
                     type="button"
                     onClick={() => setSelectedColor(color.value)}
-                    aria-label={`Use ${color.name}`}
+                    aria-label={`${t('tagsManager.useColor')} ${t(`tagsManager.color.${color.name.toLowerCase()}`)}`}
                     aria-pressed={selectedColor === color.value}
                     className={cn(
                       'size-6 rounded-md transition-transform hover:scale-110',
@@ -408,7 +412,7 @@ export function ConversationLabelsManager() {
                         'outline outline-2 outline-offset-2 outline-primary',
                     )}
                     style={{ backgroundColor: color.value }}
-                    title={color.name}
+                    title={t(`tagsManager.color.${color.name.toLowerCase()}`)}
                   />
                 ))}
               </div>
@@ -423,7 +427,7 @@ export function ConversationLabelsManager() {
                 ) : (
                   <Plus className="size-4" />
                 )}
-                Add label
+                {t('convLabels.add')}
               </Button>
             </div>
           </>
@@ -434,10 +438,9 @@ export function ConversationLabelsManager() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete label</DialogTitle>
+            <DialogTitle>{t('convLabels.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              Delete the label &quot;{labelToDelete?.name}&quot;? This removes
-              it from all conversations and cannot be undone.
+              {`${t('convLabels.deleteConfirmPre')} "${labelToDelete?.name}"${t('convLabels.deleteConfirmPost')}`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -446,7 +449,7 @@ export function ConversationLabelsManager() {
               onClick={() => setDeleteDialogOpen(false)}
               disabled={deleting}
             >
-              Cancel
+              {t('contacts.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -456,10 +459,10 @@ export function ConversationLabelsManager() {
               {deleting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Deleting...
+                  {t('convLabels.deleting')}
                 </>
               ) : (
-                'Delete label'
+                t('convLabels.deleteButton')
               )}
             </Button>
           </DialogFooter>

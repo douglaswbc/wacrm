@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -56,6 +57,7 @@ const PLATFORM_INFO: Record<string, { label: string; icon: string }> = {
 
 export function ZernioConfig() {
   const { accountId, profileLoading, canEditSettings } = useAuth();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,11 +110,11 @@ export function ZernioConfig() {
         setConnectedAccounts([]);
       }
     } catch {
-      toast.error('Failed to load Zernio config');
+      toast.error(t('social.toastLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, t]);
 
   useEffect(() => {
     if (!profileLoading && accountId) {
@@ -126,11 +128,11 @@ export function ZernioConfig() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('platform_connected')) {
       const platform = params.get('platform_connected')!;
-      toast.success(`${PLATFORM_INFO[platform]?.label ?? platform} connected successfully`);
+      toast.success(`${PLATFORM_INFO[platform]?.label ?? platform} ${t('social.toastPlatformConnected')}`);
       fetchConfig();
       window.history.replaceState({}, '', window.location.pathname + '?tab=social');
     }
-  }, [fetchConfig]);
+  }, [fetchConfig, t]);
 
   // Fetch webhook config
   const fetchWebhookConfig = useCallback(async () => {
@@ -167,13 +169,13 @@ export function ZernioConfig() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to connect Zernio');
+        toast.error(data.error || t('social.toastConnectFailed'));
         setSaving(false);
         return;
       }
 
       const result = await res.json();
-      toast.success('Zernio profile created! Now connect your social accounts below.');
+      toast.success(t('social.toastProfileCreated'));
       setConfig({
         connected: true,
         profile_id: result.profile_id,
@@ -181,7 +183,7 @@ export function ZernioConfig() {
       });
       setConnectedAccounts(result.connected_accounts ?? []);
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -193,15 +195,15 @@ export function ZernioConfig() {
       const res = await fetch('/api/zernio/config', { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to disconnect Zernio');
+        toast.error(data.error || t('social.toastDisconnectFailed'));
         setSaving(false);
         return;
       }
-      toast.success('Zernio disconnected — all social accounts removed');
+      toast.success(t('social.toastDisconnected'));
       setConfig(null);
       setConnectedAccounts([]);
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -216,12 +218,12 @@ export function ZernioConfig() {
       if (res.ok) {
         const data = await res.json();
         setConnectedAccounts(data.accounts ?? []);
-        toast.success('Social accounts refreshed');
+        toast.success(t('social.toastRefreshed'));
       } else {
-        toast.error('Failed to refresh accounts');
+        toast.error(t('social.toastRefreshFailed'));
       }
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setRefreshing(false);
     }
@@ -240,8 +242,7 @@ export function ZernioConfig() {
         // Friendly message for channel limit (402)
         if (res.status === 402) {
           toast.error(
-            'Você atingiu o limite gratuito de 2 contas sociais. ' +
-            `Adicione um método de pagamento no Zernio: ${data.zernioDashboard || 'https://zernio.com/dashboard'}`,
+            `${t('social.toastFreeLimit')} ${data.zernioDashboard || 'https://zernio.com/dashboard'}`,
             { duration: 10000 },
           );
         } else if (
@@ -251,13 +252,11 @@ export function ZernioConfig() {
           errorMsg.toLowerCase().includes('too many')
         ) {
           toast.error(
-            'Você atingiu o limite de contas sociais. ' +
-            'Visite o Zernio para conectar mais plataformas: ' +
-            'https://zernio.com/dashboard',
+            `${t('social.toastLimitReached')} https://zernio.com/dashboard`,
             { duration: 8000 },
           );
         } else {
-          toast.error(`${PLATFORM_INFO[platform]?.label ?? platform}: ${errorMsg || 'Failed to get auth URL'}`);
+          toast.error(`${PLATFORM_INFO[platform]?.label ?? platform}: ${errorMsg || t('social.toastAuthUrlFailed')}`);
         }
         setConnectingPlatform(null);
         return;
@@ -265,7 +264,7 @@ export function ZernioConfig() {
       const data = await res.json();
       window.location.href = data.authUrl;
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setConnectingPlatform(null);
     }
@@ -281,15 +280,15 @@ export function ZernioConfig() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || `Failed to disconnect ${account.displayName}`);
+        toast.error(data.error || `${t('social.toastDisconnectAccountFailed')} ${account.displayName}`);
         setDisconnectingPlatform(null);
         return;
       }
       const data = await res.json();
       setConnectedAccounts(data.accounts ?? []);
-      toast.success(`${PLATFORM_INFO[account.platform]?.label ?? account.platform} disconnected`);
+      toast.success(`${PLATFORM_INFO[account.platform]?.label ?? account.platform} ${t('social.toastPlatformDisconnected')}`);
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setDisconnectingPlatform(null);
     }
@@ -306,15 +305,15 @@ export function ZernioConfig() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to configure webhook');
+        toast.error(data.error || t('social.toastWebhookSaveFailed'));
         setSavingWebhook(false);
         return;
       }
       const data = await res.json();
       setWebhookConfig(data);
-      toast.success('Webhook registered with Zernio');
+      toast.success(t('social.toastWebhookRegistered'));
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setSavingWebhook(false);
     }
@@ -326,14 +325,14 @@ export function ZernioConfig() {
       const res = await fetch('/api/zernio/webhook-config', { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to remove webhook');
+        toast.error(data.error || t('social.toastWebhookRemoveFailed'));
         setSavingWebhook(false);
         return;
       }
       setWebhookConfig(null);
-      toast.success('Webhook removed from Zernio');
+      toast.success(t('social.toastWebhookRemoved'));
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('social.toastServerUnreachable'));
     } finally {
       setSavingWebhook(false);
     }
@@ -364,8 +363,8 @@ export function ZernioConfig() {
   return (
     <section className="animate-in fade-in-50 duration-200">
       <SettingsPanelHead
-        title="Social Accounts"
-        description="Connect Zernio to manage Instagram, WhatsApp, Facebook, and 14+ other social platforms from one place."
+        title={t('social.title')}
+        description={t('social.subtitle')}
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
@@ -378,22 +377,22 @@ export function ZernioConfig() {
                 <XCircle className="size-4 text-red-500" />
               )}
               <AlertTitle className="text-foreground mb-0">
-                {isConnected ? 'Connected to Zernio' : 'Not Connected'}
+                {isConnected ? t('social.statusConnected') : t('social.statusNotConnected')}
               </AlertTitle>
             </div>
             <AlertDescription className="text-muted-foreground">
               {isConnected
-                ? `Profile: ${config?.profile_id ?? 'unknown'}. Connect social accounts below.`
-                : 'Create a Zernio profile to start connecting social accounts.'}
+                ? `${t('social.profileLabel')}: ${config?.profile_id ?? 'unknown'}. ${t('social.connectBelow')}`
+                : t('social.statusNotConnectedDesc')}
             </AlertDescription>
           </Alert>
 
           {!isConnected ? (
             <Card>
               <CardHeader>
-                <CardTitle className="text-foreground">Connect Zernio</CardTitle>
+                <CardTitle className="text-foreground">{t('social.connectZernio')}</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Creates a dedicated Zernio profile for this WACRM account.
+                  {t('social.connectCardDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -405,12 +404,12 @@ export function ZernioConfig() {
                   {saving ? (
                     <>
                       <Loader2 className="size-4 animate-spin mr-2" />
-                      Creating profile...
+                      {t('social.creatingProfile')}
                     </>
                   ) : (
                     <>
                       <Plus className="size-4 mr-2" />
-                      Connect Zernio
+                      {t('social.connectZernio')}
                     </>
                   )}
                 </Button>
@@ -423,9 +422,9 @@ export function ZernioConfig() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-foreground">Connected Accounts</CardTitle>
+                      <CardTitle className="text-foreground">{t('social.connectedAccounts')}</CardTitle>
                       <CardDescription className="text-muted-foreground">
-                        {connectedAccounts.length} account{connectedAccounts.length !== 1 ? 's' : ''} connected
+                        {t('social.accountsConnected', connectedAccounts.length)}
                       </CardDescription>
                     </div>
                     <Button
@@ -440,14 +439,14 @@ export function ZernioConfig() {
                       ) : (
                         <RefreshCw className="size-4" />
                       )}
-                      <span className="ml-1.5">Refresh</span>
+                      <span className="ml-1.5">{t('social.refresh')}</span>
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {connectedAccounts.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No social accounts connected yet. Connect one below to get started.
+                      {t('social.emptyAccounts')}
                     </p>
                   ) : (
                     connectedAccounts.map((account) => (
@@ -474,14 +473,14 @@ export function ZernioConfig() {
                           onClick={() => handleDisconnectPlatform(account)}
                           disabled={disconnectingPlatform === account.accountId}
                           className="text-muted-foreground hover:text-red-400 hover:bg-red-950/30 h-7 px-2"
-                          title={`Disconnect ${PLATFORM_INFO[account.platform]?.label ?? account.platform}`}
+                          title={`${t('social.disconnect')} ${PLATFORM_INFO[account.platform]?.label ?? account.platform}`}
                         >
                           {disconnectingPlatform === account.accountId ? (
                             <Loader2 className="size-3.5 animate-spin" />
                           ) : (
                             <XCircle className="size-3.5" />
                           )}
-                          <span className="ml-1.5 text-xs">Disconnect</span>
+                          <span className="ml-1.5 text-xs">{t('social.disconnect')}</span>
                         </Button>
                       </div>
                     ))
@@ -493,9 +492,9 @@ export function ZernioConfig() {
               {platformsToConnect.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-foreground">Connect More Platforms</CardTitle>
+                    <CardTitle className="text-foreground">{t('social.connectMorePlatforms')}</CardTitle>
                     <CardDescription className="text-muted-foreground">
-                      Connect additional social accounts through Zernio.
+                      {t('social.connectMoreDesc')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -533,7 +532,7 @@ export function ZernioConfig() {
                   className="border-red-900 text-red-400 hover:text-red-300 hover:bg-red-950/40"
                 >
                   <Trash2 className="size-4 mr-1.5" />
-                  Disconnect Zernio
+                  {t('social.disconnectZernio')}
                 </Button>
               </div>
 
@@ -545,17 +544,17 @@ export function ZernioConfig() {
                       <div>
                         <CardTitle className="text-foreground flex items-center gap-2">
                           <Webhook className="size-4" />
-                          Zernio Webhook
+                          {t('social.webhookTitle')}
                         </CardTitle>
                         <CardDescription className="text-muted-foreground">
-                          Global webhook — routes events to all WACRM users
+                          {t('social.webhookDesc')}
                         </CardDescription>
                       </div>
                       {webhookConfig?.configured && (
                         <Badge
                           variant={webhookConfig.webhook?.isActive ? 'default' : 'destructive'}
                         >
-                          {webhookConfig.webhook?.isActive ? 'Active' : 'Disabled'}
+                          {webhookConfig.webhook?.isActive ? t('social.badgeActive') : t('social.badgeDisabled')}
                         </Badge>
                       )}
                     </div>
@@ -564,7 +563,7 @@ export function ZernioConfig() {
                     {/* Webhook URL */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Webhook URL
+                        {t('social.webhookUrl')}
                       </label>
                       <div className="flex gap-2">
                         <code className="flex-1 text-xs bg-muted px-2 py-1.5 rounded break-all font-mono">
@@ -575,7 +574,7 @@ export function ZernioConfig() {
                           size="sm"
                           onClick={() => {
                             navigator.clipboard.writeText(WEBHOOK_URL);
-                            toast.success('URL copied');
+                            toast.success(t('social.toastUrlCopied'));
                           }}
                           className="shrink-0"
                         >
@@ -587,7 +586,7 @@ export function ZernioConfig() {
                     {/* Profile ID */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Profile ID (for reference)
+                        {t('social.profileIdLabel')}
                       </label>
                       <div className="flex gap-2">
                         <code className="flex-1 text-xs bg-muted px-2 py-1.5 rounded font-mono">
@@ -599,7 +598,7 @@ export function ZernioConfig() {
                           onClick={() => {
                             if (config?.profile_id) {
                               navigator.clipboard.writeText(config.profile_id);
-                              toast.success('Profile ID copied');
+                              toast.success(t('social.toastProfileCopied'));
                             }
                           }}
                           disabled={!config?.profile_id}
@@ -613,14 +612,14 @@ export function ZernioConfig() {
                     {/* Events */}
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Events to receive
+                        {t('social.eventsLabel')}
                       </label>
                       <div className="grid grid-cols-1 gap-2">
                         {[
-                          { id: 'message.received', label: 'Message Received', desc: 'Inbound messages to inbox' },
-                          { id: 'comment.received', label: 'Comment Received', desc: 'Comments on posts' },
-                          { id: 'post.platform.published', label: 'Post Published', desc: 'Post published on platform' },
-                          { id: 'post.platform.failed', label: 'Post Failed', desc: 'Post publication failed' },
+                          { id: 'message.received', label: t('social.eventMessageReceived'), desc: t('social.eventMessageReceivedDesc') },
+                          { id: 'comment.received', label: t('social.eventCommentReceived'), desc: t('social.eventCommentReceivedDesc') },
+                          { id: 'post.platform.published', label: t('social.eventPostPublished'), desc: t('social.eventPostPublishedDesc') },
+                          { id: 'post.platform.failed', label: t('social.eventPostFailed'), desc: t('social.eventPostFailedDesc') },
                         ].map((ev) => (
                           <div
                             key={ev.id}
@@ -658,12 +657,12 @@ export function ZernioConfig() {
                           {savingWebhook ? (
                             <>
                               <Loader2 className="size-4 animate-spin mr-1.5" />
-                              Registering...
+                              {t('social.registering')}
                             </>
                           ) : (
                             <>
                               <Webhook className="size-4 mr-1.5" />
-                              Register Webhook
+                              {t('social.registerWebhook')}
                             </>
                           )}
                         </Button>
@@ -677,10 +676,10 @@ export function ZernioConfig() {
                             {savingWebhook ? (
                               <>
                                 <Loader2 className="size-4 animate-spin mr-1.5" />
-                                Updating...
+                                {t('social.updating')}
                               </>
                             ) : (
-                              'Update Events'
+                              t('social.updateEvents')
                             )}
                           </Button>
                           <Button
@@ -700,14 +699,14 @@ export function ZernioConfig() {
                       <div className="space-y-1 pt-2 border-t border-border">
                         {webhookConfig.webhook.lastDeliveryAt && (
                           <p className="text-xs text-muted-foreground">
-                            Last delivery:{' '}
+                            {t('social.lastDelivery')}{' '}
                             {new Date(webhookConfig.webhook.lastDeliveryAt).toLocaleString()}
                           </p>
                         )}
                         {webhookConfig.webhook.failureCount > 0 && (
                           <p className="text-xs text-amber-500 flex items-center gap-1">
                             <AlertTriangle className="size-3" />
-                            {webhookConfig.webhook.failureCount} recent failure(s)
+                            {t('social.recentFailures', webhookConfig.webhook.failureCount)}
                           </p>
                         )}
                       </div>
@@ -729,9 +728,9 @@ export function ZernioConfig() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-foreground text-base">How it works</CardTitle>
+              <CardTitle className="text-foreground text-base">{t('social.howItWorks')}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Zernio manages your social accounts with one API.
+                {t('social.howItWorksDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -740,13 +739,12 @@ export function ZernioConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">1</span>
-                      Connect Zernio
+                      {t('social.connectZernio')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <p className="text-sm">
-                      Click &quot;Connect Zernio&quot; to create a dedicated profile.
-                      Your WACRM account gets its own isolated space in Zernio.
+                      {t('social.step1Content')}
                     </p>
                   </AccordionContent>
                 </AccordionItem>
@@ -755,14 +753,14 @@ export function ZernioConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">2</span>
-                      Connect Social Accounts
+                      {t('social.step2Title')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
-                      <li>Click any platform button below</li>
-                      <li>Authorize the platform via Zernio&apos;s OAuth</li>
-                      <li>Return here — the account appears in the list</li>
+                      <li>{t('social.step2Item1')}</li>
+                      <li>{t('social.step2Item2')}</li>
+                      <li>{t('social.step2Item3')}</li>
                     </ol>
                   </AccordionContent>
                 </AccordionItem>
@@ -771,13 +769,12 @@ export function ZernioConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">3</span>
-                      Messaging & Posts
+                      {t('social.step3Title')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <p className="text-sm">
-                      Messages from connected accounts arrive in the WACRM inbox via Zernio webhooks.
-                      Schedule posts, manage DMs, and track engagement — all from wacrm.
+                      {t('social.step3Content')}
                     </p>
                   </AccordionContent>
                 </AccordionItem>
@@ -801,11 +798,11 @@ export function ZernioConfig() {
                     className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
                   >
                     <ExternalLink className="size-3.5" />
-                    API Documentation
+                    {t('social.apiDocs')}
                   </a>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Pricing: first 2 social accounts free. Then $6/account/month (accounts 1-10), decreasing at scale.
+                  {t('social.pricing')}
                 </p>
               </div>
             </CardContent>

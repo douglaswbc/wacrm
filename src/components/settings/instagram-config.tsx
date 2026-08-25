@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +49,7 @@ function TokenStatus({
   refreshedAt: string | null;
   refreshError: string | null;
 }) {
+  const { t } = useLanguage();
   const now = useNow();
   const expires = new Date(expiresAt);
   const diffMs = expires.getTime() - now;
@@ -61,12 +63,12 @@ function TokenStatus({
   if (daysLeft <= 0) {
     return (
       <div className="mt-2 rounded border border-red-800/50 bg-red-950/30 px-2.5 py-1.5 text-xs">
-        <span className="text-red-400 font-medium">Token expired</span>
+        <span className="text-red-400 font-medium">{t('instagram.tokenExpired')}</span>
         <span className="text-muted-foreground ml-1">
-          — Please re-enter credentials to reconnect.
+          {t('instagram.tokenExpiredHint')}
         </span>
         {refreshError && (
-          <p className="text-red-300 mt-0.5">Last refresh error: {refreshError}</p>
+          <p className="text-red-300 mt-0.5">{t('instagram.lastRefreshErrorLabel')} {refreshError}</p>
         )}
       </div>
     );
@@ -75,15 +77,15 @@ function TokenStatus({
   return (
     <div className="mt-2 rounded border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
       <span className={color + ' font-medium'}>
-        {daysLeft} {daysLeft === 1 ? 'day' : 'days'} until expiry
+        {t('instagram.daysUntilExpiry', daysLeft)}
       </span>
       {refreshedAt && (
         <span className="ml-1">
-          (last refreshed {new Date(refreshedAt).toLocaleDateString()})
+          ({t('instagram.lastRefreshedAt')} {new Date(refreshedAt).toLocaleDateString()})
         </span>
       )}
       {refreshError && (
-        <p className="text-amber-300 mt-0.5">Last refresh attempt failed: {refreshError}</p>
+        <p className="text-amber-300 mt-0.5">{t('instagram.lastRefreshAttemptFailedLabel')} {refreshError}</p>
       )}
     </div>
   );
@@ -102,6 +104,7 @@ interface RegistrationProbe {
 
 export function InstagramConfig() {
   const { accountId, profileLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -181,7 +184,7 @@ export function InstagramConfig() {
           setStatusMessage('');
         } else {
           setConnectionStatus('disconnected');
-          setStatusMessage(data.access_token === '••••••••' ? 'Check credentials and reconnect.' : '');
+          setStatusMessage(data.access_token === '••••••••' ? t('instagram.checkCredentials') : '');
         }
       } else {
         setConfig(null);
@@ -204,11 +207,11 @@ export function InstagramConfig() {
         setStatusMessage('');
       }
     } catch {
-      toast.error('Failed to load Instagram config');
+      toast.error(t('instagram.toastLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, t]);
 
   useEffect(() => {
     if (!profileLoading && accountId) {
@@ -218,11 +221,11 @@ export function InstagramConfig() {
 
   async function handleSave() {
     if (!instagramBusinessAccountId.trim()) {
-      toast.error('Instagram Business Account ID is required');
+      toast.error(t('instagram.toastAccountIdRequired'));
       return;
     }
     if (!config && (!accessToken.trim() || !tokenEdited)) {
-      toast.error('Access Token is required for initial setup');
+      toast.error(t('instagram.toastTokenRequired'));
       return;
     }
 
@@ -237,7 +240,7 @@ export function InstagramConfig() {
       if (tokenEdited && accessToken !== MASKED_TOKEN && accessToken.trim()) {
         payload.access_token = accessToken.trim();
       } else if (config) {
-        toast.error('Please re-enter the Access Token to save changes');
+        toast.error(t('instagram.toastReenterToken'));
         setSaving(false);
         return;
       }
@@ -257,7 +260,7 @@ export function InstagramConfig() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to save Instagram config');
+        toast.error(data.error || t('instagram.toastSaveFailed'));
         setSaving(false);
         return;
       }
@@ -265,19 +268,19 @@ export function InstagramConfig() {
       const result = await res.json();
 
       if (result.subscribed) {
-        toast.success('Instagram connected and subscribed to webhooks.');
+        toast.success(t('instagram.toastConnectedSubscribed'));
       } else if (result.subscription_error) {
         toast.error(
-          `Saved, but webhook subscription failed: ${result.subscription_error}`,
+          `${t('instagram.toastSubscriptionFailed')} ${result.subscription_error}`,
           { duration: 10000 },
         );
       } else {
-        toast.success('Instagram connected successfully.');
+        toast.success(t('instagram.toastConnected'));
       }
 
       if (accountId) await fetchConfig();
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('instagram.toastServerUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -290,11 +293,11 @@ export function InstagramConfig() {
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || 'Failed to remove Instagram config');
+        toast.error(payload.error || t('instagram.toastRemoveFailed'));
         return;
       }
 
-      toast.success('Instagram config removed');
+      toast.success(t('instagram.toastRemoved'));
       setInstagramBusinessAccountId('');
       setBusinessName('');
       setVerifyToken('');
@@ -314,7 +317,7 @@ export function InstagramConfig() {
       setConfig(null);
       setStatusMessage('');
     } catch {
-      toast.error('Could not reach the server');
+      toast.error(t('instagram.toastServerUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -330,12 +333,12 @@ export function InstagramConfig() {
       const data = (await res.json()) as RegistrationProbe;
       setRegistrationProbe(data);
       if (data.live) {
-        toast.success('Instagram is fully wired — Meta is delivering events.');
+        toast.success(t('instagram.toastFullyWired'));
       } else {
-        toast.error('Some checks failed. See diagnostic details below.');
+        toast.error(t('instagram.toastChecksFailed'));
       }
     } catch {
-      toast.error('Verification request failed.');
+      toast.error(t('instagram.toastVerifyRequestFailed'));
     } finally {
       setVerifyingRegistration(false);
     }
@@ -344,9 +347,9 @@ export function InstagramConfig() {
   async function handleCopyWebhookUrl() {
     try {
       await navigator.clipboard.writeText(webhookUrl);
-      toast.success('Webhook URL copied');
+      toast.success(t('instagram.toastUrlCopied'));
     } catch {
-      toast.error('Failed to copy');
+      toast.error(t('instagram.toastCopyFailed'));
     }
   }
 
@@ -363,8 +366,8 @@ export function InstagramConfig() {
   return (
     <section className="animate-in fade-in-50 duration-200">
       <SettingsPanelHead
-        title="Instagram connection"
-        description="Connect your Instagram Business Account to receive and reply to DMs directly from wacrm."
+        title={t('instagram.title')}
+        description={t('instagram.subtitle')}
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         {/* Main config form */}
@@ -378,13 +381,13 @@ export function InstagramConfig() {
                 <XCircle className="size-4 text-red-500" />
               )}
               <AlertTitle className="text-foreground mb-0">
-                {connectionStatus === 'connected' ? 'Connected' : 'Not Connected'}
+                {connectionStatus === 'connected' ? t('instagram.statusConnected') : t('instagram.statusNotConnected')}
               </AlertTitle>
             </div>
             <AlertDescription className="text-muted-foreground">
               {connectionStatus === 'connected'
-                ? 'Your Instagram Business Account is connected.'
-                : statusMessage || 'Configure your Instagram credentials below.'}
+                ? t('instagram.statusConnectedDesc')
+                : statusMessage || t('instagram.statusDefaultDesc')}
             </AlertDescription>
           </Alert>
 
@@ -410,8 +413,8 @@ export function InstagramConfig() {
                     }
                   >
                     {isRegistered
-                      ? 'Subscribed — Meta will deliver DMs to wacrm'
-                      : 'Not subscribed — Meta will not deliver events'}
+                      ? t('instagram.subscribedTitle')
+                      : t('instagram.notSubscribedTitle')}
                   </AlertTitle>
                 </div>
                 <Button
@@ -426,38 +429,38 @@ export function InstagramConfig() {
                   ) : (
                     <Zap className="size-3.5" />
                   )}
-                  Verify with Meta
+                  {t('instagram.verifyWithMeta')}
                 </Button>
               </div>
               <AlertDescription className="text-muted-foreground mt-2 text-xs leading-relaxed">
                 {isRegistered ? (
                   <>
-                    Subscribed since{' '}
+                    {t('instagram.subscribedSince')}{' '}
                     {registeredAt
                       ? new Date(registeredAt).toLocaleString()
-                      : 'unknown'}
-                    . Click <strong>Verify with Meta</strong> if events
-                    stop arriving.
+                      : t('instagram.unknown')}
+                    . {t('instagram.click')} <strong>{t('instagram.verifyWithMeta')}</strong>{' '}
+                    {t('instagram.ifEventsStopArriving')}
                   </>
                 ) : lastRegistrationError ? (
                   <>
-                    Last attempt failed with:{' '}
+                    {t('instagram.lastAttemptFailedWith')}{' '}
                     <span className="text-red-300">
                       &quot;{lastRegistrationError}&quot;
                     </span>
-                    . Re-enter credentials and save to retry.
+                    . {t('instagram.reenterToRetry')}
                   </>
                 ) : (
-                  'Save your credentials above to auto-subscribe to webhooks.'
+                  t('instagram.saveToAutoSubscribe')
                 )}
               </AlertDescription>
 
               {registrationProbe && (
                 <div className="mt-3 rounded border border-border bg-card/60 px-3 py-2 space-y-1.5 text-[11px]">
                   <p className="font-medium text-foreground">
-                    Diagnostic — last run:{' '}
+                    {t('instagram.diagnosticLastRun')}{' '}
                     <span className={registrationProbe.live ? 'text-emerald-400' : 'text-amber-400'}>
-                      {registrationProbe.live ? 'live' : 'not live'}
+                      {registrationProbe.live ? t('instagram.probeLive') : t('instagram.probeNotLive')}
                     </span>
                   </p>
                   <ul className="space-y-0.5 text-muted-foreground">
@@ -489,14 +492,14 @@ export function InstagramConfig() {
           {/* API Credentials */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-foreground">API Credentials</CardTitle>
+              <CardTitle className="text-foreground">{t('instagram.apiCredentialsTitle')}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Enter your Instagram Business API credentials.
+                {t('instagram.apiCredentialsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Instagram Business Account ID</Label>
+                <Label className="text-muted-foreground">{t('instagram.accountIdLabel')}</Label>
                 <Input
                   placeholder="e.g. 17841405822304..."
                   value={instagramBusinessAccountId}
@@ -506,11 +509,11 @@ export function InstagramConfig() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Access Token</Label>
+                <Label className="text-muted-foreground">{t('instagram.accessTokenLabel')}</Label>
                 <div className="relative">
                   <Input
                     type={showToken ? 'text' : 'password'}
-                    placeholder="Enter your access token"
+                    placeholder={t('instagram.accessTokenPlaceholder')}
                     value={accessToken}
                     onChange={(e) => {
                       setAccessToken(e.target.value);
@@ -534,7 +537,7 @@ export function InstagramConfig() {
                 </div>
                 {config && !tokenEdited && (
                   <p className="text-xs text-muted-foreground">
-                    Token is hidden for security. Re-enter it to update configuration.
+                    {t('instagram.tokenHiddenNote')}
                   </p>
                 )}
                 {tokenExpiresAt && (
@@ -547,10 +550,10 @@ export function InstagramConfig() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Meta App ID</Label>
+                <Label className="text-muted-foreground">{t('instagram.metaAppIdLabel')}</Label>
                 <Input
                   type="text"
-                  placeholder="App ID from Meta Developer Console"
+                  placeholder={t('instagram.metaAppIdPlaceholder')}
                   value={metaAppId}
                   onChange={(e) => {
                     setMetaAppId(e.target.value);
@@ -559,16 +562,16 @@ export function InstagramConfig() {
                   className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Required for automatic token refresh. Found in your Meta App Dashboard.
+                  {t('instagram.metaAppIdHelp')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Meta App Secret</Label>
+                <Label className="text-muted-foreground">{t('instagram.metaAppSecretLabel')}</Label>
                 <div className="relative">
                   <Input
                     type={showAppSecret ? 'text' : 'password'}
-                    placeholder="App Secret from Meta Developer Console"
+                    placeholder={t('instagram.metaAppSecretPlaceholder')}
                     value={metaAppSecret}
                     onChange={(e) => {
                       setMetaAppSecret(e.target.value);
@@ -592,29 +595,29 @@ export function InstagramConfig() {
                 </div>
                 {hasAppCredentials && !secretEdited && (
                   <p className="text-xs text-muted-foreground">
-                    App Secret is hidden. Re-enter it to update.
+                    {t('instagram.appSecretHiddenNote')}
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Encrypted at rest. Required for automatic 60-day token renewal.
+                  {t('instagram.appSecretEncryptedNote')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Webhook Verify Token</Label>
+                <Label className="text-muted-foreground">{t('instagram.verifyTokenLabel')}</Label>
                 <Input
-                  placeholder="Create a custom verify token"
+                  placeholder={t('instagram.verifyTokenPlaceholder')}
                   value={verifyToken}
                   onChange={(e) => setVerifyToken(e.target.value)}
                   className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  A custom string you create. Must match the token you set in Meta webhook settings.
+                  {t('instagram.verifyTokenHelp')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Webhook Callback URL</Label>
+                <Label className="text-muted-foreground">{t('instagram.callbackUrlLabel')}</Label>
                 <div className="flex gap-2">
                   <Input
                     readOnly
@@ -625,27 +628,27 @@ export function InstagramConfig() {
                     variant="outline"
                     size="icon"
                     onClick={handleCopyWebhookUrl}
-                    title="Copy webhook URL"
+                    title={t('instagram.copyWebhookUrlTitle')}
                     className="shrink-0 border-border"
                   >
                     <Copy className="size-4" />
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Paste this URL into the Instagram webhook settings in your Meta App.
+                  {t('instagram.callbackUrlHelp')}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Business name</Label>
+                <Label className="text-muted-foreground">{t('instagram.businessNameLabel')}</Label>
                 <Input
-                  placeholder="e.g. My Company Instagram"
+                  placeholder={t('instagram.businessNamePlaceholder')}
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Optional display label. Auto-filled from Meta if left empty.
+                  {t('instagram.businessNameHelp')}
                 </p>
               </div>
             </CardContent>
@@ -661,12 +664,12 @@ export function InstagramConfig() {
               {saving ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Saving...
+                  {t('instagram.saving')}
                 </>
               ) : config ? (
-                'Update & reconnect'
+                t('instagram.updateAndReconnect')
               ) : (
-                'Connect'
+                t('instagram.connect')
               )}
             </Button>
 
@@ -677,7 +680,7 @@ export function InstagramConfig() {
                 disabled={saving}
                 className="border-red-900 text-red-400 hover:text-red-300 hover:bg-red-950/40"
               >
-                Remove config
+                {t('instagram.removeConfig')}
               </Button>
             )}
           </div>
@@ -687,9 +690,9 @@ export function InstagramConfig() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-foreground text-base">Setup Instructions</CardTitle>
+              <CardTitle className="text-foreground text-base">{t('instagram.setupTitle')}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Follow these steps to connect your Instagram Business Account.
+                {t('instagram.setupDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -698,15 +701,15 @@ export function InstagramConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">1</span>
-                      Create a Meta App
+                      {t('instagram.step1Title')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
-                      <li>Go to <span className="text-primary">developers.facebook.com</span></li>
-                      <li>Click &quot;My Apps&quot; and then &quot;Create App&quot;</li>
-                      <li>Select &quot;Business&quot; as the app type</li>
-                      <li>Fill in app details and create</li>
+                      <li>{t('instagram.goTo')} <span className="text-primary">developers.facebook.com</span></li>
+                      <li>{t('instagram.step1Item2')}</li>
+                      <li>{t('instagram.step1Item3')}</li>
+                      <li>{t('instagram.step1Item4')}</li>
                     </ol>
                   </AccordionContent>
                 </AccordionItem>
@@ -715,14 +718,14 @@ export function InstagramConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">2</span>
-                      Add Instagram Graph API
+                      {t('instagram.step2Title')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
-                      <li>In your app dashboard, click &quot;Add Product&quot;</li>
-                      <li>Find &quot;Instagram Graph API&quot; and click &quot;Set Up&quot;</li>
-                      <li>Link your Instagram Business Account to the app</li>
+                      <li>{t('instagram.step2Item1')}</li>
+                      <li>{t('instagram.step2Item2')}</li>
+                      <li>{t('instagram.step2Item3')}</li>
                     </ol>
                   </AccordionContent>
                 </AccordionItem>
@@ -731,17 +734,17 @@ export function InstagramConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">3</span>
-                      Get Access Token
+                      {t('instagram.step3Title')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
-                      <li>In Meta Developer Console, go to <strong className="text-foreground">Instagram Graph API &gt; API Setup</strong></li>
-                      <li>Generate a <strong className="text-foreground">User Access Token</strong> with permissions:
+                      <li>{t('instagram.step3GoTo')} <strong className="text-foreground">Instagram Graph API &gt; API Setup</strong></li>
+                      <li>{t('instagram.generateA')} <strong className="text-foreground">User Access Token</strong> {t('instagram.withPermissions')}:
                         <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded">instagram_business_basic, instagram_business_manage_messages, pages_manage_metadata, pages_show_list</code>
                       </li>
-                      <li>Copy your <strong className="text-foreground">Instagram Business Account ID</strong></li>
-                      <li>If the token expires, generate a <strong className="text-foreground">long-lived token</strong> (60 days) or a <strong className="text-foreground">Page Token</strong></li>
+                      <li>{t('instagram.copyYour')} <strong className="text-foreground">Instagram Business Account ID</strong></li>
+                      <li>{t('instagram.ifTokenExpiresGenerate')} <strong className="text-foreground">long-lived token</strong> (60 days) {t('instagram.orA')} <strong className="text-foreground">Page Token</strong></li>
                     </ol>
                   </AccordionContent>
                 </AccordionItem>
@@ -750,16 +753,16 @@ export function InstagramConfig() {
                   <AccordionTrigger className="text-muted-foreground hover:text-foreground hover:no-underline">
                     <span className="flex items-center gap-2">
                       <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">4</span>
-                      Configure Webhooks
+                      {t('instagram.step4Title')}
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
                     <ol className="list-decimal list-inside space-y-1 text-sm">
-                      <li>Go to Instagram Graph API &gt; Webhooks</li>
-                      <li>Click &quot;Subscribe to this object&quot; and select <strong className="text-foreground">User</strong></li>
-                      <li>Paste the <strong className="text-foreground">Webhook Callback URL</strong> from above</li>
-                      <li>Set the same <strong className="text-foreground">Verify Token</strong> you entered here</li>
-                      <li>Subscribe to <strong className="text-foreground">messages</strong> field</li>
+                      <li>{t('instagram.goTo')} Instagram Graph API &gt; Webhooks</li>
+                      <li>{t('instagram.clickSubscribeAndSelect')} <strong className="text-foreground">User</strong></li>
+                      <li>{t('instagram.pasteThe')} <strong className="text-foreground">{t('instagram.callbackUrlLabel')}</strong> {t('instagram.fromAbove')}</li>
+                      <li>{t('instagram.setTheSame')} <strong className="text-foreground">Verify Token</strong> {t('instagram.youEnteredHere')}</li>
+                      <li>{t('instagram.step4Item5')}</li>
                     </ol>
                   </AccordionContent>
                 </AccordionItem>
@@ -773,7 +776,7 @@ export function InstagramConfig() {
                   className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
                 >
                   <ExternalLink className="size-3.5" />
-                  Instagram Messaging API Documentation
+                  {t('instagram.messagingApiDocs')}
                 </a>
               </div>
             </CardContent>

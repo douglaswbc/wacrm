@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import type { CalendarEvent } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { createClient } from '@/lib/supabase/client';
 import { CalendarHeader } from '@/components/calendar/calendar-header';
 import { CalendarView } from '@/components/calendar/calendar-view';
@@ -19,6 +20,7 @@ import type { CalendarViewMode } from '@/components/calendar/calendar-header';
 
 export default function CalendarPage() {
   const { accountId, profileLoading } = useAuth();
+  const { t } = useLanguage();
   const supabase = createClient();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -54,11 +56,11 @@ export default function CalendarPage() {
       if (queryError) throw queryError;
       setEvents((data ?? []) as unknown as CalendarEvent[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load events');
+      setError(err instanceof Error ? err.message : t('calendar.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [accountId, supabase, currentDate]);
+  }, [accountId, supabase, currentDate, t]);
 
   useEffect(() => {
     if (!profileLoading && accountId) {
@@ -100,9 +102,9 @@ export default function CalendarPage() {
         });
         if (!res.ok) {
           const json = await res.json();
-          throw new Error(json?.error ?? 'Failed to update event');
+          throw new Error(json?.error ?? t('calendar.updateFailed'));
         }
-        toast.success('Event updated');
+        toast.success(t('calendar.eventUpdated'));
       } else {
         const res = await fetch('/api/calendar/events', {
           method: 'POST',
@@ -111,14 +113,14 @@ export default function CalendarPage() {
         });
         if (!res.ok) {
           const json = await res.json();
-          throw new Error(json?.error ?? 'Failed to create event');
+          throw new Error(json?.error ?? t('calendar.createFailed'));
         }
-        toast.success('Event created');
+        toast.success(t('calendar.eventCreated'));
       }
 
       fetchEvents();
     },
-    [accountId, selectedEvent, fetchEvents]
+    [accountId, selectedEvent, fetchEvents, t]
   );
 
   const handleDelete = useCallback(async () => {
@@ -128,18 +130,18 @@ export default function CalendarPage() {
     });
     if (!res.ok) {
       const json = await res.json();
-      throw new Error(json?.error ?? 'Failed to delete event');
+      throw new Error(json?.error ?? t('calendar.deleteFailed'));
     }
-    toast.success('Event deleted');
+    toast.success(t('calendar.eventDeleted'));
     fetchEvents();
-  }, [selectedEvent, accountId, fetchEvents]);
+  }, [selectedEvent, accountId, fetchEvents, t]);
 
   return (
     <div>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Calendar</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('calendar.pageTitle')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your appointments and sync with Google Calendar.
+          {t('calendar.pageSubtitle')}
         </p>
       </div>
 
@@ -163,7 +165,7 @@ export default function CalendarPage() {
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-sm text-red-400">{error}</p>
           <button onClick={fetchEvents} className="mt-2 text-sm text-primary hover:underline">
-            Retry
+            {t('calendar.retry')}
           </button>
         </div>
       ) : (

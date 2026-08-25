@@ -13,6 +13,7 @@ import {
 } from 'date-fns';
 import type { CalendarEvent } from '@/types';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/use-language';
 import { EventCard } from './event-card';
 import type { CalendarViewMode } from './calendar-header';
 
@@ -25,7 +26,15 @@ interface CalendarViewProps {
   onAddEvent: (date: Date) => void;
 }
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAY_KEYS = [
+  'weekdaySun',
+  'weekdayMon',
+  'weekdayTue',
+  'weekdayWed',
+  'weekdayThu',
+  'weekdayFri',
+  'weekdaySat',
+] as const;
 
 export function CalendarView({
   currentDate,
@@ -33,6 +42,7 @@ export function CalendarView({
   onSelectDate,
   onSelectEvent,
 }: CalendarViewProps) {
+  const { t } = useLanguage();
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -55,12 +65,12 @@ export function CalendarView({
   return (
     <div className="mt-4 rounded-lg border border-border overflow-hidden">
       <div className="grid grid-cols-7 border-b border-border">
-        {WEEKDAYS.map((day) => (
+        {WEEKDAY_KEYS.map((key) => (
           <div
-            key={day}
+            key={key}
             className="px-2 py-2 text-center text-xs font-medium text-muted-foreground border-r border-border last:border-r-0"
           >
-            {day}
+            {t(`calendar.${key}`)}
           </div>
         ))}
       </div>
@@ -115,7 +125,7 @@ export function CalendarView({
                 ))}
                 {dayEvents.length > 3 && (
                   <p className="text-[10px] text-muted-foreground pl-1.5">
-                    +{dayEvents.length - 3} more
+                    {t('calendar.moreEvents', dayEvents.length - 3)}
                   </p>
                 )}
               </div>

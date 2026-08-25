@@ -5,6 +5,7 @@ import { ChevronRight, Loader2 } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { useTheme } from '@/hooks/use-theme';
 import { THEMES } from '@/lib/themes';
 import { CURRENCIES } from '@/lib/currency';
@@ -32,6 +33,7 @@ export function SettingsOverview({
 }) {
   const { user, profile, accountId, accountRole, defaultCurrency, canManageMembers } =
     useAuth();
+  const { t } = useLanguage();
   const { mode, theme } = useTheme();
 
   const [counts, setCounts] = useState<OverviewCounts | null>(null);
@@ -123,7 +125,7 @@ export function SettingsOverview({
     };
   }, [user, accountId, canManageMembers]);
 
-  const displayName = profile?.full_name || profile?.email || 'Your account';
+  const displayName = profile?.full_name || profile?.email || t('overview.yourAccount');
   const initial = (profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase();
   const roleMeta = accountRole ? ROLE_META[accountRole] : null;
   const RoleIcon = roleMeta?.icon;
@@ -145,10 +147,10 @@ export function SettingsOverview({
       loading: zernioLoading,
       subtitle: zernioConnected ? (
         <>
-          <StatusDot tone="ok" /> Connected
+          <StatusDot tone="ok" /> {t('overview.connected')}
         </>
       ) : (
-        'Connect WhatsApp, Instagram & more'
+        t('overview.connectSocials')
       ),
     },
     {
@@ -156,11 +158,17 @@ export function SettingsOverview({
       loading: countsLoading,
       subtitle:
         counts?.members == null
-          ? 'View team members'
-          : `${counts.members} member${counts.members === 1 ? '' : 's'}${
+          ? t('overview.viewMembers')
+          : `${
+              counts.members === 1
+                ? t('overview.oneMember', counts.members)
+                : t('overview.nMembers', counts.members)
+            }${
               counts.pendingInvites
-                ? ` · ${counts.pendingInvites} pending invite${
-                    counts.pendingInvites === 1 ? '' : 's'
+                ? ` · ${
+                    counts.pendingInvites === 1
+                      ? t('overview.onePendingInvite', counts.pendingInvites)
+                      : t('overview.nPendingInvites', counts.pendingInvites)
                   }`
                 : ''
             }`,
@@ -170,10 +178,18 @@ export function SettingsOverview({
       loading: countsLoading,
       subtitle:
         counts?.templates == null
-          ? 'Manage message templates'
-          : `${counts.templates} template${counts.templates === 1 ? '' : 's'}${
+          ? t('overview.manageTemplates')
+          : `${
+              counts.templates === 1
+                ? t('overview.oneTemplate', counts.templates)
+                : t('overview.nTemplates', counts.templates)
+            }${
               counts.templatesPending
-                ? ` · ${counts.templatesPending} pending review`
+                ? ` · ${
+                    counts.templatesPending === 1
+                      ? t('overview.onePendingReview', counts.templatesPending)
+                      : t('overview.nPendingReviews', counts.templatesPending)
+                  }`
                 : ''
             }`,
     },
@@ -187,15 +203,17 @@ export function SettingsOverview({
       loading: countsLoading,
       subtitle:
         counts?.tags == null && counts?.customFields == null
-          ? 'Tags and custom fields'
-          : `${counts?.tags ?? 0} tag${counts?.tags === 1 ? '' : 's'} · ${
-              counts?.customFields ?? 0
-            } custom field${counts?.customFields === 1 ? '' : 's'}`,
+          ? t('overview.tagsAndFields')
+          : `${counts?.tags === 1 ? t('overview.oneTag', counts?.tags) : t('overview.nTags', counts?.tags ?? 0)} · ${
+              counts?.customFields === 1
+                ? t('overview.oneCustomField', counts?.customFields)
+                : t('overview.nCustomFields', counts?.customFields ?? 0)
+            }`,
     },
     {
       section: 'appearance',
       loading: false,
-      subtitle: `${cap(mode)} mode · ${themeName} accent`,
+      subtitle: `${cap(mode)} ${t('overview.modeWord')} · ${themeName} ${t('overview.accentWord')}`,
     },
   ];
 
@@ -224,7 +242,7 @@ export function SettingsOverview({
         {roleMeta && RoleIcon ? (
           <SettingsChip variant={roleMeta.variant}>
             <RoleIcon />
-            {roleMeta.label}
+            {accountRole ? t(`role.${accountRole}`) : roleMeta.label}
           </SettingsChip>
         ) : null}
       </Card>
@@ -249,12 +267,12 @@ export function SettingsOverview({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-foreground">
-                  {meta.label}
+                  {t(`section.${section}`)}
                 </span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                   {loading ? (
                     <>
-                      <Loader2 className="size-3 animate-spin" /> Loading…
+                      <Loader2 className="size-3 animate-spin" /> {t('overview.loading')}
                     </>
                   ) : (
                     subtitle

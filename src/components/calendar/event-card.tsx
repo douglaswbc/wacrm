@@ -3,6 +3,7 @@
 import type { CalendarEvent } from '@/types';
 import type { MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/use-language';
 import { Clock, MapPin } from 'lucide-react';
 
 interface EventCardProps {
@@ -12,6 +13,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, onClick, compact }: EventCardProps) {
+  const { t } = useLanguage();
   const startTime = new Date(event.start_at).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
@@ -60,7 +62,7 @@ export function EventCard({ event, onClick, compact }: EventCardProps) {
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-3 shrink-0" />
               <span>
-                {event.is_all_day ? 'All day' : `${startTime} - ${endTime}`}
+                {event.is_all_day ? t('calendar.allDay') : `${startTime} - ${endTime}`}
               </span>
             </div>
             {event.location && (

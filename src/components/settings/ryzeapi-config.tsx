@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +45,7 @@ interface ConfigShape {
 }
 
 export function RyzeApiConfig() {
+  const { t } = useLanguage();
   const { accountId, profileLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -112,7 +114,7 @@ export function RyzeApiConfig() {
 
   async function handleCreate() {
     if (!instanceName.trim()) {
-      toast.error('Instance Name is required');
+      toast.error(t('ryzeapi.toastNameRequired'));
       return;
     }
 
@@ -133,16 +135,16 @@ export function RyzeApiConfig() {
 
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || 'Failed to create instance');
+        toast.error(data.error || t('ryzeapi.toastCreateFailed'));
         return;
       }
 
       setConfig(data.config);
       setStatus('pending_qr');
       setQrExpiry(data.config?.qr_expires_at ?? null);
-      toast.success('Instance created. Scan the QR code in WhatsApp.');
+      toast.success(t('ryzeapi.toastCreated'));
     } catch {
-      toast.error('Could not reach the RyzeAPI server');
+      toast.error(t('ryzeapi.toastUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -162,20 +164,20 @@ export function RyzeApiConfig() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || 'Failed to regenerate QR');
+        toast.error(data.error || t('ryzeapi.toastQrFailed'));
         return;
       }
       setConfig(data.config);
       setQrExpiry(data.config?.qr_expires_at ?? null);
     } catch {
-      toast.error('Could not reach RyzeAPI');
+      toast.error(t('ryzeapi.toastUnreachableShort'));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDisconnect() {
-    if (!confirm('Disconnect this instance from WhatsApp? You can reconnect later without creating a new instance.')) {
+    if (!confirm(t('ryzeapi.disconnectConfirm'))) {
       return;
     }
     setSaving(true);
@@ -187,13 +189,13 @@ export function RyzeApiConfig() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to disconnect');
+        toast.error(data.error || t('ryzeapi.toastDisconnectFailed'));
         return;
       }
-      toast.success('Disconnected. You can reconnect when ready.');
+      toast.success(t('ryzeapi.toastDisconnected'));
       await fetchConfig();
     } catch {
-      toast.error('Could not reach RyzeAPI');
+      toast.error(t('ryzeapi.toastUnreachableShort'));
     } finally {
       setSaving(false);
     }
@@ -209,7 +211,7 @@ export function RyzeApiConfig() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to reconnect');
+        toast.error(data.error || t('ryzeapi.toastReconnectFailed'));
         return;
       }
       const data = await res.json();
@@ -217,19 +219,19 @@ export function RyzeApiConfig() {
       setStatus(data.config?.status ?? 'pending_qr');
       setQrExpiry(data.config?.qr_expires_at ?? null);
       if (data.config?.status === 'pending_qr') {
-        toast.info('Reconnected. Scan the QR code.');
+        toast.info(t('ryzeapi.toastReconnectedQr'));
       } else {
-        toast.success('Reconnected successfully.');
+        toast.success(t('ryzeapi.toastReconnected'));
       }
     } catch {
-      toast.error('Could not reach RyzeAPI');
+      toast.error(t('ryzeapi.toastUnreachableShort'));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleRemove() {
-    if (!confirm('Permanently delete this RyzeAPI instance? This cannot be undone.')) {
+    if (!confirm(t('ryzeapi.removeConfirm'))) {
       return;
     }
     setSaving(true);
@@ -237,17 +239,17 @@ export function RyzeApiConfig() {
       const res = await fetch('/api/ryzeapi/config', { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to remove config');
+        toast.error(data.error || t('ryzeapi.toastRemoveFailed'));
         return;
       }
-      toast.success('RyzeAPI config removed.');
+      toast.success(t('ryzeapi.toastRemoved'));
       setConfig(null);
       setInstanceName('');
       setRelayUrl('');
       setStatus('disconnected');
       setQrExpiry(null);
     } catch {
-      toast.error('Could not reach RyzeAPI');
+      toast.error(t('ryzeapi.toastUnreachableShort'));
     } finally {
       setSaving(false);
     }
@@ -263,13 +265,13 @@ export function RyzeApiConfig() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to update relay URL');
+        toast.error(data.error || t('ryzeapi.toastRelayFailed'));
         return;
       }
-      toast.success('Relay URL updated.');
+      toast.success(t('ryzeapi.toastRelaySaved'));
       setConfig((prev) => prev ? { ...prev, relay_url: relayUrl || null } : null);
     } catch {
-      toast.error('Could not reach RyzeAPI');
+      toast.error(t('ryzeapi.toastUnreachableShort'));
     } finally {
       setSaving(false);
     }
@@ -279,8 +281,8 @@ export function RyzeApiConfig() {
     return (
       <section className="animate-in fade-in-50 duration-200">
         <SettingsPanelHead
-          title="RyzeAPI WhatsApp"
-          description="Connect WhatsApp through your self-hosted RyzeAPI server. QR-code pairing, no Meta Business account required."
+          title={t('ryzeapi.title')}
+          description={t('ryzeapi.description')}
         />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-6 animate-spin text-primary" />
@@ -295,8 +297,8 @@ export function RyzeApiConfig() {
   return (
     <section className="animate-in fade-in-50 duration-200">
       <SettingsPanelHead
-        title="RyzeAPI WhatsApp"
-        description="Connect WhatsApp through your self-hosted RyzeAPI server. QR-code pairing, no Meta Business account required."
+        title={t('ryzeapi.title')}
+        description={t('ryzeapi.description')}
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         {/* Main area */}
@@ -313,20 +315,20 @@ export function RyzeApiConfig() {
               )}
               <AlertTitle className="text-foreground mb-0">
                 {isConnected
-                  ? 'Connected'
+                  ? t('ryzeapi.statusConnected')
                   : isPendingQr
-                    ? 'Waiting for QR scan'
-                    : 'Not connected'}
+                    ? t('ryzeapi.statusWaitingQr')
+                    : t('ryzeapi.statusNotConnected')}
               </AlertTitle>
             </div>
             <AlertDescription className="text-muted-foreground">
               {isConnected
                 ? config?.instance_name
-                  ? `Instance "${config.instance_name}" is connected at ${config.api_url}`
-                  : 'RyzeAPI instance is connected and receiving messages.'
+                  ? `${t('ryzeapi.instanceLabel')} "${config.instance_name}" ${t('ryzeapi.connectedVia')} ${config.api_url}`
+                  : t('ryzeapi.connectedFallback')
                 : isPendingQr
-                  ? 'Scan the QR code below with WhatsApp on your phone.'
-                  : 'Configure your RyzeAPI server below to get started.'}
+                  ? t('ryzeapi.scanQrBelow')
+                  : t('ryzeapi.configureToStart')}
             </AlertDescription>
           </Alert>
 
@@ -334,16 +336,16 @@ export function RyzeApiConfig() {
           {isPendingQr && config?.qr_base64 && (
             <Card className="border-border">
               <CardHeader>
-                <CardTitle className="text-foreground text-base">Scan QR Code</CardTitle>
+                <CardTitle className="text-foreground text-base">{t('ryzeapi.qrTitle')}</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Open WhatsApp on your phone → Settings → Linked Devices → Scan QR Code.
+                  {t('ryzeapi.qrDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-4">
                 <div className="rounded-lg border border-border bg-white p-3">
                   <Image
                     src={`data:image/png;base64,${config.qr_base64}`}
-                    alt="WhatsApp QR code"
+                    alt={t('ryzeapi.qrAlt')}
                     className="h-56 w-56"
                     width={224}
                     height={224}
@@ -352,7 +354,7 @@ export function RyzeApiConfig() {
                 </div>
                 {qrExpiry && (
                   <p className="text-xs text-muted-foreground">
-                    QR expires at {new Date(qrExpiry).toLocaleTimeString()}
+                    {`${t('ryzeapi.qrExpires')} ${new Date(qrExpiry).toLocaleTimeString()}`}
                   </p>
                 )}
                 <div className="flex gap-3">
@@ -368,7 +370,7 @@ export function RyzeApiConfig() {
                     ) : (
                       <RefreshCw className="size-3.5" />
                     )}
-                    Regenerate
+                    {t('ryzeapi.regenerate')}
                   </Button>
                   <Button
                     variant="outline"
@@ -377,7 +379,7 @@ export function RyzeApiConfig() {
                     disabled={saving}
                     className="border-red-900 text-red-400 hover:text-red-300 hover:bg-red-950/40"
                   >
-                    Cancel
+                    {t('ryzeapi.cancel')}
                   </Button>
                 </div>
               </CardContent>
@@ -388,22 +390,23 @@ export function RyzeApiConfig() {
           {!config && !isPendingQr && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-foreground">RyzeAPI Server</CardTitle>
+                <CardTitle className="text-foreground">{t('ryzeapi.serverTitle')}</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Enter a name for the new WhatsApp instance. Your server credentials are managed via environment variables.
+                  {t('ryzeapi.serverDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Instance Name</Label>
+                  <Label className="text-muted-foreground">{t('ryzeapi.instanceName')}</Label>
                   <Input
-                    placeholder="e.g. my-wacrm-bot"
+                    placeholder={t('ryzeapi.instanceNamePlaceholder')}
                     value={instanceName}
                     onChange={(e) => setInstanceName(e.target.value)}
                     className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                   <p className="text-xs text-muted-foreground">
-                    A unique name for this WhatsApp instance. 6 random characters will be appended (e.g. <strong>my-wacrm-bot-a3b7x9</strong>).
+                    {`${t('ryzeapi.instanceNameHint')} `}
+                    <strong>my-wacrm-bot-a3b7x9</strong>).
                   </p>
                 </div>
               </CardContent>
@@ -414,24 +417,24 @@ export function RyzeApiConfig() {
           {isConnected && config && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-foreground">Connected Instance</CardTitle>
+                <CardTitle className="text-foreground">{t('ryzeapi.connectedTitle')}</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Your RyzeAPI instance is active and receiving messages.
+                  {t('ryzeapi.connectedDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Instance</span>
+                    <span className="text-muted-foreground">{t('ryzeapi.instanceLabel')}</span>
                     <span className="text-foreground font-medium">{config.instance_name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Server</span>
+                    <span className="text-muted-foreground">{t('ryzeapi.serverLabel')}</span>
                     <span className="text-foreground font-mono text-xs">{config.api_url}</span>
                   </div>
                   {config.connected_at && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Connected since</span>
+                      <span className="text-muted-foreground">{t('ryzeapi.connectedSince')}</span>
                       <span className="text-foreground">{new Date(config.connected_at).toLocaleString()}</span>
                     </div>
                   )}
@@ -444,14 +447,14 @@ export function RyzeApiConfig() {
           {config && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-foreground">Raw Payload Relay</CardTitle>
+                <CardTitle className="text-foreground">{t('ryzeapi.relayTitle')}</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Forward the raw RyzeAPI webhook payload to an external URL (e.g., n8n, Zapier). Useful for accessing button selections, list replies, and other RyzeAPI-specific data.
+                  {t('ryzeapi.relayDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Relay URL</Label>
+                  <Label className="text-muted-foreground">{t('ryzeapi.relayUrl')}</Label>
                   <Input
                     placeholder="https://your-service.com/webhook/ryzeapi"
                     value={relayUrl}
@@ -469,12 +472,12 @@ export function RyzeApiConfig() {
                   {saving ? (
                     <>
                       <Loader2 className="size-3.5 animate-spin" />
-                      Saving...
+                      {t('ryzeapi.saving')}
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="size-3.5" />
-                      Save Relay URL
+                      {t('ryzeapi.saveRelayUrl')}
                     </>
                   )}
                 </Button>
@@ -487,11 +490,10 @@ export function RyzeApiConfig() {
             <Alert className="bg-amber-950/30 border-amber-700/50">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="size-4 text-amber-400" />
-                <AlertTitle className="text-amber-200 mb-0">Instance disconnected</AlertTitle>
+                <AlertTitle className="text-amber-200 mb-0">{t('ryzeapi.disconnectedTitle')}</AlertTitle>
               </div>
               <AlertDescription className="text-muted-foreground mt-1 text-sm">
-                The instance &quot;{config.instance_name}&quot; is configured but not connected.
-                Reconnect to pair with WhatsApp again, or remove the config to start fresh.
+                {`${t('ryzeapi.disconnectedDescPre')} "${config.instance_name}" ${t('ryzeapi.disconnectedDescPost')}`}
               </AlertDescription>
             </Alert>
           )}
@@ -507,12 +509,12 @@ export function RyzeApiConfig() {
                 {saving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Creating...
+                    {t('ryzeapi.creating')}
                   </>
                 ) : (
                   <>
                     <Zap className="size-4" />
-                    Create &amp; Connect
+                    {t('ryzeapi.createConnect')}
                   </>
                 )}
               </Button>
@@ -527,12 +529,12 @@ export function RyzeApiConfig() {
                 {saving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Reconnecting...
+                    {t('ryzeapi.reconnecting')}
                   </>
                 ) : (
                   <>
                     <RefreshCw className="size-4" />
-                    Reconnect
+                    {t('ryzeapi.reconnect')}
                   </>
                 )}
               </Button>
@@ -551,7 +553,7 @@ export function RyzeApiConfig() {
                   ) : (
                     <RefreshCw className="size-4" />
                   )}
-                  Reconnect
+                  {t('ryzeapi.reconnect')}
                 </Button>
                 <Button
                   variant="outline"
@@ -564,7 +566,7 @@ export function RyzeApiConfig() {
                   ) : (
                     <Unplug className="size-4" />
                   )}
-                  Disconnect
+                  {t('ryzeapi.disconnect')}
                 </Button>
               </>
             )}
@@ -577,7 +579,7 @@ export function RyzeApiConfig() {
                 className="border-red-900 text-red-400 hover:text-red-300 hover:bg-red-950/40"
               >
                 <Trash2 className="size-4" />
-                Remove
+                {t('ryzeapi.remove')}
               </Button>
             )}
           </div>
@@ -587,27 +589,27 @@ export function RyzeApiConfig() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-foreground text-base">How it works</CardTitle>
+              <CardTitle className="text-foreground text-base">{t('ryzeapi.howItWorks')}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                RyzeAPI is a self-hosted WhatsApp client. Unlike Meta&apos;s Cloud API, it connects via QR code pairing — just like WhatsApp Web.
+                {t('ryzeapi.howItWorksDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <div>
-                <h4 className="font-medium text-foreground mb-1">1. Server</h4>
-                <p>Deploy the RyzeAPI server on your own infrastructure. It runs a WhatsApp client process and exposes a REST API.</p>
+                <h4 className="font-medium text-foreground mb-1">{t('ryzeapi.step1Title')}</h4>
+                <p>{t('ryzeapi.step1Body')}</p>
               </div>
               <div>
-                <h4 className="font-medium text-foreground mb-1">2. Instance</h4>
-                <p>Create an instance — a dedicated WhatsApp session. Each instance pairs with one WhatsApp account via QR code.</p>
+                <h4 className="font-medium text-foreground mb-1">{t('ryzeapi.step2Title')}</h4>
+                <p>{t('ryzeapi.step2Body')}</p>
               </div>
               <div>
-                <h4 className="font-medium text-foreground mb-1">3. Webhook</h4>
-                <p>Inbound messages are delivered to wacrm&apos;s webhook endpoint in real time. Outbound messages are sent through the RyzeAPI REST API.</p>
+                <h4 className="font-medium text-foreground mb-1">{t('ryzeapi.step3Title')}</h4>
+                <p>{t('ryzeapi.step3Body')}</p>
               </div>
               <div className="pt-3 border-t border-border">
                 <p className="text-xs">
-                  <strong className="text-foreground">Webhook URL:</strong>{' '}
+                  <strong className="text-foreground">{t('ryzeapi.webhookUrlLabel')}</strong>{' '}
                   <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{webhookUrl}</code>
                 </p>
               </div>

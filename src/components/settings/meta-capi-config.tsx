@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { BarChart3, CheckCircle2, Loader2, XCircle, Save, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useLanguage } from '@/hooks/use-language'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,6 +34,7 @@ interface CapiPublicConfig {
 }
 
 export function MetaCapiConfig() {
+  const { t } = useLanguage()
   const { accountId, profileLoading, accountRole } = useAuth()
   const isAdmin = accountRole === 'admin' || accountRole === 'owner'
 
@@ -102,15 +104,15 @@ export function MetaCapiConfig() {
 
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error || 'Failed to save config')
+        toast.error(data.error || t('metaCapi.toastSaveFailed'))
         return
       }
 
-      toast.success('Meta CAPI configuration saved')
+      toast.success(t('metaCapi.toastSaved'))
       setAccessToken('')
       fetchConfig()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save')
+      toast.error(err instanceof Error ? err.message : t('metaCapi.toastSaveError'))
     } finally {
       setSaving(false)
     }
@@ -125,10 +127,10 @@ export function MetaCapiConfig() {
       })
       if (!res.ok) {
         const data = await res.json()
-        toast.error(data.error || 'Failed to delete config')
+        toast.error(data.error || t('metaCapi.toastDeleteFailed'))
         return
       }
-      toast.success('Meta CAPI configuration removed')
+      toast.success(t('metaCapi.toastDeleted'))
       setConfig(null)
       setPixelId('')
       setAccessToken('')
@@ -136,7 +138,7 @@ export function MetaCapiConfig() {
       setLeadOnContact(false)
       setPurchaseOnDealWon(false)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete')
+      toast.error(err instanceof Error ? err.message : t('metaCapi.toastDeleteError'))
     } finally {
       setSaving(false)
     }
@@ -146,12 +148,12 @@ export function MetaCapiConfig() {
     return (
       <div>
         <SettingsPanelHead
-          title="Meta Conversions API"
-          description="Send conversion events back to Meta to improve ad campaign targeting and build a feedback loop for better audiences."
+          title={t('metaCapi.title')}
+          description={t('metaCapi.description')}
         />
         <div className="flex items-center gap-3 py-8">
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Loading...</span>
+          <span className="text-sm text-muted-foreground">{t('metaCapi.loading')}</span>
         </div>
       </div>
     )
@@ -162,8 +164,8 @@ export function MetaCapiConfig() {
   return (
     <div>
       <SettingsPanelHead
-        title="Meta Conversions API"
-        description="Send conversion events back to Meta to improve ad campaign targeting and build a feedback loop for better audiences."
+        title={t('metaCapi.title')}
+        description={t('metaCapi.description')}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -172,12 +174,12 @@ export function MetaCapiConfig() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2.5">
                 <BarChart3 className="size-5 text-muted-foreground" />
-                Connection
+                {t('metaCapi.connection')}
               </CardTitle>
               <CardDescription>
                 {connected
-                  ? 'CAPI is configured and ready to send conversion events.'
-                  : 'Configure your Meta Pixel and access token to start sending server-side events.'}
+                  ? t('metaCapi.connectedDesc')
+                  : t('metaCapi.notConfiguredDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -185,19 +187,19 @@ export function MetaCapiConfig() {
                 {connected ? (
                   <>
                     <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
-                    <span className="text-sm font-medium">Connected</span>
+                    <span className="text-sm font-medium">{t('metaCapi.connected')}</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="size-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium">Not connected</span>
+                    <span className="text-sm font-medium">{t('metaCapi.notConnected')}</span>
                   </>
                 )}
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="pixel-id">Pixel ID</Label>
+                  <Label htmlFor="pixel-id">{t('metaCapi.pixelId')}</Label>
                   <Input
                     id="pixel-id"
                     value={pixelId}
@@ -207,15 +209,15 @@ export function MetaCapiConfig() {
                     className="mt-1.5"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Found in Meta Events Manager → your pixel → Settings
+                    {t('metaCapi.pixelIdHint')}
                   </p>
                 </div>
 
                 <div>
                   <Label htmlFor="access-token">
-                    Access Token
+                    {t('metaCapi.accessToken')}
                     {config?.has_token && !accessToken
-                      ? ' (stored — enter new to replace)'
+                      ? ` ${t('metaCapi.tokenStored')}`
                       : ''}
                   </Label>
                   <Input
@@ -228,13 +230,13 @@ export function MetaCapiConfig() {
                     className="mt-1.5"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Long-lived system user token with ads_management permission
+                    {t('metaCapi.tokenHint')}
                   </p>
                 </div>
 
                 <div>
                   <Label htmlFor="event-source-url">
-                    Event Source URL (optional)
+                    {t('metaCapi.eventSourceUrl')}
                   </Label>
                   <Input
                     id="event-source-url"
@@ -245,7 +247,7 @@ export function MetaCapiConfig() {
                     className="mt-1.5"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    URL associated with the conversion — used for attribution
+                    {t('metaCapi.eventSourceUrlHint')}
                   </p>
                 </div>
               </div>
@@ -256,20 +258,18 @@ export function MetaCapiConfig() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2.5">
                 <BarChart3 className="size-5 text-muted-foreground" />
-                Event Mapping
+                {t('metaCapi.eventMapping')}
               </CardTitle>
               <CardDescription>
-                Choose which CRM actions trigger conversion events sent to
-                Meta.
+                {t('metaCapi.eventMappingDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
-                  <p className="text-sm font-medium">Lead on new contact</p>
+                  <p className="text-sm font-medium">{t('metaCapi.leadOnContact')}</p>
                   <p className="text-xs text-muted-foreground">
-                    Send a &quot;Lead&quot; event when a new contact is created
-                    via WhatsApp or Instagram
+                    {t('metaCapi.leadOnContactDesc')}
                   </p>
                 </div>
                 <Switch
@@ -282,11 +282,10 @@ export function MetaCapiConfig() {
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <p className="text-sm font-medium">
-                    Purchase on deal won
+                    {t('metaCapi.purchaseOnDealWon')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Send a &quot;Purchase&quot; event with deal value when a
-                    deal is marked as won
+                    {t('metaCapi.purchaseOnDealWonDesc')}
                   </p>
                 </div>
                 <Switch
@@ -307,7 +306,7 @@ export function MetaCapiConfig() {
                   ) : (
                     <Save className="size-3.5 mr-1.5" />
                   )}
-                  Save Configuration
+                  {t('metaCapi.save')}
                 </Button>
 
                 {connected && (
@@ -318,7 +317,7 @@ export function MetaCapiConfig() {
                     disabled={saving || !isAdmin}
                   >
                     <Trash2 className="size-3.5 mr-1.5" />
-                    Remove
+                    {t('metaCapi.remove')}
                   </Button>
                 )}
               </div>
@@ -329,40 +328,25 @@ export function MetaCapiConfig() {
         <div className="space-y-5">
           <Alert>
             <BarChart3 className="size-4" />
-            <AlertTitle>How it works</AlertTitle>
+            <AlertTitle>{t('metaCapi.howItWorks')}</AlertTitle>
             <AlertDescription className="space-y-2">
-              <p>
-                1. Setup a Meta Pixel and System User token in your Meta
-                Business account.
-              </p>
-              <p>
-                2. Configure which CRM actions map to CAPI events (Lead,
-                Purchase).
-              </p>
-              <p>
-                3. When a lead arrives or a deal closes, the event is sent
-                server-side to Meta.
-              </p>
-              <p>
-                4. Meta uses this data to optimise ad delivery and find better
-                audiences.
-              </p>
-              <p>
-                5. The cycle repeats — better targeting → more qualified leads
-                → more conversions.
-              </p>
+              <p>{t('metaCapi.step1')}</p>
+              <p>{t('metaCapi.step2')}</p>
+              <p>{t('metaCapi.step3')}</p>
+              <p>{t('metaCapi.step4')}</p>
+              <p>{t('metaCapi.step5')}</p>
             </AlertDescription>
           </Alert>
 
           {config?.created_at && (
             <Alert>
               <CheckCircle2 className="size-4" />
-              <AlertTitle>Configuration Info</AlertTitle>
+              <AlertTitle>{t('metaCapi.configInfo')}</AlertTitle>
               <AlertDescription className="space-y-1">
-                <p>Created: {new Date(config.created_at).toLocaleDateString()}</p>
+                <p>{`${t('metaCapi.created')} ${new Date(config.created_at).toLocaleDateString()}`}</p>
                 {config.updated_at && (
                   <p>
-                    Updated: {new Date(config.updated_at).toLocaleDateString()}
+                    {`${t('metaCapi.updated')} ${new Date(config.updated_at).toLocaleDateString()}`}
                   </p>
                 )}
               </AlertDescription>

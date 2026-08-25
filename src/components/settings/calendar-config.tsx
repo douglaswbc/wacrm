@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Calendar, CalendarDays, CheckCircle2, Loader2, XCircle, ExternalLink, Star } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,6 +35,7 @@ interface AgendaEntry {
 
 export function CalendarConfig() {
   const { accountId, profileLoading } = useAuth();
+  const { t } = useLanguage();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -92,12 +94,12 @@ export function CalendarConfig() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('connected') === 'true') {
-      toast.success('Google Calendar connected successfully');
+      toast.success(t('calendar.connectedToast'));
       fetchStatus();
       fetchAgendas();
       window.history.replaceState({}, '', window.location.pathname + '?tab=calendar');
     }
-  }, [fetchStatus, fetchAgendas]);
+  }, [fetchStatus, fetchAgendas, t]);
 
   const handleConnect = () => {
     // Full page navigation is required to start the OAuth flow and
@@ -119,11 +121,11 @@ export function CalendarConfig() {
         .eq('account_id', accountId);
 
       if (error) throw error;
-      toast.success('Google Calendar disconnected');
+      toast.success(t('calendar.disconnectedToast'));
       setConnection(null);
       setAgendas([]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
+      toast.error(err instanceof Error ? err.message : t('calendar.disconnectFailed'));
     } finally {
       setSaving(false);
     }
@@ -141,7 +143,7 @@ export function CalendarConfig() {
       .eq('id', agenda.id)
       .eq('account_id', accountId);
     if (error) {
-      toast.error('Failed to update agenda');
+      toast.error(t('calendar.updateAgendaFailed'));
       fetchAgendas();
     }
   };
@@ -172,9 +174,9 @@ export function CalendarConfig() {
         .eq('id', agenda.id)
         .eq('account_id', accountId);
       if (error) throw error;
-      toast.success(`"${agenda.name ?? 'Calendar'}" is now the default agenda`);
+      toast.success(`"${agenda.name ?? t('calendar.fallbackCalendarName')}" ${t('calendar.nowDefault')}`);
     } catch {
-      toast.error('Failed to set default agenda');
+      toast.error(t('calendar.setDefaultFailed'));
       fetchAgendas();
     }
   };
@@ -189,7 +191,7 @@ export function CalendarConfig() {
     <div>
       <SettingsPanelHead
         title="Google Calendar"
-        description="Connect your Google Calendar to sync events and schedule appointments directly from wacrm. Events you create in wacrm will sync to Google, and vice versa."
+        description={t('calendar.description')}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -198,40 +200,40 @@ export function CalendarConfig() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2.5">
                 <Calendar className="size-5 text-muted-foreground" />
-                Connection Status
+                {t('calendar.connectionStatus')}
               </CardTitle>
               <CardDescription>
                 {connectionStatus === 'connected'
-                  ? 'Your Google Calendar is connected and ready to sync.'
+                  ? t('calendar.connectedDesc')
                   : connectionStatus === 'loading'
-                    ? 'Loading connection status...'
-                    : 'Connect a Google account to start managing calendar events.'}
+                    ? t('calendar.statusLoading')
+                    : t('calendar.notConnectedDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {connectionStatus === 'loading' ? (
                 <div className="flex items-center gap-3 py-2">
                   <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Loading...</span>
+                  <span className="text-sm text-muted-foreground">{t('calendar.loading')}</span>
                 </div>
               ) : connectionStatus === 'connected' && connection ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
-                    <span className="text-sm font-medium">Connected</span>
+                    <span className="text-sm font-medium">{t('calendar.connected')}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-muted-foreground">Google Account</span>
+                    <span className="text-xs text-muted-foreground">{t('calendar.googleAccount')}</span>
                     <p className="text-sm">{connection.google_email}</p>
                   </div>
                   {connection.calendar_name && (
                     <div>
-                      <span className="text-xs text-muted-foreground">Calendar</span>
+                      <span className="text-xs text-muted-foreground">{t('calendar.calendarLabel')}</span>
                       <p className="text-sm">{connection.calendar_name}</p>
                     </div>
                   )}
                   <div>
-                    <span className="text-xs text-muted-foreground">Token expires</span>
+                    <span className="text-xs text-muted-foreground">{t('calendar.tokenExpires')}</span>
                     <p className="text-sm">
                       {new Date(connection.token_expires_at).toLocaleDateString()}
                     </p>
@@ -248,7 +250,7 @@ export function CalendarConfig() {
                       ) : (
                         <XCircle className="size-3.5 mr-1.5" />
                       )}
-                      Disconnect Google Calendar
+                      {t('calendar.disconnect')}
                     </Button>
                   </div>
                 </div>
@@ -256,11 +258,11 @@ export function CalendarConfig() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2.5">
                     <XCircle className="size-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium">Not Connected</span>
+                    <span className="text-sm font-medium">{t('calendar.notConnected')}</span>
                   </div>
                   <Button onClick={handleConnect}>
                     <ExternalLink className="size-3.5 mr-1.5" />
-                    Connect Google Calendar
+                    {t('calendar.connect')}
                   </Button>
                 </div>
               )}
@@ -272,28 +274,29 @@ export function CalendarConfig() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2.5">
                   <CalendarDays className="size-5 text-muted-foreground" />
-                  Agendas
+                  {t('calendar.agendas')}
                 </CardTitle>
                 <CardDescription>
-                  Calendars shared with this Google account (e.g. each
-                  professional&apos;s agenda). Enable the ones the AI assistant may
-                  book into and pick the default.
+                  {t('calendar.agendasDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {agendasLoading ? (
                   <div className="flex items-center gap-3 py-2">
                     <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Loading agendas...</span>
+                    <span className="text-sm text-muted-foreground">{t('calendar.loadingAgendas')}</span>
                   </div>
                 ) : agendas.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No agendas found. Reconnect the Google account to import them.
+                    {t('calendar.noAgendas')}
                   </p>
                 ) : (
                   <div className="divide-y rounded-md border">
                     {agendas.map((agenda) => (
-                      <div key={agenda.id} className="flex items-center gap-3 px-4 py-3">
+                      <div
+                        key={agenda.id}
+                        className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
+                      >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-medium">
@@ -301,7 +304,7 @@ export function CalendarConfig() {
                             </span>
                             {agenda.is_default && (
                               <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                                Default
+                                {t('calendar.defaultBadge')}
                               </span>
                             )}
                           </div>
@@ -309,26 +312,31 @@ export function CalendarConfig() {
                             {agenda.google_calendar_id}
                           </p>
                         </div>
-                        {!agenda.is_default && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => makeDefaultAgenda(agenda)}
-                            aria-label={`Set ${agenda.name ?? 'calendar'} as default`}
-                          >
-                            <Star className="mr-1.5 size-3.5" />
-                            Make default
-                          </Button>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id={`agenda-${agenda.id}`}
-                            checked={agenda.is_agent_enabled}
-                            onCheckedChange={(value) => toggleAgenda(agenda, value)}
-                          />
-                          <Label htmlFor={`agenda-${agenda.id}`} className="text-xs text-muted-foreground">
-                            AI agent
-                          </Label>
+                        <div className="flex items-center gap-3 sm:gap-2">
+                          {!agenda.is_default && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => makeDefaultAgenda(agenda)}
+                              aria-label={`${t('calendar.setDefaultAria')} ${agenda.name ?? t('calendar.fallbackCalendarName')}`}
+                            >
+                              <Star className="size-3.5" />
+                              <span className="ml-1.5 hidden sm:inline">{t('calendar.makeDefault')}</span>
+                            </Button>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id={`agenda-${agenda.id}`}
+                              checked={agenda.is_agent_enabled}
+                              onCheckedChange={(value) => toggleAgenda(agenda, value)}
+                            />
+                            <Label
+                              htmlFor={`agenda-${agenda.id}`}
+                              className="hidden text-xs text-muted-foreground sm:inline"
+                            >
+                              {t('calendar.aiAgent')}
+                            </Label>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -342,12 +350,12 @@ export function CalendarConfig() {
         <div className="space-y-5">
           <Alert>
             <Calendar className="size-4" />
-            <AlertTitle>How it works</AlertTitle>
+            <AlertTitle>{t('calendar.howItWorks')}</AlertTitle>
             <AlertDescription className="space-y-2">
-              <p>1. Click <strong>Connect Google Calendar</strong> to authorize access.</p>
-              <p>2. Create and manage events directly in the <strong>Calendar</strong> tab.</p>
-              <p>3. Events sync bidirectionally — changes in Google appear in wacrm and vice versa.</p>
-              <p>4. Link events to contacts and deals for full CRM context.</p>
+              <p>1. <strong>{t('calendar.connect')}</strong> {t('calendar.step1Suffix')}</p>
+              <p>2. {t('calendar.step2Prefix')} <strong>{t('calendar.calendarLabel')}</strong> {t('calendar.step2Suffix')}</p>
+              <p>3. {t('calendar.step3')}</p>
+              <p>4. {t('calendar.step4')}</p>
             </AlertDescription>
           </Alert>
         </div>

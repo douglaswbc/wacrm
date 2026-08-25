@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, Tag as TagIcon, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -44,6 +45,7 @@ const PRESET_COLORS = [
 export function TagManager() {
   const supabase = createClient();
   const { user, accountId, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -77,7 +79,7 @@ export function TagManager() {
       setTags(data || []);
     } catch (err) {
       console.error('Failed to fetch tags:', err);
-      toast.error('Failed to load tags');
+      toast.error(t('tagsManager.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -85,14 +87,14 @@ export function TagManager() {
 
   async function handleCreate() {
     if (!newTagName.trim()) {
-      toast.error('Tag name is required');
+      toast.error(t('tagsManager.nameRequired'));
       return;
     }
 
     try {
       setSaving(true);
       if (!user || !accountId) {
-        toast.error('Not authenticated');
+        toast.error(t('tagsManager.notAuthenticated'));
         return;
       }
 
@@ -107,13 +109,13 @@ export function TagManager() {
 
       if (error) throw error;
 
-      toast.success('Tag created');
+      toast.success(t('tagsManager.created'));
       setNewTagName('');
       setSelectedColor(PRESET_COLORS[3].value);
       await fetchTags(user.id);
     } catch (err) {
       console.error('Create error:', err);
-      toast.error('Failed to create tag');
+      toast.error(t('tagsManager.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -136,13 +138,13 @@ export function TagManager() {
 
       if (error) throw error;
 
-      toast.success('Tag deleted');
+      toast.success(t('tagsManager.deleted'));
       setTags((prev) => prev.filter((t) => t.id !== tagToDelete.id));
       setDeleteDialogOpen(false);
       setTagToDelete(null);
     } catch (err) {
       console.error('Delete error:', err);
-      toast.error('Failed to delete tag');
+      toast.error(t('tagsManager.deleteFailed'));
     } finally {
       setDeleting(false);
     }
@@ -153,10 +155,10 @@ export function TagManager() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-foreground">
           <TagIcon className="size-4 text-primary" />
-          Tags
+          {t('contacts.tags')}
         </CardTitle>
         <CardDescription className="text-muted-foreground">
-          Colour-coded labels for grouping and filtering contacts.
+          {t('tagsManager.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -186,7 +188,7 @@ export function TagManager() {
                     <button
                       type="button"
                       onClick={() => confirmDelete(tag)}
-                      aria-label={`Delete ${tag.name}`}
+                      aria-label={`${t('contacts.delete')} ${tag.name}`}
                       className="ml-0.5 rounded-full p-0.5 opacity-60 transition-opacity hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
                     >
                       <X className="size-3" />
@@ -196,14 +198,14 @@ export function TagManager() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No tags yet — create your first one below.
+                {t('tagsManager.empty')}
               </p>
             )}
 
             {/* Inline create row */}
             <div className="flex flex-wrap items-center gap-2.5">
               <Input
-                placeholder="e.g. Newsletter"
+                placeholder={t('tagsManager.placeholder')}
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 onKeyDown={(e) => {
@@ -219,7 +221,7 @@ export function TagManager() {
                     key={color.value}
                     type="button"
                     onClick={() => setSelectedColor(color.value)}
-                    aria-label={`Use ${color.name}`}
+                    aria-label={`${t('tagsManager.useColor')} ${t(`tagsManager.color.${color.name.toLowerCase()}`)}`}
                     aria-pressed={selectedColor === color.value}
                     className={cn(
                       'size-6 rounded-md transition-transform hover:scale-110',
@@ -227,7 +229,7 @@ export function TagManager() {
                         'outline outline-2 outline-offset-2 outline-primary',
                     )}
                     style={{ backgroundColor: color.value }}
-                    title={color.name}
+                    title={t(`tagsManager.color.${color.name.toLowerCase()}`)}
                   />
                 ))}
               </div>
@@ -242,7 +244,7 @@ export function TagManager() {
                 ) : (
                   <Plus className="size-4" />
                 )}
-                Add tag
+                {t('tagsManager.add')}
               </Button>
             </div>
           </>
@@ -253,10 +255,9 @@ export function TagManager() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete tag</DialogTitle>
+            <DialogTitle>{t('tagsManager.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              Delete the tag &quot;{tagToDelete?.name}&quot;? This removes it
-              from all contacts and cannot be undone.
+              {`${t('tagsManager.deleteConfirmPre')} "${tagToDelete?.name}"${t('tagsManager.deleteConfirmPost')}`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -265,7 +266,7 @@ export function TagManager() {
               onClick={() => setDeleteDialogOpen(false)}
               disabled={deleting}
             >
-              Cancel
+              {t('contacts.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -275,10 +276,10 @@ export function TagManager() {
               {deleting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Deleting...
+                  {t('tagsManager.deleting')}
                 </>
               ) : (
-                'Delete tag'
+                t('tagsManager.deleteButton')
               )}
             </Button>
           </DialogFooter>

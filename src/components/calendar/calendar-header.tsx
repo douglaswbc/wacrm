@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/use-language';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 export type CalendarViewMode = 'month' | 'week' | 'day';
@@ -24,6 +25,7 @@ export function CalendarHeader({
   onViewModeChange,
   onAddEvent,
 }: CalendarHeaderProps) {
+  const { t } = useLanguage();
   const monthYear = currentDate.toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -33,7 +35,7 @@ export function CalendarHeader({
     <div className="flex items-center justify-between gap-3 flex-wrap">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onToday}>
-          Today
+          {t('calendar.today')}
         </Button>
         <Button variant="ghost" size="icon" onClick={onPrev}>
           <ChevronLeft className="size-4" />
@@ -55,13 +57,13 @@ export function CalendarHeader({
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {m.charAt(0).toUpperCase() + m.slice(1)}
+              {t(`calendar.view${m.charAt(0).toUpperCase()}${m.slice(1)}`)}
             </button>
           ))}
         </div>
         <Button size="sm" onClick={onAddEvent}>
           <Plus className="size-3.5 mr-1" />
-          Add Event
+          {t('calendar.addEvent')}
         </Button>
       </div>
     </div>
