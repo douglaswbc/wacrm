@@ -81,6 +81,9 @@ export function AiConfig() {
     by_provider: Record<string, { cost: number; requests: number }>
     by_operation: Record<string, { cost: number; requests: number }>
   } | null>(null);
+  const [nativeTools, setNativeTools] = useState<
+    { name: string; description: string }[]
+  >([]);
 
   // Guard keyed on the account (not a bare boolean) so an in-place
   // account switch — ownership transfer, multi-account membership —
@@ -388,6 +391,25 @@ export function AiConfig() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Behaviour</CardTitle>
+            {nativeTools.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {nativeTools.map((tool) => (
+                  <button
+                    key={tool.name}
+                    type="button"
+                    title={tool.description}
+                    onClick={() =>
+                      setSystemPrompt((prompt) =>
+                        `${prompt}${prompt.trim() ? '\n' : ''}{{tool.${tool.name}}}`,
+                      )
+                    }
+                    className="rounded-md border border-border bg-muted/30 px-2 py-1 font-mono text-xs text-foreground hover:bg-muted"
+                  >
+                    {`{{tool.${tool.name}}}`}
+                  </button>
+                ))}
+              </div>
+            )}
             <CardDescription>
               Tell the assistant about your business — products, tone, what it
               may and may not promise. This context feeds both drafts and
@@ -686,6 +708,7 @@ export function AiConfig() {
           onInsertPromptVariable={(variable) =>
             setSystemPrompt((prompt) => `${prompt}${prompt.trim() ? '\n' : ''}${variable}`)
           }
+          onNativeToolsChange={setNativeTools}
         />
 
         <div className="flex items-center justify-between">
