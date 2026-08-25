@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SettingsPanelHead } from './settings-panel-head';
+import { AiToolsSettings } from './ai-tools-settings';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
 import {
   CHAT_MODELS,
@@ -680,6 +681,8 @@ export function AiConfig() {
           </CardContent>
         </Card>
         )}
+
+        <AiToolsSettings />
 
         <div className="flex items-center justify-between">
           {configured ? (
