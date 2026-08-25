@@ -94,12 +94,12 @@ export async function dispatchInboundToAiReply(
     const messages = await buildConversationContext(db, conversationId)
     if (messages.length === 0) return
 
+    const tools = await listActiveTools(db, accountId)
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
+      tools,
     })
-
-    const tools = await listActiveTools(db, accountId)
     const { text, handoff, usage } = await generateReply({
       config,
       systemPrompt,

@@ -86,12 +86,12 @@ export async function POST(request: Request) {
       )
     }
 
+    const tools = await listActiveTools(supabase, accountId)
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'draft',
+      tools,
     })
-
-    const tools = await listActiveTools(supabase, accountId)
     const { text } = await generateReply({
       config, systemPrompt, messages, tools,
       executeTool: async (name, args) =>

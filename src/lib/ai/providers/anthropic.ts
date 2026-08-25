@@ -12,7 +12,7 @@ const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 
 interface AnthropicResponse {
-  content?: { type?: string; text?: string }[]
+  content?: { type?: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[]
   usage?: {
     input_tokens: number
     output_tokens: number
@@ -31,7 +31,7 @@ function normalizeForAnthropic(messages: ChatMessage[]): ChatMessage[] {
 }
 
 export async function generateAnthropic(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, tools } = args
 
   let res: Response
   try {
@@ -47,6 +47,16 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
         system: systemPrompt,
         max_tokens: MAX_OUTPUT_TOKENS,
         messages: normalizeForAnthropic(messages),
+        ...(tools?.length ? { tools: tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          input_schema: {
+            type: 'object',
+            properties: Object.fromEntries(tool.parameters.map((p) => [p.name, { type: p.type, description: p.description }])),
+            required: tool.parameters.filter((p) => p.required).map((p) => p.name),
+            additionalProperties: false,
+          },
+        })) } : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     })
@@ -59,18 +69,23 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
   }
 
   const data = (await res.json().catch(() => null)) as AnthropicResponse | null
+  const calls = data?.content?.flatMap((block) =>
+    block.type === 'tool_use' && block.id && block.name
+      ? [{ id: block.id, name: block.name, arguments: block.input ?? {} }]
+      : [],
+  )
   const text = data?.content
     ?.filter((b) => b.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text)
     .join('')
     .trim()
-  if (!text) {
+  if (!text && !calls?.length) {
     throw new AiError('Anthropic returned an empty response.', {
       code: 'empty_response',
     })
   }
   return {
-    text,
+    text: text ?? '', toolCalls: calls,
     usage: data?.usage ? {
       input_tokens: data.usage.input_tokens,
       output_tokens: data.usage.output_tokens,

@@ -682,7 +682,11 @@ export function AiConfig() {
         </Card>
         )}
 
-        <AiToolsSettings />
+        <AiToolsSettings
+          onInsertPromptVariable={(variable) =>
+            setSystemPrompt((prompt) => `${prompt}${prompt.trim() ? '\n' : ''}${variable}`)
+          }
+        />
 
         <div className="flex items-center justify-between">
           {configured ? (

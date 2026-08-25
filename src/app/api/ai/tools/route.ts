@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { encrypt } from '@/lib/whatsapp/encryption'
-import { validateToolInput } from '@/lib/ai/tools'
+import { NATIVE_TOOLS, validateToolInput } from '@/lib/ai/tools'
 
 const COLUMNS = 'id, name, description, method, endpoint_url, query_params, parameters, timeout_ms, is_active, created_at, updated_at, headers_encrypted'
 
@@ -15,7 +15,7 @@ export async function GET() {
     const { supabase, accountId } = await requireRole('admin')
     const { data, error } = await supabase.from('ai_tools').select(COLUMNS).eq('account_id', accountId).order('name')
     if (error) return NextResponse.json({ error: 'Failed to load AI tools.' }, { status: 500 })
-    return NextResponse.json({ tools: (data ?? []).map((row) => safeTool(row as Record<string, unknown>)) })
+    return NextResponse.json({ native_tools: NATIVE_TOOLS, tools: (data ?? []).map((row) => safeTool(row as Record<string, unknown>)) })
   } catch (error) { return toErrorResponse(error) }
 }
 

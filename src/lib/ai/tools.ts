@@ -4,7 +4,14 @@ import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 
 export const TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,63}$/
 const MAX_RESPONSE_CHARS = 12_000
-const NATIVE_TOOL_NAMES = new Set(['get_current_contact'])
+export const NATIVE_TOOLS: AiToolDefinition[] = [
+  {
+    name: 'get_current_contact',
+    description: 'Get the name, phone number, email, company, and Instagram username for the customer in this conversation. Use only when this information is needed to help the customer.',
+    parameters: [],
+  },
+]
+const NATIVE_TOOL_NAMES = new Set(NATIVE_TOOLS.map((tool) => tool.name))
 
 export type ToolMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 export interface ToolParameter {
@@ -57,7 +64,7 @@ export async function listActiveTools(db: SupabaseClient, accountId: string): Pr
     .eq('account_id', accountId).eq('is_active', true).order('name')
   if (error) throw error
   return [
-    { name: 'get_current_contact', description: 'Get the name, phone number, email, company, and Instagram username for the customer in this conversation. Use only when this information is needed to help the customer.', parameters: [] },
+    ...NATIVE_TOOLS,
     ...(data ?? []).map((row) => ({
     name: row.name,
     description: row.description,

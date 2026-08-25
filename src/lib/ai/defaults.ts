@@ -1,4 +1,5 @@
 import type { AiProvider } from './types'
+import type { AiToolDefinition } from './tools'
 
 // ============================================================
 // Tunables + prompt scaffold for the AI reply assistant.
@@ -53,8 +54,9 @@ export function aiContextMessageLimit(): number {
 export function buildSystemPrompt(args: {
   userPrompt: string | null
   mode: 'draft' | 'auto_reply'
+  tools?: AiToolDefinition[]
 }): string {
-  const { userPrompt, mode } = args
+  const { userPrompt, mode, tools = [] } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
       'You are shown the recent WhatsApp conversation between the business (assistant) and a customer (user). ' +
@@ -72,7 +74,14 @@ export function buildSystemPrompt(args: {
   }
 
   if (userPrompt && userPrompt.trim()) {
-    parts.push(`Business context and instructions:\n${userPrompt.trim()}`)
+    const byName = new Map(tools.map((tool) => [tool.name, tool]))
+    const prompt = userPrompt.trim().replace(/{{\s*tool\.([a-z][a-z0-9_]*)\s*}}/g, (token, name: string) => {
+      const tool = byName.get(name)
+      return tool
+        ? `Use the ${tool.name} tool when its information is relevant. ${tool.description}`
+        : token
+    })
+    parts.push(`Business context and instructions:\n${prompt}`)
   }
 
   return parts.join('\n\n')
