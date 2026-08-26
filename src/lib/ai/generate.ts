@@ -50,7 +50,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   // tools (e.g. get_contact_tags → search_media → send_media_to_customer)
   // before producing a final text reply.  A hard cap prevents infinite loops.
   const MAX_TOOL_ROUNDS = 4
-  let toolContext = ''
+  let previousContext = ''
   for (let round = 0; round < MAX_TOOL_ROUNDS && result.toolCalls?.length && executeTool; round++) {
     // Deduplicate tool calls by name+args to avoid wasting slots on repeats
     const seen = new Set<string>()
@@ -65,9 +65,16 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       name: call.name,
       result: await executeTool(call.name, call.arguments),
     })))
-    toolContext += results.map(({ name, result }) => `Tool ${name} result:\n${result}`).join('\n\n') + '\n\n'
+    // Only keep the last 2 rounds of tool context to prevent prompt bloat
+    const roundContext = results.map(({ name, result }) => `Tool ${name} result:\n${result}`).join('\n\n')
+    previousContext = (previousContext ? previousContext + '\n\n' : '') + roundContext
+    // Trim to last 2 rounds worth of context
+    const parts = previousContext.split('\n\nTool ')
+    if (parts.length > 6) { // ~3 tool results per round, keep last 2 rounds
+      previousContext = 'Tool ' + parts.slice(-6).join('\n\nTool ')
+    }
     result = await runProvider(
-      `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${toolContext}`,
+      `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${previousContext}`,
       tools,
     )
   }
