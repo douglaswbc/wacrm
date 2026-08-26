@@ -8,6 +8,7 @@ import {
   validateNativeToolArgs,
 } from './calendar-tools'
 import { CRM_TOOLS, executeCrmTool } from './crm-tools'
+import { MEDIA_TOOLS, executeMediaTool } from './media-tools'
 
 export const TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,63}$/
 const MAX_RESPONSE_CHARS = 12_000
@@ -104,9 +105,10 @@ export async function listActiveTools(db: SupabaseClient, accountId: string): Pr
   }
   return [
     ...NATIVE_TOOLS,
-    // CRM write tools (deals + tags) are always available — they only
-    // touch this account's own data.
+    // CRM write tools (deals + tags) and media library tools are always
+    // available — they only touch this account's own data.
     ...CRM_TOOLS,
+    ...MEDIA_TOOLS,
     ...calendarTools,
     ...(data ?? []).map((row) => ({
     name: row.name,
@@ -116,6 +118,14 @@ export async function listActiveTools(db: SupabaseClient, accountId: string): Pr
   ]
 }
 
+/** Context about the running reply, needed by tools with side effects. */
+export interface NativeToolContext {
+  /** Conversation the reply belongs to (media sending targets it). */
+  conversationId?: string
+  /** Draft mode never sends real media — it only suggests text. */
+  mode?: 'auto_reply' | 'draft'
+}
+
 /** Native read-only tool. It deliberately exposes only the active contact. */
 export async function executeNativeTool(
   db: SupabaseClient,
@@ -123,10 +133,12 @@ export async function executeNativeTool(
   contactId: string,
   name: string,
   args: Record<string, unknown> = {},
+  context: NativeToolContext = {},
 ): Promise<string | null> {
   if (!NATIVE_TOOL_NAMES.has(name)) {
     return (
       executeCrmTool(db, accountId, contactId, name, args)
+      ?? executeMediaTool(accountId, contactId, name, args, context)
       ?? executeCalendarTool(db, accountId, contactId, name, args)
     )
   }

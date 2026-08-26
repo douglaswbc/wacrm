@@ -106,7 +106,10 @@ export async function dispatchInboundToAiReply(
       messages,
       tools,
       executeTool: async (name, toolArgs) =>
-        await executeNativeTool(db, accountId, contactId, name, toolArgs)
+        await executeNativeTool(db, accountId, contactId, name, toolArgs, {
+          conversationId,
+          mode: 'auto_reply',
+        })
           ?? executeExternalTool(db, accountId, name, toolArgs),
     })
 

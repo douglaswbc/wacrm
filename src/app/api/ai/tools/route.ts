@@ -4,6 +4,7 @@ import { encrypt } from '@/lib/whatsapp/encryption'
 import { NATIVE_TOOLS, validateToolInput } from '@/lib/ai/tools'
 import { CALENDAR_TOOLS } from '@/lib/ai/calendar-tools'
 import { CRM_TOOLS } from '@/lib/ai/crm-tools'
+import { MEDIA_TOOLS } from '@/lib/ai/media-tools'
 import { getConnection } from '@/lib/calendar/store'
 
 const COLUMNS = 'id, name, description, method, endpoint_url, query_params, parameters, timeout_ms, is_active, created_at, updated_at, headers_encrypted'
@@ -19,9 +20,9 @@ export async function GET() {
     const { data, error } = await supabase.from('ai_tools').select(COLUMNS).eq('account_id', accountId).order('name')
     if (error) return NextResponse.json({ error: 'Failed to load AI tools.' }, { status: 500 })
     // Calendar tools are only offered as prompt tokens when a Google
-    // Calendar connection is live for this account. CRM tools are
-    // always available.
-    let nativeTools = [...NATIVE_TOOLS, ...CRM_TOOLS]
+    // Calendar connection is live for this account. CRM and media
+    // library tools are always available.
+    let nativeTools = [...NATIVE_TOOLS, ...CRM_TOOLS, ...MEDIA_TOOLS]
     try {
       if (await getConnection(accountId)) {
         nativeTools = [...nativeTools, ...CALENDAR_TOOLS]
