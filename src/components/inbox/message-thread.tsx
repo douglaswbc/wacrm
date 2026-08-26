@@ -29,6 +29,8 @@ import {
   PanelRightClose,
   Sparkles,
   Tag as TagIcon,
+  Wrench,
+  AlertCircle,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +54,17 @@ import { TemplatePicker } from "./template-picker";
 import { buildReplyPreview } from "./reply-quote";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface AiActivityEvent {
+  id: string;
+  event: "tool_call" | "handoff" | "reply" | "error";
+  tool_name: string | null;
+  status: "ok" | "error";
+  detail: string | null;
+  created_at: string;
+}
 
 interface ReplyDraft {
   id: string;
@@ -236,6 +249,35 @@ export function MessageThread({
     }
   }, [conversation, isReEnabling, onRefresh, t]);
   const [replyTo, setReplyTo] = useState<ReplyDraft | null>(null);
+
+  // AI agent activity (tool calls / handoff / replies) for the open
+  // conversation. Fetched when the popover opens and refetched on every
+  // resync so the timeline keeps up with realtime-driven bot actions.
+  const [aiActivity, setAiActivity] = useState<AiActivityEvent[]>([]);
+  const [aiActivityLoading, setAiActivityLoading] = useState(false);
+  const [aiActivityOpen, setAiActivityOpen] = useState(false);
+  const fetchAiActivity = useCallback(async () => {
+    if (!conversation) return;
+    setAiActivityLoading(true);
+    try {
+      const res = await fetch(
+        `/api/ai/activity?conversation_id=${encodeURIComponent(conversation.id)}&limit=50`,
+        { cache: "no-store" },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "failed");
+      setAiActivity(data.events ?? []);
+    } catch {
+      // Panel just shows the empty state on failure.
+      setAiActivity([]);
+    } finally {
+      setAiActivityLoading(false);
+    }
+  }, [conversation]);
+  useEffect(() => {
+    if (!aiActivityOpen || !conversation) return;
+    fetchAiActivity();
+  }, [aiActivityOpen, conversation, resyncToken, fetchAiActivity]);
 
   // Profiles are bounded by RLS to rows the current user is allowed to
   // see — today that's just the current user, but the dropdown keeps the
@@ -970,6 +1012,16 @@ export function MessageThread({
             <Clock className="h-3 w-3" />
             {sessionInfo.remaining}
           </Badge>
+          {(conversation?.ai_reply_count ?? 0) > 0 && (
+            <Badge
+              variant="outline"
+              title={t("inbox.aiRepliesTitle")}
+              className="hidden gap-1 border-border text-muted-foreground text-[10px] sm:inline-flex"
+            >
+              <Sparkles className="h-3 w-3" />
+              {conversation?.ai_reply_count}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1160,6 +1212,82 @@ export function MessageThread({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {conversation && ((conversation.ai_reply_count ?? 0) > 0 || conversation.ai_autoreply_disabled) && (
+            <Popover open={aiActivityOpen} onOpenChange={setAiActivityOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title={t("inbox.aiActivity")}
+                  className="inline-flex h-7 items-center gap-1 px-2 text-xs rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <Sparkles className="h-3 w-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <div className="border-border flex items-center justify-between border-b px-3 py-2">
+                  <span className="text-xs font-semibold">{t("inbox.aiActivity")}</span>
+                  {(conversation.ai_reply_count ?? 0) > 0 && (
+                    <Badge variant="outline" className="gap-1 border-border text-[10px] text-muted-foreground">
+                      <Sparkles className="h-3 w-3" />
+                      {conversation.ai_reply_count}
+                    </Badge>
+                  )}
+                </div>
+                <ScrollArea className="h-64">
+                  <div className="space-y-1 p-2">
+                    {aiActivityLoading ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground">…</div>
+                    ) : aiActivity.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-muted-foreground">
+                        {t("inbox.activityEmpty")}
+                      </p>
+                    ) : (
+                      aiActivity.map((event) => {
+                        const isError = event.status === "error";
+                        return (
+                          <div key={event.id} className="rounded-md px-2 py-1.5 hover:bg-muted/60">
+                            <div className="flex items-center gap-1.5">
+                              {event.event === "tool_call" && (
+                                <Wrench className={cn("h-3 w-3 shrink-0", isError ? "text-red-400" : "text-primary")} />
+                              )}
+                              {event.event === "handoff" && (
+                                <UserPlus className="h-3 w-3 shrink-0 text-amber-500" />
+                              )}
+                              {event.event === "reply" && (
+                                <MessageSquare className="h-3 w-3 shrink-0 text-emerald-400" />
+                              )}
+                              {event.event === "error" && (
+                                <AlertCircle className="h-3 w-3 shrink-0 text-red-400" />
+                              )}
+                              <span className="text-[11px] font-medium text-foreground">
+                                {event.tool_name ??
+                                  (event.event === "tool_call"
+                                    ? t("inbox.eventToolCall")
+                                    : event.event === "handoff"
+                                      ? t("inbox.eventHandoff")
+                                      : event.event === "reply"
+                                        ? t("inbox.eventReply")
+                                        : t("inbox.eventError"))}
+                              </span>
+                              <span className="ml-auto text-[10px] text-muted-foreground">
+                                {format(new Date(event.created_at), "HH:mm:ss")}
+                              </span>
+                            </div>
+                            {event.detail && (
+                              <p className="mt-0.5 line-clamp-2 pl-[18px] text-[10px] break-words text-muted-foreground">
+                                {event.detail}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          )}
 
           {conversation?.ai_autoreply_disabled && (
             <button

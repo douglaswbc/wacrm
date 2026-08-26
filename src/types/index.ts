@@ -215,6 +215,7 @@ export interface Conversation {
   provider?: 'meta' | 'ryzeapi' | 'zernio' | 'evolution';
   ai_autoreply_disabled?: boolean;
   ai_autoreply_disabled_at?: string;
+  ai_reply_count?: number;
   created_at: string;
   updated_at: string;
   contact?: Contact;

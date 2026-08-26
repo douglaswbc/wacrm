@@ -2658,3 +2658,38 @@ CREATE POLICY account_calendars_update ON account_calendars FOR UPDATE
 DROP POLICY IF EXISTS account_calendars_delete ON account_calendars;
 CREATE POLICY account_calendars_delete ON account_calendars FOR DELETE
   USING (is_account_member(account_id, 'admin'));
+
+-- ============================================================
+-- Migration 010_ai_activity_logs.sql
+-- ============================================================
+
+-- 010_ai_activity_logs
+-- Persisted activity feed for the AI agent: tool calls, handoffs,
+-- replies and dispatch errors, per conversation. Powers the "AI
+-- Activity" panel in the inbox so humans can see exactly what the bot
+-- did (e.g. search_media found nothing → handoff).
+
+CREATE TABLE IF NOT EXISTS ai_activity_logs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id     UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  contact_id     UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  event          TEXT NOT NULL CHECK (event IN ('tool_call', 'handoff', 'reply', 'error')),
+  tool_name      TEXT,
+  status         TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'error')),
+  detail         TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_activity_logs_conversation
+  ON ai_activity_logs(account_id, conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_activity_logs_account
+  ON ai_activity_logs(account_id, created_at DESC);
+
+ALTER TABLE ai_activity_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS ai_activity_logs_select ON ai_activity_logs;
+CREATE POLICY ai_activity_logs_select ON ai_activity_logs FOR SELECT
+  USING (is_account_member(account_id));
+-- Rows are written server-side by the AI dispatcher (service role),
+-- which bypasses RLS; no insert/update/delete policies on purpose.

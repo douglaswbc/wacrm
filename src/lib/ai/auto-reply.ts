@@ -6,6 +6,7 @@ import { buildSystemPrompt } from './defaults'
 import { recordUsage } from './usage-tracker'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { executeExternalTool, executeNativeTool, listActiveTools } from './tools'
+import { logAiActivity, summarizeToolResult } from './activity-log'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -105,12 +106,38 @@ export async function dispatchInboundToAiReply(
       systemPrompt,
       messages,
       tools,
-      executeTool: async (name, toolArgs) =>
-        await executeNativeTool(db, accountId, contactId, name, toolArgs, {
+      executeTool: async (name, toolArgs) => {
+        let result: string
+        try {
+          result = (await executeNativeTool(db, accountId, contactId, name, toolArgs, {
+            conversationId,
+            mode: 'auto_reply',
+          })
+            ?? executeExternalTool(db, accountId, name, toolArgs)) as string
+        } catch (toolErr) {
+          logAiActivity({
+            accountId,
+            conversationId,
+            contactId,
+            event: 'tool_call',
+            toolName: name,
+            status: 'error',
+            detail: `threw: ${toolErr instanceof Error ? toolErr.message : String(toolErr)}`,
+          })
+          throw toolErr
+        }
+        const errored = /"error"\s*:/.test(result)
+        logAiActivity({
+          accountId,
           conversationId,
-          mode: 'auto_reply',
+          contactId,
+          event: 'tool_call',
+          toolName: name,
+          status: errored ? 'error' : 'ok',
+          detail: summarizeToolResult(result),
         })
-          ?? executeExternalTool(db, accountId, name, toolArgs),
+        return result
+      },
     })
 
     if (usage) {
@@ -132,8 +159,17 @@ export async function dispatchInboundToAiReply(
       // the inbox for a human. Sticky until an admin re-enables.
       await db
         .from('conversations')
-        .update({ ai_autoreply_disabled: true })
+        .update({ ai_autoreply_disabled: true, ai_autoreply_disabled_at: new Date().toISOString() })
         .eq('id', conversationId)
+      logAiActivity({
+        accountId,
+        conversationId,
+        contactId,
+        event: 'handoff',
+        detail: handoff
+          ? 'Model emitted the handoff signal — conversation paused for a human.'
+          : 'Model returned an empty reply — conversation paused for a human.',
+      })
       return
     }
 
@@ -157,6 +193,13 @@ export async function dispatchInboundToAiReply(
       conversationId,
       contactId,
       text,
+    })
+    logAiActivity({
+      accountId,
+      conversationId,
+      contactId,
+      event: 'reply',
+      detail: summarizeToolResult(text),
     })
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)

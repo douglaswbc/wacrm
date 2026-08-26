@@ -200,7 +200,7 @@ describe('dispatchInboundToAiReply — handoff', () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
     await dispatchInboundToAiReply(ARGS)
     expect(h.engineSendText).not.toHaveBeenCalled()
-    expect(h.state.updatePayload).toEqual({ ai_autoreply_disabled: true })
+    expect(h.state.updatePayload).toMatchObject({ ai_autoreply_disabled: true })
     expect(h.state.rpcCalls).toHaveLength(0)
   })
 })
