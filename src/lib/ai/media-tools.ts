@@ -96,6 +96,36 @@ async function handleSearchMedia(
     return json({ error: `Media search failed: ${error.message}` })
   }
 
+  // Fallback: if query returned empty and no tag was used, try treating the query as a tag name
+  if ((!data || data.length === 0) && !tag && query && /^[a-z0-9]+(-[a-z0-9]+)+$/.test(query)) {
+    const { data: tagged } = await db
+      .from('media_asset_tags')
+      .select('media_asset_id, media_tags!inner(name, account_id)')
+      .eq('media_tags.name', query)
+      .eq('media_tags.account_id', accountId)
+    const fallbackIds = [...new Set((tagged ?? []).map((r) => r.media_asset_id))]
+    if (fallbackIds.length > 0) {
+      const { data: fallbackData } = await db
+        .from('media_assets')
+        .select('id, name, media_type, caption')
+        .eq('account_id', accountId)
+        .in('id', fallbackIds)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (fallbackData?.length) {
+        return json({
+          results: fallbackData.map((a) => ({
+            asset_id: a.id,
+            name: a.name,
+            media_type: a.media_type,
+            caption: a.caption ?? null,
+          })),
+          note: `${fallbackData.length} asset(s) found (matched by tag "${query}"). Ask the customer if they want to see media before sending. Only send with send_media_to_customer after customer confirms.`,
+        })
+      }
+    }
+  }
+
   return json({
     results: (data ?? []).map((asset) => ({
       asset_id: asset.id,
@@ -103,7 +133,9 @@ async function handleSearchMedia(
       media_type: asset.media_type,
       caption: asset.caption ?? null,
     })),
-    note: 'Assets found. Ask the customer if they want to see media before sending. Only send with send_media_to_customer after customer confirms.',
+    note: (data ?? []).length > 0
+      ? `${(data ?? []).length} asset(s) found. Ask the customer if they want to see media before sending. Only send with send_media_to_customer after customer confirms.`
+      : 'No assets found matching the criteria. Try different search terms or check the media library.',
   })
 }
 

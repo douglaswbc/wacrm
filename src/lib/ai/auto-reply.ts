@@ -107,6 +107,7 @@ export async function dispatchInboundToAiReply(
       messages,
       tools,
       executeTool: async (name, toolArgs) => {
+        console.log(`[ai tool] ${name}`, JSON.stringify(toolArgs))
         let result: string
         try {
           const nativeResult = await executeNativeTool(db, accountId, contactId, name, toolArgs, {
