@@ -686,7 +686,9 @@ function ConversationItem({
               </span>
             )}
             {conversation.ai_autoreply_disabled && (
-              <Sparkles className="h-3 w-3 text-amber-500" title={t('inbox.aiPaused')} />
+              <span title={t('inbox.aiPaused')}>
+                <Sparkles className="h-3 w-3 text-amber-500" />
+              </span>
             )}
             <span
               className={cn(
