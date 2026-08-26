@@ -7,7 +7,7 @@ export const MEDIA_TOOLS: AiToolDefinition[] = [
   {
     name: 'search_media',
     description:
-      'Search the business media library for materials (images, videos, documents) by free-text query and/or tag. Use to find e.g. a course folder, photos or PDF grade before sending. Returns candidate assets; send one with send_media_to_customer.',
+      'Search the business media library for materials (images, videos, documents) by free-text query and/or tag. Use the lead\'s contact tags as the tag parameter to find relevant media. Returns candidate assets — ask the customer if they want to see media before sending.',
     parameters: [
       { name: 'query', type: 'string', description: 'Free text to match against asset name/caption, e.g. "folder curso enfermagem". Optional if tag is given.', required: false },
       { name: 'tag', type: 'string', description: 'Exact media tag name to filter by, e.g. "curso-enfermagem".', required: false },
@@ -17,7 +17,7 @@ export const MEDIA_TOOLS: AiToolDefinition[] = [
   {
     name: 'send_media_to_customer',
     description:
-      'Send a library asset (from search_media) to this customer as a WhatsApp image/video/document with an optional caption. Max 2 per minute per conversation.',
+      'Send a library asset (from search_media) to this customer as a WhatsApp image/video/document with an optional caption. ONLY use after the customer explicitly requests to see media or confirms they want to receive it — never send proactively. Max 2 per minute per conversation.',
     parameters: [
       { name: 'asset_id', type: 'string', description: 'Asset id returned by search_media.', required: true },
       { name: 'caption', type: 'string', description: 'Short caption shown with the media (max 1024 chars).', required: false },
@@ -103,7 +103,7 @@ async function handleSearchMedia(
       media_type: asset.media_type,
       caption: asset.caption ?? null,
     })),
-    note: 'Send an asset with send_media_to_customer using its asset_id.',
+    note: 'Assets found. Ask the customer if they want to see media before sending. Only send with send_media_to_customer after customer confirms.',
   })
 }
 
