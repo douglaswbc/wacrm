@@ -596,7 +596,7 @@ export function MessageComposer({
             variant="ghost"
             size="sm"
             canAct={!readOnly}
-            gateReason="send messages"
+            gateReason={t("inbox.sendMessages")}
             title={readOnly ? undefined : t('inbox.sendTemplate')}
             className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
             onClick={onOpenTemplates}
@@ -608,7 +608,7 @@ export function MessageComposer({
             variant="ghost"
             size="sm"
             canAct={!readOnly}
-            gateReason="send messages"
+            gateReason={t("inbox.sendMessages")}
             disabled={drafting}
             title={readOnly ? undefined : t('inbox.draftWithAiTitle')}
             className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-primary"
@@ -648,7 +648,7 @@ export function MessageComposer({
           <GatedButton
             size="sm"
             canAct={!readOnly}
-            gateReason="send messages"
+            gateReason={t("inbox.sendMessages")}
             disabled={!text.trim() || sessionExpired || sending}
             onClick={handleSend}
             className="h-9 w-9 shrink-0 bg-primary p-0 hover:bg-primary/90 disabled:opacity-40"
@@ -752,7 +752,7 @@ function MediaDraftPreview({
         <GatedButton
           size="sm"
           canAct={!readOnly}
-          gateReason="send messages"
+          gateReason={t("inbox.sendMessages")}
           disabled={busy}
           onClick={onSend}
           className={cn(

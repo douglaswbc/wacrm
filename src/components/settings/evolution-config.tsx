@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/hooks/use-language';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +45,7 @@ interface ConfigShape {
 
 export function EvolutionApiConfig() {
   const { accountId, profileLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -96,11 +98,11 @@ export function EvolutionApiConfig() {
 
   useEffect(() => {
     if (status === 'pending_qr') {
-      const t = setInterval(() => {
+      const timer = setInterval(() => {
         void fetchConfig();
       }, 5000);
-      setPollTimer(t);
-      return () => clearInterval(t);
+      setPollTimer(timer);
+      return () => clearInterval(timer);
     }
     if (pollTimer) {
       clearInterval(pollTimer);
@@ -110,7 +112,7 @@ export function EvolutionApiConfig() {
 
   async function handleCreate() {
     if (!instanceName.trim()) {
-      toast.error('Instance Name is required');
+      toast.error(t('evolution.toastNameRequired'));
       return;
     }
 
@@ -131,16 +133,16 @@ export function EvolutionApiConfig() {
 
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || 'Failed to create instance');
+        toast.error(data.error || t('evolution.toastCreateFailed'));
         return;
       }
 
       setConfig(data.config);
       setStatus('pending_qr');
       setQrExpiry(data.config?.qr_expires_at ?? null);
-      toast.success('Instance created. Scan the QR code in WhatsApp.');
+      toast.success(t('evolution.toastCreated'));
     } catch {
-      toast.error('Could not reach the Evolution API server');
+      toast.error(t('evolution.toastUnreachableServer'));
     } finally {
       setSaving(false);
     }
@@ -160,20 +162,20 @@ export function EvolutionApiConfig() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || 'Failed to regenerate QR');
+        toast.error(data.error || t('evolution.toastQrFailed'));
         return;
       }
       setConfig(data.config);
       setQrExpiry(data.config?.qr_expires_at ?? null);
     } catch {
-      toast.error('Could not reach Evolution API');
+      toast.error(t('evolution.toastUnreachable'));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDisconnect() {
-    if (!confirm('Disconnect this instance from WhatsApp? You can reconnect later.')) {
+    if (!confirm(t('evolution.disconnectConfirm'))) {
       return;
     }
     setSaving(true);
@@ -185,13 +187,13 @@ export function EvolutionApiConfig() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to disconnect');
+        toast.error(data.error || t('evolution.toastDisconnectFailed'));
         return;
       }
-      toast.success('Disconnected. You can reconnect when ready.');
+      toast.success(t('evolution.toastDisconnected'));
       await fetchConfig();
     } catch {
-      toast.error('Could not reach Evolution API');
+      toast.error(t('evolution.toastUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -207,7 +209,7 @@ export function EvolutionApiConfig() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to reconnect');
+        toast.error(data.error || t('evolution.toastReconnectFailed'));
         return;
       }
       const data = await res.json();
@@ -215,19 +217,19 @@ export function EvolutionApiConfig() {
       setStatus(data.config?.status ?? 'pending_qr');
       setQrExpiry(data.config?.qr_expires_at ?? null);
       if (data.config?.status === 'pending_qr') {
-        toast.info('Reconnected. Scan the QR code.');
+        toast.info(t('evolution.toastReconnectedQr'));
       } else {
-        toast.success('Reconnected successfully.');
+        toast.success(t('evolution.toastReconnected'));
       }
     } catch {
-      toast.error('Could not reach Evolution API');
+      toast.error(t('evolution.toastUnreachable'));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleRemove() {
-    if (!confirm('Permanently delete this Evolution API instance? This cannot be undone.')) {
+    if (!confirm(t('evolution.removeConfirm'))) {
       return;
     }
     setSaving(true);
@@ -235,17 +237,17 @@ export function EvolutionApiConfig() {
       const res = await fetch('/api/evolution/config', { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || 'Failed to remove config');
+        toast.error(data.error || t('evolution.toastRemoveFailed'));
         return;
       }
-      toast.success('Evolution API config removed.');
+      toast.success(t('evolution.toastRemoved'));
       setConfig(null);
       setInstanceName('');
       setRelayUrl('');
       setStatus('disconnected');
       setQrExpiry(null);
     } catch {
-      toast.error('Could not reach Evolution API');
+      toast.error(t('evolution.toastUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -264,12 +266,12 @@ export function EvolutionApiConfig() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || 'Failed to save relay URL');
+        toast.error(data.error || t('evolution.toastRelayFailed'));
         return;
       }
-      toast.success('Relay URL saved.');
+      toast.success(t('evolution.toastRelaySaved'));
     } catch {
-      toast.error('Could not reach Evolution API');
+      toast.error(t('evolution.toastUnreachable'));
     } finally {
       setSaving(false);
     }
@@ -285,34 +287,34 @@ export function EvolutionApiConfig() {
 
   return (
     <div className="space-y-6">
-      <SettingsPanelHead title="Evolution API" description="Connect WhatsApp via Evolution API — the open-source WhatsApp gateway." />
+      <SettingsPanelHead title={t('section.evolution')} description={t('evolution.description')} />
 
       {/* Status banner */}
       {status === 'connected' && (
         <Alert>
           <CheckCircle2 className="size-4 text-green-600" />
-          <AlertTitle className="text-green-700">Connected</AlertTitle>
+          <AlertTitle className="text-green-700">{t('evolution.connectedTitle')}</AlertTitle>
           <AlertDescription>
-            Your WhatsApp is connected via instance <strong>{config?.instance_name || '—'}</strong>
-            {config?.connected_at ? ` since ${new Date(config.connected_at).toLocaleString()}` : ''}
+            {t('evolution.connectedInstancePre')} <strong>{config?.instance_name || '—'}</strong>
+            {config?.connected_at ? ` ${t('evolution.connectedSince')} ${new Date(config.connected_at).toLocaleString()}` : ''}
           </AlertDescription>
         </Alert>
       )}
       {status === 'pending_qr' && (
         <Alert>
           <QrCode className="size-4" />
-          <AlertTitle>Waiting for QR scan</AlertTitle>
+          <AlertTitle>{t('evolution.pendingQrTitle')}</AlertTitle>
           <AlertDescription>
-            Open WhatsApp on your phone, go to <strong>Settings → Linked Devices</strong> and scan the QR code below.
+            {t('evolution.pendingQrDescPre')} <strong>Settings → Linked Devices</strong> {t('evolution.pendingQrDescPost')}
           </AlertDescription>
         </Alert>
       )}
       {status === 'disconnected' && config && (
         <Alert>
           <Unplug className="size-4" />
-          <AlertTitle>Disconnected</AlertTitle>
+          <AlertTitle>{t('evolution.disconnectedTitle')}</AlertTitle>
           <AlertDescription>
-            This instance was previously connected. Click <strong>Reconnect</strong> to generate a new QR code.
+            {t('evolution.disconnectedDescPre')} <strong>{t('evolution.reconnect')}</strong> {t('evolution.disconnectedDescPost')}
           </AlertDescription>
         </Alert>
       )}
@@ -321,15 +323,15 @@ export function EvolutionApiConfig() {
       {status === 'pending_qr' && config?.qr_base64 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Scan QR Code</CardTitle>
+            <CardTitle className="text-base">{t('evolution.qrTitle')}</CardTitle>
             <CardDescription>
-              This QR expires after ~30 seconds. If it expires, click <strong>Regenerate QR</strong>.
+              {t('evolution.qrExpireHintPre')} <strong>{t('evolution.regenerateQr')}</strong>.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <Image
               src={`data:image/png;base64,${config.qr_base64}`}
-              alt="WhatsApp QR code"
+              alt={t('evolution.qrAlt')}
               className="size-56 rounded-lg border"
               width={224}
               height={224}
@@ -337,12 +339,12 @@ export function EvolutionApiConfig() {
             />
             {qrExpiry && (
               <p className="text-xs text-muted-foreground">
-                Expires at {new Date(qrExpiry).toLocaleTimeString()}
+                {t('evolution.expiresAt')} {new Date(qrExpiry).toLocaleTimeString()}
               </p>
             )}
             <Button variant="outline" size="sm" onClick={handleRegenerateQr} disabled={saving}>
               <RefreshCw className="size-4 mr-1" />
-              Regenerate QR
+              {t('evolution.regenerateQr')}
             </Button>
           </CardContent>
         </Card>
@@ -352,14 +354,14 @@ export function EvolutionApiConfig() {
       {!config && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Create Instance</CardTitle>
+            <CardTitle className="text-base">{t('evolution.createTitle')}</CardTitle>
             <CardDescription>
-              Provide a base name — a random suffix will be appended for uniqueness.
+              {t('evolution.createDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="evo-instance-name">Instance Name</Label>
+              <Label htmlFor="evo-instance-name">{t('evolution.instanceNameLabel')}</Label>
               <Input
                 id="evo-instance-name"
                 placeholder="my-business"
@@ -370,7 +372,7 @@ export function EvolutionApiConfig() {
             </div>
             <Button onClick={handleCreate} disabled={saving || !instanceName.trim()}>
               {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Zap className="size-4 mr-2" />}
-              Create &amp; Get QR Code
+              {t('evolution.createAndGetQr')}
             </Button>
           </CardContent>
         </Card>
@@ -380,30 +382,30 @@ export function EvolutionApiConfig() {
       {config && status !== 'pending_qr' && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Instance: {config.instance_name || '—'}</CardTitle>
+            <CardTitle className="text-base">{t('evolution.instance')}: {config.instance_name || '—'}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             {status === 'disconnected' && (
               <Button variant="outline" onClick={handleReconnect} disabled={saving}>
                 {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
-                Reconnect
+                {t('evolution.reconnect')}
               </Button>
             )}
             {status === 'connected' && (
               <Button variant="outline" onClick={handleRegenerateQr} disabled={saving}>
                 <QrCode className="size-4 mr-2" />
-                Regenerate QR
+                {t('evolution.regenerateQr')}
               </Button>
             )}
             {status === 'connected' && (
               <Button variant="destructive" onClick={handleDisconnect} disabled={saving}>
                 <Unplug className="size-4 mr-2" />
-                Disconnect
+                {t('evolution.disconnect')}
               </Button>
             )}
             <Button variant="destructive" onClick={handleRemove} disabled={saving}>
-              <Trash2 className="size-4 mr-2" />
-              Remove Instance
+                <Trash2 className="size-4 mr-2" />
+                {t('evolution.removeInstance')}
             </Button>
           </CardContent>
         </Card>
@@ -413,14 +415,14 @@ export function EvolutionApiConfig() {
       {config && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Relay URL (optional)</CardTitle>
+            <CardTitle className="text-base">{t('evolution.relayTitle')}</CardTitle>
             <CardDescription>
-              Forward raw webhook payloads to an external HTTPS URL (e.g. n8n webhook).
+              {t('evolution.relayDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="evo-relay">Relay URL</Label>
+              <Label htmlFor="evo-relay">{t('evolution.relayUrlLabel')}</Label>
               <Input
                 id="evo-relay"
                 placeholder="https://..."
@@ -430,7 +432,7 @@ export function EvolutionApiConfig() {
               />
             </div>
             <Button variant="outline" onClick={handleSaveRelay} disabled={saving}>
-              Save Relay URL
+              {t('evolution.saveRelayUrl')}
             </Button>
           </CardContent>
         </Card>
@@ -441,8 +443,8 @@ export function EvolutionApiConfig() {
         <Card className="border-dashed">
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             <AlertTriangle className="size-5 mx-auto mb-2 opacity-50" />
-            <p>No Evolution API instance configured.</p>
-            <p className="mt-1">Fill in the instance name above and click <strong>Create &amp; Get QR Code</strong>.</p>
+            <p>{t('evolution.unconfigured')}</p>
+            <p className="mt-1">{t('evolution.unconfiguredHintPre')} <strong>{t('evolution.createAndGetQr')}</strong>.</p>
           </CardContent>
         </Card>
       )}

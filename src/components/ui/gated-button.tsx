@@ -48,6 +48,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 
 interface GatedButtonProps extends Omit<ComponentProps<typeof Button>, "title"> {
@@ -74,9 +75,10 @@ export function GatedButton({
   children,
   ...rest
 }: GatedButtonProps) {
+  const { t } = useLanguage();
   const effectivelyDisabled = disabled || !canAct;
   const tooltip = !canAct && gateReason
-    ? `Read-only — your role can't ${gateReason}`
+    ? `${t("common.gateReadOnly")} ${gateReason}`
     : title;
 
   return (

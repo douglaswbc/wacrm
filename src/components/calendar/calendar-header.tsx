@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/hooks/use-language';
+import { toLocale } from '@/lib/i18n/locale';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 export type CalendarViewMode = 'month' | 'week' | 'day';
@@ -25,8 +26,8 @@ export function CalendarHeader({
   onViewModeChange,
   onAddEvent,
 }: CalendarHeaderProps) {
-  const { t } = useLanguage();
-  const monthYear = currentDate.toLocaleDateString('en-US', {
+  const { t, language } = useLanguage();
+  const monthYear = currentDate.toLocaleDateString(toLocale(language), {
     month: 'long',
     year: 'numeric',
   });

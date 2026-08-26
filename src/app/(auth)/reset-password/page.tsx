@@ -13,11 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useLanguage } from "@/hooks/use-language";
 import { CheckCircle, Lock } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { t } = useLanguage();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -30,12 +32,12 @@ export default function ResetPasswordPage() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("signup.errorMismatch"));
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t("signup.errorMinLength"));
       return;
     }
 
@@ -62,10 +64,10 @@ export default function ResetPasswordPage() {
               <CheckCircle className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-xl text-foreground">
-              Password updated
+              {t("auth.passwordUpdated")}
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Your password has been reset successfully.
+              {t("auth.resetSuccessDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -73,7 +75,7 @@ export default function ResetPasswordPage() {
               onClick={() => router.push("/dashboard")}
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              Go to dashboard
+              {t("auth.goToDashboard")}
             </Button>
           </CardContent>
         </Card>
@@ -89,10 +91,10 @@ export default function ResetPasswordPage() {
             <Lock className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-xl text-foreground">
-            Reset your password
+            {t("auth.resetTitle")}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Enter your new password below.
+            {t("auth.resetDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -105,12 +107,12 @@ export default function ResetPasswordPage() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="password" className="text-muted-foreground">
-                New password
+                {t("auth.newPassword")}
               </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Min. 6 characters"
+                placeholder={t("auth.minCharsPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -120,12 +122,12 @@ export default function ResetPasswordPage() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirmPassword" className="text-muted-foreground">
-                Confirm password
+                {t("signup.confirmPassword")}
               </Label>
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Repeat your password"
+                placeholder={t("signup.repeatPassword")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -138,7 +140,7 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="mt-2 h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {loading ? "Updating..." : "Reset password"}
+              {loading ? t("auth.updating") : t("forgot.title")}
             </Button>
           </form>
         </CardContent>

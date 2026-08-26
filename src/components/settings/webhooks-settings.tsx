@@ -12,7 +12,20 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { SettingsPanelHead } from './settings-panel-head';
 import { useLanguage } from '@/hooks/use-language';
-import { WEBHOOK_EVENT_DESCRIPTIONS } from '@/lib/webhooks/events';
+
+// Descriptions live in the dictionaries as `webhooks.event.<event>`
+// ('.' → '_'); WEBHOOK_EVENT_DESCRIPTIONS stays server-side in the lib.
+const EVENT_DESCRIPTION_KEYS: Record<string, string> = {
+  'message.received': 'webhooks.event.message_received',
+  'message.status_updated': 'webhooks.event.message_status_updated',
+  'message.sent': 'webhooks.event.message_sent',
+  'conversation.created': 'webhooks.event.conversation_created',
+  'conversation.updated': 'webhooks.event.conversation_updated',
+  'conversation.started': 'webhooks.event.conversation_started',
+  'contact.created': 'webhooks.event.contact_created',
+  'reaction.received': 'webhooks.event.reaction_received',
+  'comment.received': 'webhooks.event.comment_received',
+};
 
 type WebhookEvent = 'message.received' | 'message.status_updated' | 'message.sent' | 'conversation.created' | 'conversation.updated' | 'contact.created';
 
@@ -328,7 +341,7 @@ export function WebhooksSettings() {
                       <label htmlFor={`ev-${ev}`} className="text-sm cursor-pointer select-none">
                         {ev}
                         <span className="text-xs text-muted-foreground ml-1">
-                          {`— ${WEBHOOK_EVENT_DESCRIPTIONS[ev]}`}
+                          {`— ${t(EVENT_DESCRIPTION_KEYS[ev])}`}
                         </span>
                       </label>
                     </div>

@@ -194,8 +194,8 @@ export function CalendarConfig() {
         description={t('calendar.description')}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-5">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2.5">
@@ -347,7 +347,7 @@ export function CalendarConfig() {
           )}
         </div>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Alert>
             <Calendar className="size-4" />
             <AlertTitle>{t('calendar.howItWorks')}</AlertTitle>

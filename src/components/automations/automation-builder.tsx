@@ -65,6 +65,7 @@ import type {
 } from "@/types"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { useLanguage } from "@/hooks/use-language"
 import { MediaPicker } from "@/components/media-library/media-picker"
 
 // ------------------------------------------------------------
@@ -98,32 +99,32 @@ export interface BuilderInitial {
 // ------------------------------------------------------------
 
 interface StepMeta {
-  label: string
+  labelKey: string
   icon: typeof Zap
   /** Left-border accent color per spec. */
   border: string
 }
 
 const STEP_META: Record<AutomationStepType, StepMeta> = {
-  send_message: { label: "Send Message", icon: MessageSquare, border: "border-l-primary" },
-  send_template: { label: "Send Template", icon: FileText, border: "border-l-primary" },
-  send_button: { label: "Send Button", icon: MessageSquare, border: "border-l-primary" },
-  send_media: { label: "Send Media", icon: ImageIcon, border: "border-l-primary" },
-  add_tag: { label: "Add Tag", icon: Tag, border: "border-l-primary" },
-  remove_tag: { label: "Remove Tag", icon: TagIcon, border: "border-l-primary" },
-  assign_conversation: { label: "Assign Conversation", icon: UserCheck, border: "border-l-primary" },
-  update_contact_field: { label: "Update Contact Field", icon: PencilLine, border: "border-l-primary" },
-  create_deal: { label: "Create Deal", icon: Briefcase, border: "border-l-primary" },
-  update_deal: { label: "Update Deal", icon: HandCoins, border: "border-l-primary" },
-  calendar_update_status: { label: "Update Calendar Status", icon: CalendarCheck, border: "border-l-primary" },
-  wait: { label: "Wait", icon: Hourglass, border: "border-l-border" },
-  condition: { label: "Condition (If/Else)", icon: GitBranch, border: "border-l-amber-500" },
-  send_webhook: { label: "Send Webhook", icon: Webhook, border: "border-l-primary" },
-  close_conversation: { label: "Close Conversation", icon: CircleSlash, border: "border-l-primary" },
-  ai_condition: { label: "AI Condition", icon: BrainCircuit, border: "border-l-purple-500" },
-  ai_reply: { label: "AI Reply", icon: Bot, border: "border-l-purple-500" },
-  ai_extract: { label: "AI Extract", icon: ScanText, border: "border-l-purple-500" },
-  ai_classify: { label: "AI Classify", icon: ScanSearch, border: "border-l-purple-500" },
+  send_message: { labelKey: "automations.stepSendMessage", icon: MessageSquare, border: "border-l-primary" },
+  send_template: { labelKey: "automations.stepSendTemplate", icon: FileText, border: "border-l-primary" },
+  send_button: { labelKey: "automations.stepSendButton", icon: MessageSquare, border: "border-l-primary" },
+  send_media: { labelKey: "automations.stepSendMedia", icon: ImageIcon, border: "border-l-primary" },
+  add_tag: { labelKey: "automations.stepAddTag", icon: Tag, border: "border-l-primary" },
+  remove_tag: { labelKey: "automations.stepRemoveTag", icon: TagIcon, border: "border-l-primary" },
+  assign_conversation: { labelKey: "automations.stepAssignConversation", icon: UserCheck, border: "border-l-primary" },
+  update_contact_field: { labelKey: "automations.stepUpdateContactField", icon: PencilLine, border: "border-l-primary" },
+  create_deal: { labelKey: "automations.stepCreateDeal", icon: Briefcase, border: "border-l-primary" },
+  update_deal: { labelKey: "automations.stepUpdateDeal", icon: HandCoins, border: "border-l-primary" },
+  calendar_update_status: { labelKey: "automations.stepCalendarUpdateStatus", icon: CalendarCheck, border: "border-l-primary" },
+  wait: { labelKey: "automations.stepWait", icon: Hourglass, border: "border-l-border" },
+  condition: { labelKey: "automations.stepCondition", icon: GitBranch, border: "border-l-amber-500" },
+  send_webhook: { labelKey: "automations.stepSendWebhook", icon: Webhook, border: "border-l-primary" },
+  close_conversation: { labelKey: "automations.stepCloseConversation", icon: CircleSlash, border: "border-l-primary" },
+  ai_condition: { labelKey: "automations.stepAiCondition", icon: BrainCircuit, border: "border-l-purple-500" },
+  ai_reply: { labelKey: "automations.stepAiReply", icon: Bot, border: "border-l-purple-500" },
+  ai_extract: { labelKey: "automations.stepAiExtract", icon: ScanText, border: "border-l-purple-500" },
+  ai_classify: { labelKey: "automations.stepAiClassify", icon: ScanSearch, border: "border-l-purple-500" },
 }
 
 const ADDABLE_STEPS: AutomationStepType[] = [
@@ -148,18 +149,42 @@ const ADDABLE_STEPS: AutomationStepType[] = [
   "ai_classify",
 ]
 
-const TRIGGER_OPTIONS: { value: AutomationTriggerType; label: string; hint: string }[] = [
-  { value: "new_message_received", label: "New Message Received", hint: "Any incoming message" },
+const TRIGGER_OPTIONS: { value: AutomationTriggerType; labelKey: string; hintKey: string }[] = [
+  {
+    value: "new_message_received",
+    labelKey: "automations.triggerNewMessage",
+    hintKey: "automations.triggerNewMessageHint",
+  },
   {
     value: "first_inbound_message",
-    label: "First Message from Contact",
-    hint: "First time this contact ever messages you (works for manually-added contacts too)",
+    labelKey: "automations.triggerFirstInbound",
+    hintKey: "automations.triggerFirstInboundHint",
   },
-  { value: "keyword_match", label: "Keyword Match", hint: "Message contains specific keyword(s)" },
-  { value: "new_contact_created", label: "New Contact Created", hint: "When a contact is auto-created from an incoming message" },
-  { value: "conversation_assigned", label: "Conversation Assigned", hint: "When assigned to an agent" },
-  { value: "tag_added", label: "Tag Added", hint: "When a tag is added to a contact" },
-  { value: "time_based", label: "Time-Based", hint: "On a recurring schedule" },
+  {
+    value: "keyword_match",
+    labelKey: "automations.triggerKeywordMatch",
+    hintKey: "automations.triggerKeywordMatchHint",
+  },
+  {
+    value: "new_contact_created",
+    labelKey: "automations.triggerNewContact",
+    hintKey: "automations.triggerNewContactHint",
+  },
+  {
+    value: "conversation_assigned",
+    labelKey: "automations.triggerConversationAssigned",
+    hintKey: "automations.triggerConversationAssignedHint",
+  },
+  {
+    value: "tag_added",
+    labelKey: "automations.triggerTagAdded",
+    hintKey: "automations.triggerTagAddedHint",
+  },
+  {
+    value: "time_based",
+    labelKey: "automations.triggerTimeBased",
+    hintKey: "automations.triggerTimeBasedHint",
+  },
 ]
 
 function cid(): string {
@@ -340,17 +365,18 @@ function TagSelect({
   onChange: (v: string) => void
 }) {
   const { tags } = useResources()
+  const { t } = useLanguage()
   if (tags.length === 0) {
     return (
       <Input
-        placeholder="Tag id"
+        placeholder={t("automations.tagIdPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="bg-muted text-foreground"
       />
     )
   }
-  const selected = tags.find((t) => t.id === value)
+  const selected = tags.find((tg) => tg.id === value)
   return (
     <div className="flex items-center gap-2">
       <span
@@ -363,16 +389,16 @@ function TagSelect({
         onChange={(e) => onChange(e.target.value)}
         className={SELECT_CLASS}
       >
-        <option value="">Select a tag…</option>
-        {tags.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
+        <option value="">{t("automations.selectTag")}</option>
+        {tags.map((tg) => (
+          <option key={tg.id} value={tg.id}>
+            {tg.name}
           </option>
         ))}
         {/* Preserve a saved tag that's since been deleted so editing an
             existing automation doesn't silently drop it. */}
         {value && !selected && (
-          <option value={value}>{value} (unknown tag)</option>
+          <option value={value}>{value} {t("automations.unknownTag")}</option>
         )}
       </select>
     </div>
@@ -391,6 +417,7 @@ function ContactFieldSelect({
   onChange: (v: string) => void
 }) {
   const { customFields } = useResources()
+  const { t } = useLanguage()
   const customValue = value.startsWith("custom:") ? value : ""
   const knownCustom =
     customValue && customFields.some((f) => `custom:${f.id}` === customValue)
@@ -400,11 +427,11 @@ function ContactFieldSelect({
       onChange={(e) => onChange(e.target.value)}
       className={SELECT_CLASS}
     >
-      <option value="name">Name</option>
-      <option value="email">Email</option>
-      <option value="company">Company</option>
+      <option value="name">{t("contacts.name")}</option>
+      <option value="email">{t("contacts.email")}</option>
+      <option value="company">{t("contacts.company")}</option>
       {customFields.length > 0 && (
-        <optgroup label="Custom fields">
+        <optgroup label={t("automations.customFieldsGroup")}>
           {customFields.map((f) => (
             <option key={f.id} value={`custom:${f.id}`}>
               {f.field_name}
@@ -413,7 +440,7 @@ function ContactFieldSelect({
         </optgroup>
       )}
       {customValue && !knownCustom && (
-        <option value={customValue}>{customValue} (unknown field)</option>
+        <option value={customValue}>{customValue} {t("automations.unknownField")}</option>
       )}
     </select>
   )
@@ -429,10 +456,11 @@ function AgentSelect({
   onChange: (v: string) => void
 }) {
   const { members } = useResources()
+  const { t } = useLanguage()
   if (members.length === 0) {
     return (
       <Input
-        placeholder="Agent id"
+        placeholder={t("automations.agentIdPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="bg-muted text-foreground"
@@ -446,14 +474,14 @@ function AgentSelect({
       onChange={(e) => onChange(e.target.value)}
       className={SELECT_CLASS}
     >
-      <option value="">Select an agent…</option>
+      <option value="">{t("automations.selectAgent")}</option>
       {members.map((m) => (
         <option key={m.user_id} value={m.user_id}>
           {m.full_name || m.email || m.user_id}
         </option>
       ))}
       {value && !selected && (
-        <option value={value}>{value} (unknown agent)</option>
+        <option value={value}>{value} {t("automations.unknownAgent")}</option>
       )}
     </select>
   )
@@ -471,11 +499,12 @@ function DealPipelineFields({
   onChange: (patch: { pipeline_id: string; stage_id: string }) => void
 }) {
   const { pipelines, stages } = useResources()
+  const { t } = useLanguage()
 
   if (pipelines.length === 0) {
     return (
       <>
-        <FieldBlock label="Pipeline id">
+        <FieldBlock label={t("automations.pipelineIdLabel")}>
           <Input
             value={pipelineId}
             onChange={(e) =>
@@ -484,7 +513,7 @@ function DealPipelineFields({
             className="bg-muted text-foreground"
           />
         </FieldBlock>
-        <FieldBlock label="Stage id">
+        <FieldBlock label={t("automations.stageIdLabel")}>
           <Input
             value={stageId}
             onChange={(e) =>
@@ -503,7 +532,7 @@ function DealPipelineFields({
 
   return (
     <>
-      <FieldBlock label="Pipeline">
+      <FieldBlock label={t("automations.pipeline")}>
         <select
           value={pipelineId}
           onChange={(e) => {
@@ -518,18 +547,18 @@ function DealPipelineFields({
           }}
           className={SELECT_CLASS}
         >
-          <option value="">Select a pipeline…</option>
+          <option value="">{t("automations.selectPipeline")}</option>
           {pipelines.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
           ))}
           {pipelineId && !selectedPipeline && (
-            <option value={pipelineId}>{pipelineId} (unknown pipeline)</option>
+            <option value={pipelineId}>{pipelineId} {t("automations.unknownPipeline")}</option>
           )}
         </select>
       </FieldBlock>
-      <FieldBlock label="Stage">
+      <FieldBlock label={t("automations.stage")}>
         <select
           value={stageId}
           onChange={(e) =>
@@ -539,7 +568,7 @@ function DealPipelineFields({
           disabled={!pipelineId || stageOptions.length === 0}
         >
           <option value="">
-            {pipelineId ? "Select a stage…" : "Select a pipeline first…"}
+            {pipelineId ? t("automations.selectStage") : t("automations.selectPipelineFirst")}
           </option>
           {stageOptions.map((s) => (
             <option key={s.id} value={s.id}>
@@ -547,7 +576,7 @@ function DealPipelineFields({
             </option>
           ))}
           {stageId && pipelineId && !selectedStage && (
-            <option value={stageId}>{stageId} (unknown stage)</option>
+            <option value={stageId}>{stageId} {t("automations.unknownStage")}</option>
           )}
         </select>
       </FieldBlock>
@@ -568,11 +597,12 @@ function SendTemplateFields({
   onChange: (patch: { template_name: string; language: string }) => void
 }) {
   const { templates } = useResources()
+  const { t } = useLanguage()
 
   if (templates.length === 0) {
     return (
       <>
-        <FieldBlock label="Template name">
+        <FieldBlock label={t("automations.templateNameLabel")}>
           <Input
             value={templateName}
             onChange={(e) =>
@@ -581,7 +611,7 @@ function SendTemplateFields({
             className="bg-muted text-foreground"
           />
         </FieldBlock>
-        <FieldBlock label="Language">
+        <FieldBlock label={t("templates.languageLabel")}>
           <Input
             value={language}
             onChange={(e) =>
@@ -599,11 +629,11 @@ function SendTemplateFields({
   const toValue = (name: string, lang: string) => `${name}::${lang}`
   const current = templateName ? toValue(templateName, language) : ""
   const hasMatch = templates.some(
-    (t) => toValue(t.name, t.language ?? "en_US") === current,
+    (tpl) => toValue(tpl.name, tpl.language ?? "en_US") === current,
   )
 
   return (
-    <FieldBlock label="Template">
+    <FieldBlock label={t("broadcastNew.template")}>
       <select
         value={current}
         onChange={(e) => {
@@ -612,18 +642,19 @@ function SendTemplateFields({
         }}
         className={SELECT_CLASS}
       >
-        <option value="">Select a template…</option>
-        {templates.map((t) => {
-          const lang = t.language ?? "en_US"
+        <option value="">{t("automations.selectTemplate")}</option>
+        {templates.map((tpl) => {
+          const lang = tpl.language ?? "en_US"
           return (
-            <option key={t.id} value={toValue(t.name, lang)}>
-              {t.name} ({lang})
+            <option key={tpl.id} value={toValue(tpl.name, lang)}>
+              {tpl.name} ({lang})
             </option>
           )
         })}
         {current && !hasMatch && (
           <option value={current}>
-            {templateName} ({language || "unknown"}) — not in approved list
+            {templateName} ({language || t("automations.unknownLowercase")}){" "}
+            {t("automations.notInApprovedList")}
           </option>
         )}
       </select>
@@ -637,6 +668,7 @@ function SendTemplateFields({
 
 export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
   const router = useRouter()
+  const { t } = useLanguage()
   const isEditing = !!initial.id
   const [state, setState] = useState<BuilderInitial>(initial)
   const [saving, setSaving] = useState(false)
@@ -692,7 +724,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
     setSaving(true)
     try {
       const payload = {
-        name: state.name || "Untitled automation",
+        name: state.name || t("automations.untitled"),
         description: state.description || null,
         trigger_type: state.trigger_type,
         trigger_config: state.trigger_config,
@@ -723,14 +755,16 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
           body?.issues?.[0]
         if (firstIssue?.message) {
           toast.error(firstIssue.message, {
-            description: firstIssue.path ? `at ${firstIssue.path}` : undefined,
+            description: firstIssue.path
+              ? `${t("automations.issueAtPath")} ${firstIssue.path}`
+              : undefined,
           })
         } else {
-          toast.error(body?.error ?? "Save failed")
+          toast.error(body?.error ?? t("automations.saveFailed"))
         }
         return
       }
-      toast.success(isEditing ? "Automation saved" : "Automation created")
+      toast.success(isEditing ? t("automations.toastSaved") : t("automations.toastCreated"))
       if (!isEditing && body?.automation?.id) {
         router.replace(`/automations/${body.automation.id}/edit`)
       }
@@ -749,22 +783,22 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
           type="button"
           onClick={() => router.push("/automations")}
           className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Back to automations"
+          aria-label={t("automations.backToAutomations")}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <input
           value={state.name}
           onChange={(e) => patchTop("name", e.target.value)}
-          placeholder="Untitled automation"
+          placeholder={t("automations.untitled")}
           className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-1 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:bg-muted focus:outline-none sm:text-base"
         />
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="hidden sm:inline">Active</span>
+          <span className="hidden sm:inline">{t("automations.active")}</span>
           <Switch
             checked={state.is_active}
             onCheckedChange={(v) => patchTop("is_active", !!v)}
-            aria-label="Active"
+            aria-label={t("automations.active")}
           />
         </div>
         <Button
@@ -773,7 +807,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
           className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {isEditing ? "Save" : "Save Draft"}
+          {isEditing ? t("automations.save") : t("automations.saveDraft")}
         </Button>
       </header>
 
@@ -788,8 +822,8 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
             type="button"
             onClick={() => setZoom(Math.max(0.5, Number((zoom - 0.1).toFixed(2))))}
             disabled={zoom <= 0.5}
-            aria-label="Zoom out"
-            title="Zoom out"
+            aria-label={t("automations.zoomOut")}
+            title={t("automations.zoomOut")}
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomOut className="h-4 w-4" />
@@ -800,8 +834,8 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
               setZoom(1);
               try { localStorage.setItem("wacrm-builder-zoom", "1"); } catch {}
             }}
-            title="Reset zoom (100%)"
-            aria-label="Reset zoom"
+            title={t("automations.zoomResetTitle")}
+            aria-label={t("automations.zoomReset")}
             className="min-w-12 rounded-md px-1 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {Math.round(zoom * 100)}%
@@ -810,8 +844,8 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
             type="button"
             onClick={() => setZoom(Math.min(1.5, Number((zoom + 0.1).toFixed(2))))}
             disabled={zoom >= 1.5}
-            aria-label="Zoom in"
-            title="Zoom in"
+            aria-label={t("automations.zoomIn")}
+            title={t("automations.zoomIn")}
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomIn className="h-4 w-4" />
@@ -882,6 +916,7 @@ function TriggerCard({
   onProviderChange: (p: 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null) => void
 }) {
   const [open, setOpen] = useState(false)
+  const { t } = useLanguage()
   return (
     // Card width: full on mobile, fixed 320px on sm+. The canvas wrapper
     // (max-w-2xl + px-4) keeps this tidy on tablet/desktop.
@@ -896,9 +931,12 @@ function TriggerCard({
             <Zap className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-blue-300">Trigger</div>
+            <div className="text-[11px] uppercase tracking-wide text-blue-300">{t("automations.triggerHeading")}</div>
             <div className="truncate text-sm font-medium text-foreground">
-              {TRIGGER_OPTIONS.find((o) => o.value === type)?.label ?? type}
+              {(() => {
+                const opt = TRIGGER_OPTIONS.find((o) => o.value === type)
+                return opt ? t(opt.labelKey) : type
+              })()}
             </div>
           </div>
           <ChevronDown
@@ -909,7 +947,7 @@ function TriggerCard({
           <div className="space-y-3 border-t border-border px-4 py-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Trigger type
+                {t("automations.triggerType")}
               </label>
               <select
                 value={type}
@@ -918,48 +956,51 @@ function TriggerCard({
               >
                 {TRIGGER_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.labelKey)}
                   </option>
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                {TRIGGER_OPTIONS.find((o) => o.value === type)?.hint}
+                {(() => {
+                  const opt = TRIGGER_OPTIONS.find((o) => o.value === type)
+                  return opt ? t(opt.hintKey) : null
+                })()}
               </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Channel
+                {t("automations.channel")}
               </label>
               <select
                 value={channel ?? ''}
                 onChange={(e) => onChannelChange((e.target.value || null) as 'whatsapp' | 'instagram' | null)}
                 className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
               >
-                <option value="">Both (WhatsApp + Instagram)</option>
-                <option value="whatsapp">WhatsApp only</option>
-                <option value="instagram">Instagram only</option>
+                <option value="">{t("flows.builder.channelBoth")}</option>
+                <option value="whatsapp">{t("flows.builder.channelWhatsapp")}</option>
+                <option value="instagram">{t("flows.builder.channelInstagram")}</option>
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Limit this automation to a specific channel, or leave on &quot;Both&quot;.
+                {t("automations.channelHint")}
               </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Provider
+                {t("automations.provider")}
               </label>
               <select
                 value={provider ?? ''}
                 onChange={(e) => onProviderChange((e.target.value || null) as 'meta' | 'ryzeapi' | 'zernio' | 'evolution' | null)}
                 className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
               >
-                <option value="">All providers</option>
-                <option value="zernio">Zernio (WhatsApp + Instagram)</option>
-                <option value="ryzeapi">RyzeAPI only</option>
-                <option value="evolution">Evolution Go only</option>
-                <option value="meta">Meta Cloud API only</option>
+                <option value="">{t("automations.providerAll")}</option>
+                <option value="zernio">{t("automations.providerZernio")}</option>
+                <option value="ryzeapi">{t("automations.providerRyzeapiOnly")}</option>
+                <option value="evolution">{t("automations.providerEvolutionOnly")}</option>
+                <option value="meta">{t("automations.providerMetaOnly")}</option>
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Which provider this automation should fire for. &quot;Both&quot; fires regardless of provider.
+                {t("automations.providerHint")}
               </p>
             </div>
             {type === "keyword_match" && (
@@ -972,7 +1013,7 @@ function TriggerCard({
             {type === "tag_added" && (
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Tag
+                  {t("automations.tag")}
                 </label>
                 <TagSelect
                   value={(config.tag_id as string) ?? ""}
@@ -1003,6 +1044,7 @@ function KeywordMatchConfig({
   onChange: (c: Record<string, unknown>) => void
 }) {
   const keywords = config?.keywords ?? []
+  const { t } = useLanguage()
   const [draft, setDraft] = useState(keywords.join(", "))
   const [posts, setPosts] = useState<{ id: string; content: string }[]>([])
   const [postsLoading, setPostsLoading] = useState(false)
@@ -1038,7 +1080,7 @@ function KeywordMatchConfig({
     <div className="space-y-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
-          Keywords (comma-separated)
+          {t("flows.builder.keywordsLabel")}
         </label>
         <Input
           value={draft}
@@ -1050,27 +1092,27 @@ function KeywordMatchConfig({
               commit()
             }
           }}
-          placeholder="e.g. pricing, demo request, talk to sales"
+          placeholder={t("automations.keywordsPlaceholder")}
           className="bg-muted text-foreground"
         />
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
-          Match type
+          {t("automations.matchType")}
         </label>
         <select
           value={config?.match_type ?? "contains"}
           onChange={(e) => onChange({ ...config, match_type: e.target.value as "exact" | "contains" })}
           className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:outline-none"
         >
-          <option value="contains">Contains</option>
-          <option value="exact">Exact</option>
+          <option value="contains">{t("automations.matchContains")}</option>
+          <option value="exact">{t("automations.matchExact")}</option>
         </select>
       </div>
       {channel === 'instagram' && (
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            Scope to post (optional)
+            {t("flows.builder.scopeToPost")}
           </label>
           <select
             value={selectedPostId}
@@ -1081,7 +1123,7 @@ function KeywordMatchConfig({
             disabled={postsLoading}
             className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground focus:outline-none disabled:opacity-50"
           >
-            <option value="">Any post</option>
+            <option value="">{t("flows.builder.anyPost")}</option>
             {posts.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.content.substring(0, 80)}{p.content.length > 80 ? '...' : ''}
@@ -1090,10 +1132,10 @@ function KeywordMatchConfig({
           </select>
           <p className="mt-1 text-[11px] text-muted-foreground">
             {postsLoading
-              ? 'Loading posts...'
+              ? t('flows.builder.loadingPosts')
               : posts.length === 0
-                ? 'No posts found. Connect Instagram in Settings > Social and sync posts via Zernio.'
-                : 'Limit this trigger to comments on a specific post.'}
+                ? t('automations.noPostsFound')
+                : t('flows.builder.scopeHint')}
           </p>
         </div>
       )}
@@ -1119,6 +1161,7 @@ function TimeBasedConfig({
   const dealStatus = (config.deal_status as string) ?? 'open'
   const targetMode = (config.target_mode as string) ?? (pipelineId ? 'pipeline' : 'tags')
   const { tags, pipelines, stages } = useResources()
+  const { t } = useLanguage()
 
   const stageOptions = stages.filter((s) => s.pipeline_id === pipelineId)
 
@@ -1127,10 +1170,10 @@ function TimeBasedConfig({
       {/* Schedule */}
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
-          Schedule (HH:mm)
+          {t("automations.scheduleLabel")}
         </label>
         <Input
-          placeholder="e.g. 09:50"
+          placeholder={t("automations.schedulePlaceholder")}
           value={(config.schedule as string) ?? ""}
           onChange={(e) =>
             onChange({ ...config, schedule: e.target.value })
@@ -1138,22 +1181,21 @@ function TimeBasedConfig({
           className="bg-muted text-foreground"
         />
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Daily time in 24h format. The automation fires once per day
-          when the cron runs (within a ~6 min window).
+          {t("automations.scheduleHelp")}
         </p>
       </div>
 
       {/* Timezone */}
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
-          Timezone
+          {t("automations.timezone")}
         </label>
         <select
           value={(config.timezone as string) ?? ''}
           onChange={(e) => onChange({ ...config, timezone: e.target.value || undefined })}
           className={SELECT_CLASS}
         >
-          <option value="">UTC (server time)</option>
+          <option value="">{t("automations.utcOption")}</option>
           <option value="America/Sao_Paulo">America/Sao_Paulo (Brasília)</option>
           <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
           <option value="America/Mexico_City">America/Mexico_City</option>
@@ -1167,31 +1209,30 @@ function TimeBasedConfig({
           <option value="Australia/Sydney">Australia/Sydney</option>
         </select>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          The schedule above is interpreted as wall-clock time in this timezone.
-          Leave empty to use UTC.
+          {t("automations.timezoneHelp")}
         </p>
       </div>
 
       {/* Target mode */}
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
-          Target contacts by
+          {t("automations.targetBy")}
         </label>
         <select
           value={targetMode}
           onChange={(e) => onChange({ ...config, target_mode: e.target.value })}
           className={SELECT_CLASS}
         >
-          <option value="tags">Tags</option>
-          <option value="pipeline">Pipeline stage</option>
-          <option value="both">Both (tags AND pipeline)</option>
+          <option value="tags">{t("automations.targetTags")}</option>
+          <option value="pipeline">{t("automations.targetPipeline")}</option>
+          <option value="both">{t("automations.targetBoth")}</option>
         </select>
         <p className="mt-1 text-[11px] text-muted-foreground">
           {targetMode === 'both'
-            ? 'Contacts must match BOTH criteria.'
+            ? t('automations.targetHelpBoth')
             : targetMode === 'pipeline'
-            ? 'All contacts with a deal in the selected stage.'
-            : 'All contacts with the selected tag.'}
+            ? t('automations.targetHelpPipeline')
+            : t('automations.targetHelpTags')}
         </p>
       </div>
 
@@ -1199,11 +1240,11 @@ function TimeBasedConfig({
       {(targetMode === 'tags' || targetMode === 'both') && (
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            Tag
+            {t("automations.tag")}
           </label>
           <MultiTagSelect tagIds={tagIds} tags={tags} onChange={(ids) => onChange({ ...config, tag_ids: ids })} />
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Contacts with any of these tags will receive the message.
+            {t("automations.tagsHelp")}
           </p>
         </div>
       )}
@@ -1213,10 +1254,10 @@ function TimeBasedConfig({
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Pipeline
+              {t("automations.pipeline")}
             </label>
             {pipelines.length === 0 ? (
-              <Input placeholder="Pipeline ID" value={pipelineId} onChange={(e) => onChange({ ...config, pipeline_id: e.target.value })} className="bg-muted text-foreground" />
+              <Input placeholder={t("automations.pipelineIdPlaceholder")} value={pipelineId} onChange={(e) => onChange({ ...config, pipeline_id: e.target.value })} className="bg-muted text-foreground" />
             ) : (
               <select
                 value={pipelineId}
@@ -1226,7 +1267,7 @@ function TimeBasedConfig({
                 }}
                 className={SELECT_CLASS}
               >
-                <option value="">Select a pipeline…</option>
+                <option value="">{t("automations.selectPipeline")}</option>
                 {pipelines.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -1236,7 +1277,7 @@ function TimeBasedConfig({
           {pipelineId && (
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Stage
+                {t("automations.stage")}
               </label>
               <select
                 value={stageId}
@@ -1244,7 +1285,7 @@ function TimeBasedConfig({
                 className={SELECT_CLASS}
                 disabled={stageOptions.length === 0}
               >
-                <option value="">Any stage</option>
+                <option value="">{t("automations.anyStage")}</option>
                 {stageOptions.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -1253,26 +1294,26 @@ function TimeBasedConfig({
           )}
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Deal status
+              {t("automations.dealStatus")}
             </label>
             <select
               value={dealStatus}
               onChange={(e) => onChange({ ...config, deal_status: e.target.value })}
               className={SELECT_CLASS}
             >
-              <option value="open">Open</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
+              <option value="open">{t("automations.statusOpen")}</option>
+              <option value="won">{t("automations.statusWon")}</option>
+              <option value="lost">{t("automations.statusLost")}</option>
             </select>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Inactive for at least (days)
+              {t("automations.inactiveDays")}
             </label>
             <Input
               type="number"
               min={0}
-              placeholder="0 = any"
+              placeholder={t("automations.inactiveDaysPlaceholder")}
               value={(config.deal_inactivity_days as number) ?? 0}
               onChange={(e) => {
                 const n = parseInt(e.target.value, 10)
@@ -1284,8 +1325,7 @@ function TimeBasedConfig({
               className="bg-muted text-foreground"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Only fire for contacts whose deal has not been updated for this many
-              days. Leave at 0 to target all deals in the stage.
+              {t("automations.inactiveDaysHelp")}
             </p>
           </div>
         </div>
@@ -1309,7 +1349,8 @@ function MultiTagSelect({
   onChange: (ids: string[]) => void
 }) {
   const [open, setOpen] = useState(false)
-  const selected = allTags.filter((t) => tagIds.includes(t.id))
+  const { t } = useLanguage()
+  const selected = allTags.filter((tg) => tagIds.includes(tg.id))
 
   return (
     <div className="relative">
@@ -1323,21 +1364,21 @@ function MultiTagSelect({
         )}
       >
         {selected.length === 0 ? (
-          'Select tags…'
+          t('automations.selectTags')
         ) : (
           <div className="flex flex-wrap gap-1">
-            {selected.map((t) => (
+            {selected.map((tg) => (
               <span
-                key={t.id}
+                key={tg.id}
                 className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-white"
-                style={{ backgroundColor: t.color ?? '#3b82f6' }}
+                style={{ backgroundColor: tg.color ?? '#3b82f6' }}
               >
-                {t.name}
+                {tg.name}
                 <X
                   className="h-3 w-3 cursor-pointer hover:opacity-70"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onChange(tagIds.filter((id) => id !== t.id))
+                    onChange(tagIds.filter((id) => id !== tg.id))
                   }}
                 />
               </span>
@@ -1347,11 +1388,11 @@ function MultiTagSelect({
       </button>
       {open && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-40 overflow-y-auto rounded-md border border-border bg-card shadow-lg">
-          {allTags.map((t) => {
-            const isChecked = tagIds.includes(t.id)
+          {allTags.map((tg) => {
+            const isChecked = tagIds.includes(tg.id)
             return (
               <label
-                key={t.id}
+                key={tg.id}
                 className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted"
               >
                 <input
@@ -1360,21 +1401,21 @@ function MultiTagSelect({
                   onChange={() => {
                     onChange(
                       isChecked
-                        ? tagIds.filter((id) => id !== t.id)
-                        : [...tagIds, t.id],
+                        ? tagIds.filter((id) => id !== tg.id)
+                        : [...tagIds, tg.id],
                     )
                   }}
                 />
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full border border-border"
-                  style={{ backgroundColor: t.color ?? 'transparent' }}
+                  style={{ backgroundColor: tg.color ?? 'transparent' }}
                 />
-                {t.name}
+                {tg.name}
               </label>
             )
           })}
           {allTags.length === 0 && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">No tags available.</p>
+            <p className="px-3 py-2 text-xs text-muted-foreground">{t('automations.noTagsAvailable')}</p>
           )}
         </div>
       )}
@@ -1458,6 +1499,7 @@ function StepRenderer({
   parentPath: StepPath
   channel?: 'whatsapp' | 'instagram' | null
 } & Omit<StepListProps, "steps" | "parentPath" | "channel">) {
+  const { t } = useLanguage()
   // Path resolution. For branch children, ConditionBranches already
   // appended a branch marker (with placeholder index 0) to parentPath —
   // REPLACE its index with this step's real position instead of adding
@@ -1506,10 +1548,10 @@ function StepRenderer({
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                {isCondition ? "Condition" : step.step_type === "wait" ? "Wait" : "Action"}
+                {isCondition ? t("automations.kindCondition") : step.step_type === "wait" ? t("automations.kindWait") : t("automations.kindAction")}
               </div>
-              <div className="truncate text-sm font-medium text-foreground">{meta.label}</div>
-              <div className="truncate text-[11px] text-muted-foreground">{previewFor(step)}</div>
+              <div className="truncate text-sm font-medium text-foreground">{t(meta.labelKey)}</div>
+              <div className="truncate text-[11px] text-muted-foreground">{previewFor(step, t)}</div>
             </div>
             <ChevronDown
               className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")}
@@ -1528,7 +1570,7 @@ function StepRenderer({
                     variant="ghost"
                     size="icon"
                     disabled={index === 0}
-                    aria-label="Move up"
+                    aria-label={t("automations.moveUp")}
                     onClick={() => props.moveStepAt(path, -1)}
                   >
                     <ArrowUp className="h-4 w-4" />
@@ -1537,7 +1579,7 @@ function StepRenderer({
                     variant="ghost"
                     size="icon"
                     disabled={index === total - 1}
-                    aria-label="Move down"
+                    aria-label={t("automations.moveDown")}
                     onClick={() => props.moveStepAt(path, 1)}
                   >
                     <ArrowDown className="h-4 w-4" />
@@ -1549,7 +1591,7 @@ function StepRenderer({
                   onClick={() => props.deleteStepAt(path)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete
+                  {t("automations.delete")}
                 </Button>
               </div>
             </div>
@@ -1579,6 +1621,7 @@ function ConditionBranches({
 } & Omit<StepListProps, "steps" | "parentPath">) {
   const yes = step.branches?.yes ?? []
   const no = step.branches?.no ?? []
+  const { t } = useLanguage()
   // Build the child scope by appending a branch marker. The scope the
   // StepList uses is driven by the LAST element of parentPath, so the
   // tail's `index` doesn't matter — it's replaced per child during walks.
@@ -1595,10 +1638,10 @@ function ConditionBranches({
     // cram each branch to ~170px which is too narrow for the nested
     // cards. Two-column grid returns on sm+.
     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <BranchColumn label="Yes" color="text-primary">
+      <BranchColumn label={t("automations.yes")} color="text-primary">
         <StepList {...props} steps={yes} parentPath={yesPath} />
       </BranchColumn>
-      <BranchColumn label="No" color="text-rose-400">
+      <BranchColumn label={t("automations.no")} color="text-rose-400">
         <StepList {...props} steps={no} parentPath={noPath} />
       </BranchColumn>
     </div>
@@ -1623,13 +1666,14 @@ function BranchColumn({
 }
 
 function AddButton({ onPick }: { onPick: (t: AutomationStepType) => void }) {
+  const { t } = useLanguage()
   return (
     <div className="relative flex flex-col items-center">
       <div className="h-4 w-[2px] bg-border" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
           className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-border bg-background text-muted-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary data-[popup-open]:border-primary data-[popup-open]:bg-primary/20 data-[popup-open]:text-primary"
-          aria-label="Add step"
+          aria-label={t("automations.addStep")}
         >
           <Plus className="h-4 w-4" />
         </DropdownMenuTrigger>
@@ -1637,12 +1681,12 @@ function AddButton({ onPick }: { onPick: (t: AutomationStepType) => void }) {
           align="start"
           className="max-h-80 min-w-56 overflow-y-auto border-border bg-popover"
         >
-          {ADDABLE_STEPS.map((t) => {
-            const Icon = STEP_META[t].icon
+          {ADDABLE_STEPS.map((type) => {
+            const Icon = STEP_META[type].icon
             return (
-              <DropdownMenuItem key={t} onClick={() => onPick(t)}>
+              <DropdownMenuItem key={type} onClick={() => onPick(type)}>
                 <Icon className="h-4 w-4" />
-                {STEP_META[t].label}
+                {t(STEP_META[type].labelKey)}
               </DropdownMenuItem>
             )
           })}
@@ -1672,19 +1716,20 @@ function SendButtonFields({
   onChange: (patch: Record<string, unknown>) => void
 }) {
   const buttons = (cfg.buttons as ButtonField[]) ?? []
+  const { t } = useLanguage()
 
   return (
     <>
-      <FieldBlock label="Message text">
+      <FieldBlock label={t("automations.messageText")}>
         <Textarea
           value={(cfg.text as string) ?? ""}
           onChange={(e) => onChange({ text: e.target.value })}
-          placeholder="Choose an option below..."
+          placeholder={t("automations.messageTextPlaceholder")}
           className="min-h-20 bg-muted text-foreground"
         />
       </FieldBlock>
 
-      <FieldBlock label={`Buttons (${buttons.length}/3)`}>
+      <FieldBlock label={`${t("automations.buttons")} (${buttons.length}/3)`}>
         <div className="space-y-2">
           {buttons.map((btn, i) => (
             <div
@@ -1701,8 +1746,8 @@ function SendButtonFields({
                   }}
                   className="w-24 rounded border border-border bg-background px-2 py-1 text-xs"
                 >
-                  <option value="postback">Postback</option>
-                  <option value="url">URL</option>
+                  <option value="postback">{t("automations.buttonPostback")}</option>
+                  <option value="url">{t("automations.buttonUrl")}</option>
                 </select>
                 <input
                   value={btn.title ?? ""}
@@ -1711,7 +1756,7 @@ function SendButtonFields({
                     next[i] = { ...next[i], title: e.target.value }
                     onChange({ buttons: next })
                   }}
-                  placeholder="Button title"
+                  placeholder={t("automations.buttonTitlePlaceholder")}
                   className="flex-1 rounded border border-border bg-background px-2 py-1 text-sm"
                   maxLength={20}
                 />
@@ -1722,7 +1767,7 @@ function SendButtonFields({
                     onChange({ buttons: next })
                   }}
                   className="text-destructive hover:text-destructive/80 p-1 flex-shrink-0"
-                  aria-label="Remove button"
+                  aria-label={t("automations.removeButton")}
                 >
                   <X size={14} />
                 </button>
@@ -1746,7 +1791,7 @@ function SendButtonFields({
                     next[i] = { ...next[i], payload: e.target.value }
                     onChange({ buttons: next })
                   }}
-                  placeholder="Payload (optional)"
+                  placeholder={t("automations.payloadPlaceholder")}
                   className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
                 />
               )}
@@ -1765,7 +1810,7 @@ function SendButtonFields({
               }}
               className="w-full rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
             >
-              + Add button
+              + {t("automations.addButton")}
             </button>
           )}
         </div>
@@ -1789,6 +1834,7 @@ function ConditionTagSelect({
 }) {
   const [tags, setTags] = useState<TagRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const { t } = useLanguage()
 
   useEffect(() => {
     let cancelled = false
@@ -1818,7 +1864,7 @@ function ConditionTagSelect({
       className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
     >
       <option value="">
-        {tags.length > 0 ? "Select a tag…" : "No tags found — create one in Contacts"}
+        {tags.length > 0 ? t("automations.selectTag") : t("automations.noTagsCreateInContacts")}
       </option>
       {tags.map((tg) => (
         <option key={tg.id} value={tg.id}>
@@ -1839,6 +1885,7 @@ function StepEditor({
   onChange: (s: BuilderStep) => void
 }) {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
+  const { t } = useLanguage()
   const cfg = step.step_config
   const set = (patch: Record<string, unknown>) =>
     onChange({ ...step, step_config: { ...cfg, ...patch } })
@@ -1847,26 +1894,26 @@ function StepEditor({
     case "send_message":
       return (
         <>
-          <FieldBlock label="Message text">
+          <FieldBlock label={t("automations.messageText")}>
             <Textarea
               value={(cfg.text as string) ?? ""}
               onChange={(e) => set({ text: e.target.value })}
-              placeholder="Hi! Thanks for reaching out…"
+              placeholder={t("automations.sendMessagePlaceholder")}
               className="min-h-24 bg-muted text-foreground"
             />
           </FieldBlock>
           {channel === 'instagram' && (
-            <FieldBlock label="Reply mode">
+            <FieldBlock label={t("flows.replyMode")}>
               <select
                 value={(cfg.reply_mode as string) ?? "public"}
                 onChange={(e) => set({ reply_mode: e.target.value })}
                 className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
               >
-                <option value="public">Public Reply (on the post)</option>
-                <option value="dm">Private DM</option>
+                <option value="public">{t("flows.replyModePublic")}</option>
+                <option value="dm">{t("flows.replyModeDm")}</option>
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Public replies are visible to everyone on the post. Private DMs go directly to the commenter.
+                {t("flows.replyModeHelp")}
               </p>
             </FieldBlock>
           )}
@@ -1885,19 +1932,19 @@ function StepEditor({
     case "send_media":
       return (
         <>
-          <FieldBlock label="Media type">
+          <FieldBlock label={t("automations.mediaType")}>
             <select
               value={(cfg.media_type as string) ?? "image"}
               onChange={(e) => set({ media_type: e.target.value })}
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
-              <option value="image">Image</option>
-              <option value="video">Video</option>
-              <option value="document">Document</option>
-              <option value="audio">Audio</option>
+              <option value="image">{t("flows.mediaType.image")}</option>
+              <option value="video">{t("flows.mediaType.video")}</option>
+              <option value="document">{t("flows.mediaType.document")}</option>
+              <option value="audio">{t("automations.mediaTypeAudio")}</option>
             </select>
           </FieldBlock>
-          <FieldBlock label="Media URL">
+          <FieldBlock label={t("automations.mediaUrl")}>
             <div className="space-y-2">
               <Input
                 value={(cfg.media_url as string) ?? ""}
@@ -1913,19 +1960,19 @@ function StepEditor({
                 onClick={() => setMediaPickerOpen(true)}
               >
                 <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-                Browse Media Library
+                {t("automations.browseMediaLibrary")}
               </Button>
             </div>
           </FieldBlock>
-          <FieldBlock label="Caption (optional)">
+          <FieldBlock label={t("automations.captionOptional")}>
             <Input
               value={(cfg.caption as string) ?? ""}
               onChange={(e) => set({ caption: e.target.value })}
-              placeholder="Check this out!"
+              placeholder={t("automations.captionPlaceholder")}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Filename (optional, documents only)">
+          <FieldBlock label={t("automations.filenameOptional")}>
             <Input
               value={(cfg.filename as string) ?? ""}
               onChange={(e) => set({ filename: e.target.value })}
@@ -1950,7 +1997,7 @@ function StepEditor({
     case "add_tag":
     case "remove_tag":
       return (
-        <FieldBlock label="Tag">
+        <FieldBlock label={t("automations.tag")}>
           <TagSelect
             value={(cfg.tag_id as string) ?? ""}
             onChange={(v) => set({ tag_id: v })}
@@ -1960,18 +2007,18 @@ function StepEditor({
     case "assign_conversation":
       return (
         <>
-          <FieldBlock label="Mode">
+          <FieldBlock label={t("automations.mode")}>
             <select
               value={(cfg.mode as string) ?? "round_robin"}
               onChange={(e) => set({ mode: e.target.value })}
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
-              <option value="round_robin">Round-robin</option>
-              <option value="specific">Specific agent</option>
+              <option value="round_robin">{t("automations.modeRoundRobin")}</option>
+              <option value="specific">{t("automations.modeSpecificAgent")}</option>
             </select>
           </FieldBlock>
           {cfg.mode === "specific" && (
-            <FieldBlock label="Agent">
+            <FieldBlock label={t("automations.agent")}>
               <AgentSelect
                 value={(cfg.agent_id as string) ?? ""}
                 onChange={(v) => set({ agent_id: v })}
@@ -1983,17 +2030,17 @@ function StepEditor({
     case "update_contact_field":
       return (
         <>
-          <FieldBlock label="Field">
+          <FieldBlock label={t("automations.field")}>
             <ContactFieldSelect
               value={(cfg.field as string) ?? "name"}
               onChange={(v) => set({ field: v })}
             />
           </FieldBlock>
-          <FieldBlock label="Value">
+          <FieldBlock label={t("automations.value")}>
             <Input
               value={(cfg.value as string) ?? ""}
               onChange={(e) => set({ value: e.target.value })}
-              placeholder="Text or {{ vars.x }} / {{ message.text }}"
+              placeholder={t("automations.fieldValuePlaceholder")}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
@@ -2007,14 +2054,14 @@ function StepEditor({
             stageId={(cfg.stage_id as string) ?? ""}
             onChange={(patch) => set(patch)}
           />
-          <FieldBlock label="Title">
+          <FieldBlock label={t("automations.title")}>
             <Input
               value={(cfg.title as string) ?? ""}
               onChange={(e) => set({ title: e.target.value })}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Value">
+          <FieldBlock label={t("automations.value")}>
             <Input
               type="number"
               value={(cfg.value as number) ?? 0}
@@ -2027,11 +2074,11 @@ function StepEditor({
     case "update_deal":
       return (
         <>
-          <FieldBlock label="Deal ID (optional)">
+          <FieldBlock label={t("automations.dealIdOptional")}>
             <Input
               value={(cfg.deal_id as string) ?? ""}
               onChange={(e) => set({ deal_id: e.target.value })}
-              placeholder="Leave empty to target the contact's most recent deal"
+              placeholder={t("automations.dealIdPlaceholder")}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
@@ -2040,24 +2087,24 @@ function StepEditor({
             stageId={(cfg.stage_id as string) ?? ""}
             onChange={(patch) => set(patch)}
           />
-          <FieldBlock label="Status (optional)">
+          <FieldBlock label={t("automations.statusOptional")}>
             <select
               value={(cfg.status as string) ?? ""}
               onChange={(e) => set({ status: e.target.value })}
               className={SELECT_CLASS}
             >
-              <option value="">Keep current status</option>
-              <option value="open">Open</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
+              <option value="">{t("automations.keepCurrentStatus")}</option>
+              <option value="open">{t("automations.statusOpen")}</option>
+              <option value="won">{t("automations.statusWon")}</option>
+              <option value="lost">{t("automations.statusLost")}</option>
             </select>
           </FieldBlock>
-          <FieldBlock label="Value (optional)">
+          <FieldBlock label={t("automations.valueOptional")}>
             <Input
               type="number"
               value={(cfg.value as number) ?? 0}
               onChange={(e) => set({ value: Number(e.target.value) })}
-              placeholder="Leave 0 to keep current value"
+              placeholder={t("automations.valueKeepPlaceholder")}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
@@ -2066,10 +2113,10 @@ function StepEditor({
               checked={Boolean(cfg.create_if_missing)}
               onCheckedChange={(v) => set({ create_if_missing: v })}
             />
-            Create the deal if it doesn&apos;t exist yet
+            {t("automations.createIfMissing")}
           </label>
           {cfg.create_if_missing && (
-            <FieldBlock label="Title (used when creating)">
+            <FieldBlock label={t("automations.titleForCreation")}>
               <Input
                 value={(cfg.title as string) ?? ""}
                 onChange={(e) => set({ title: e.target.value })}
@@ -2082,35 +2129,34 @@ function StepEditor({
     case "calendar_update_status":
       return (
         <>
-          <FieldBlock label="New status">
+          <FieldBlock label={t("automations.newStatus")}>
             <select
               value={(cfg.status as string) ?? "scheduled"}
               onChange={(e) => set({ status: e.target.value })}
               className={SELECT_CLASS}
             >
-              <option value="scheduled">Scheduled</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="tentative">Tentative</option>
+              <option value="scheduled">{t("automations.calScheduled")}</option>
+              <option value="cancelled">{t("automations.calCancelled")}</option>
+              <option value="tentative">{t("automations.calTentative")}</option>
             </select>
           </FieldBlock>
-          <FieldBlock label="Event ID (optional)">
+          <FieldBlock label={t("automations.eventIdOptional")}>
             <Input
               value={(cfg.event_id as string) ?? ""}
               onChange={(e) => set({ event_id: e.target.value })}
-              placeholder="Leave empty to pick the contact's next upcoming event"
+              placeholder={t("automations.eventIdPlaceholder")}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
           <p className="text-xs text-muted-foreground">
-            Updates the calendar event status. When no Event ID is given, the
-            contact&apos;s next upcoming event (start_at &gt;= now) is used.
+            {t("automations.calendarHelp")}
           </p>
         </>
       )
     case "wait":
       return (
         <div className="grid grid-cols-2 gap-2">
-          <FieldBlock label="Amount">
+          <FieldBlock label={t("automations.amount")}>
             <Input
               type="number"
               min={1}
@@ -2119,15 +2165,15 @@ function StepEditor({
               className="bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Unit">
+          <FieldBlock label={t("automations.unit")}>
             <select
               value={(cfg.unit as string) ?? "hours"}
               onChange={(e) => set({ unit: e.target.value })}
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
-              <option value="minutes">Minutes</option>
-              <option value="hours">Hours</option>
-              <option value="days">Days</option>
+              <option value="minutes">{t("automations.unitMinutes")}</option>
+              <option value="hours">{t("automations.unitHours")}</option>
+              <option value="days">{t("automations.unitDays")}</option>
             </select>
           </FieldBlock>
         </div>
@@ -2136,34 +2182,34 @@ function StepEditor({
       const subject = (cfg.subject as string) ?? "tag_presence"
       return (
         <>
-          <FieldBlock label="Condition type">
+          <FieldBlock label={t("automations.conditionType")}>
             <select
               value={subject}
               onChange={(e) => set({ subject: e.target.value })}
               className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
             >
-              <option value="tag_presence">Contact has tag</option>
-              <option value="contact_field">Contact field equals value</option>
-              <option value="message_content">Last message contains text</option>
-              <option value="time_of_day">Current time is within range</option>
-              <option value="var_equals">Workflow variable equals value</option>
+              <option value="tag_presence">{t("automations.condTagPresence")}</option>
+              <option value="contact_field">{t("automations.condContactField")}</option>
+              <option value="message_content">{t("automations.condMessageContent")}</option>
+              <option value="time_of_day">{t("automations.condTimeOfDay")}</option>
+              <option value="var_equals">{t("automations.condVarEquals")}</option>
             </select>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {subject === "tag_presence" &&
-                "YES branch fires when the contact has this tag; NO when they don't."}
+                t("automations.condHelpTagPresence")}
               {subject === "contact_field" &&
-                "YES fires when the contact's field matches the value exactly."}
+                t("automations.condHelpContactField")}
               {subject === "message_content" &&
-                "YES fires when the last inbound message contains the text (case-insensitive)."}
+                t("automations.condHelpMessageContent")}
               {subject === "time_of_day" &&
-                "YES fires while the current time is inside the range (overnight ranges like 18:00-09:00 are supported)."}
+                t("automations.condHelpTimeOfDay")}
               {subject === "var_equals" &&
-                "YES fires when a variable saved earlier (AI Classify / Extract) matches the expected value."}
+                t("automations.condHelpVarEquals")}
             </p>
           </FieldBlock>
 
           {subject === "tag_presence" && (
-            <FieldBlock label="Tag">
+            <FieldBlock label={t("automations.tag")}>
               <ConditionTagSelect
                 value={(cfg.operand as string) ?? ""}
                 onChange={(v) => set({ operand: v })}
@@ -2173,20 +2219,20 @@ function StepEditor({
 
           {subject === "contact_field" && (
             <>
-              <FieldBlock label="Field">
+              <FieldBlock label={t("automations.field")}>
                 <select
                   value={(cfg.operand as string) ?? ""}
                   onChange={(e) => set({ operand: e.target.value })}
                   className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
                 >
-                  <option value="">Select a field…</option>
-                  <option value="name">Name</option>
-                  <option value="email">E-mail</option>
-                  <option value="company">Company</option>
-                  <option value="phone">Phone</option>
+                  <option value="">{t("automations.selectField")}</option>
+                  <option value="name">{t("contacts.name")}</option>
+                  <option value="email">{t("automations.eMail")}</option>
+                  <option value="company">{t("contacts.company")}</option>
+                  <option value="phone">{t("contacts.phone")}</option>
                 </select>
               </FieldBlock>
-              <FieldBlock label="Value (exact match)">
+              <FieldBlock label={t("automations.valueExactMatch")}>
                 <Input
                   value={(cfg.value as string) ?? ""}
                   onChange={(e) => set({ value: e.target.value })}
@@ -2198,11 +2244,11 @@ function StepEditor({
           )}
 
           {subject === "message_content" && (
-            <FieldBlock label="Text to look for">
+            <FieldBlock label={t("automations.textToLookFor")}>
               <Input
                 value={(cfg.value as string) ?? ""}
                 onChange={(e) => set({ value: e.target.value })}
-                placeholder="e.g. pricing"
+                placeholder={t("automations.textExample")}
                 className="bg-muted text-foreground"
               />
             </FieldBlock>
@@ -2210,7 +2256,7 @@ function StepEditor({
 
           {subject === "var_equals" && (
             <>
-              <FieldBlock label="Variable name">
+              <FieldBlock label={t("automations.variableName")}>
                 <Input
                   value={(cfg.operand as string) ?? ""}
                   onChange={(e) => set({ operand: e.target.value })}
@@ -2218,7 +2264,7 @@ function StepEditor({
                   className="bg-muted text-foreground"
                 />
               </FieldBlock>
-              <FieldBlock label="Expected value">
+              <FieldBlock label={t("automations.expectedValue")}>
                 <Input
                   value={(cfg.value as string) ?? ""}
                   onChange={(e) => set({ value: e.target.value })}
@@ -2230,7 +2276,7 @@ function StepEditor({
           )}
 
           {subject === "time_of_day" && (
-            <FieldBlock label="Time range (HH:mm-HH:mm)">
+            <FieldBlock label={t("automations.timeRangeLabel")}>
               <Input
                 value={(cfg.operand as string) ?? ""}
                 onChange={(e) => set({ operand: e.target.value })}
@@ -2245,14 +2291,14 @@ function StepEditor({
     case "send_webhook":
       return (
         <>
-          <FieldBlock label="URL">
+          <FieldBlock label={t("automations.url")}>
             <Input
               value={(cfg.url as string) ?? ""}
               onChange={(e) => set({ url: e.target.value })}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Body template (JSON)">
+          <FieldBlock label={t("automations.bodyTemplateJson")}>
             <Textarea
               value={(cfg.body_template as string) ?? ""}
               onChange={(e) => set({ body_template: e.target.value })}
@@ -2264,97 +2310,103 @@ function StepEditor({
     case "close_conversation":
       return (
         <p className="text-xs text-muted-foreground">
-          Sets the conversation status to &quot;closed&quot;. No configuration needed.
+          {t("automations.closeHelp")}
         </p>
       )
     case "ai_condition":
       return (
         <>
-          <FieldBlock label="Classification prompt">
+          <FieldBlock label={t("automations.classificationPrompt")}>
             <Textarea
               value={(cfg.prompt as string) ?? ""}
               onChange={(e) => set({ prompt: e.target.value })}
-              placeholder='Is the customer expressing urgency or frustration? Answer YES or NO.'
+              placeholder={t("automations.aiConditionPlaceholder")}
               className="min-h-20 bg-muted text-foreground"
             />
           </FieldBlock>
           <p className="text-xs text-muted-foreground">
-            The model will classify the message and branch to YES or NO. Write a clear,
-            specific question. Supports <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{message.text}}'}</code>.
+            {t("automations.aiConditionHelp")}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{message.text}}'}</code>.
           </p>
         </>
       )
     case "ai_reply":
       return (
         <>
-          <FieldBlock label="Reply prompt">
+          <FieldBlock label={t("automations.replyPrompt")}>
             <Textarea
               value={(cfg.prompt as string) ?? ""}
               onChange={(e) => set({ prompt: e.target.value })}
-              placeholder="You are a helpful support agent. Respond to the customer's question about pricing."
+              placeholder={t("automations.aiReplyPlaceholder")}
               className="min-h-20 bg-muted text-foreground"
             />
           </FieldBlock>
           {channel === 'instagram' && (
-            <FieldBlock label="Reply mode">
+            <FieldBlock label={t("flows.replyMode")}>
               <select
                 value={(cfg.reply_mode as string) ?? "public"}
                 onChange={(e) => set({ reply_mode: e.target.value })}
                 className="w-full rounded-md border border-border bg-muted px-2 py-1.5 text-sm text-foreground"
               >
-                <option value="public">Public Reply (on the post)</option>
-                <option value="dm">Private DM</option>
+                <option value="public">{t("flows.replyModePublic")}</option>
+                <option value="dm">{t("flows.replyModeDm")}</option>
               </select>
             </FieldBlock>
           )}
           <p className="text-xs text-muted-foreground">
-            The model will generate and send a reply based on the conversation history.
-            Supports <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.*}}'}</code> and <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{message.text}}'}</code>.
-            If the model emits <code className="rounded bg-muted px-1 py-0.5 text-[11px]">[[HANDOFF]]</code> the reply is skipped.
+            {t("automations.aiReplySupports")}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.*}}'}</code>{' '}
+            {t("automations.and")}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{message.text}}'}</code>.{' '}
+            {t("automations.aiReplyHandoffPre")}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">[[HANDOFF]]</code>{' '}
+            {t("automations.aiReplyHandoffPost")}.
           </p>
         </>
       )
     case "ai_extract":
       return (
         <>
-          <FieldBlock label="Extraction prompt">
+          <FieldBlock label={t("automations.extractionPrompt")}>
             <Textarea
               value={(cfg.prompt as string) ?? ""}
               onChange={(e) => set({ prompt: e.target.value })}
-              placeholder="Extract order details from the customer message."
+              placeholder={t("automations.extractPlaceholder")}
               className="min-h-20 bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Fields">
+          <FieldBlock label={t("automations.fields")}>
             <AiExtractFieldsEditor
               fields={(cfg.fields as { key: string; description: string }[]) ?? []}
               onChange={(fields) => set({ fields })}
             />
           </FieldBlock>
           <p className="text-xs text-muted-foreground">
-            The model extracts data and saves each field to <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.<key>}}'}</code>.
-            Use these variables in later steps like Send Message or Create Deal.
+            {t("automations.extractSavesTo")}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.<key>}}'}</code>.
+            {' '}
+            {t("automations.extractUseVars")}
           </p>
         </>
       )
     case "ai_classify":
       return (
         <>
-          <FieldBlock label="Classification prompt">
+          <FieldBlock label={t("automations.classificationPrompt")}>
             <Textarea
               value={(cfg.prompt as string) ?? ""}
               onChange={(e) => set({ prompt: e.target.value })}
-              placeholder="Classify purchase intent: HOT = ready to buy, WARM = comparing, COLD = browsing."
+              placeholder={t("automations.classifyPlaceholder")}
               className="min-h-20 bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Labels">
+          <FieldBlock label={t("automations.labels")}>
             <AiClassifyLabelsEditor
               labels={(cfg.labels as string[]) ?? []}
               onChange={(labels) => set({ labels })}
             />
           </FieldBlock>
-          <FieldBlock label="Save result as">
+          <FieldBlock label={t("automations.saveResultAs")}>
             <Input
               value={(cfg.store_var as string) ?? "classification"}
               onChange={(e) => set({ store_var: e.target.value })}
@@ -2362,17 +2414,18 @@ function StepEditor({
               className="bg-muted text-foreground"
             />
           </FieldBlock>
-          <FieldBlock label="Fallback label (optional)">
+          <FieldBlock label={t("automations.fallbackLabelOptional")}>
             <Input
               value={(cfg.fallback as string) ?? ""}
               onChange={(e) => set({ fallback: e.target.value })}
-              placeholder="Used when the message is empty"
+              placeholder={t("automations.fallbackPlaceholder")}
               className="bg-muted text-foreground"
             />
           </FieldBlock>
           <p className="text-xs text-muted-foreground">
-            The model picks exactly one label. It is stored to <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.<save result as>}}'}</code>
-            and can be used in later steps.
+            {t("automations.classifyPicksOne")}{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{'{{vars.<save result as>}}'}</code>{' '}
+            {t("automations.classifyUsedLater")}.
           </p>
         </>
       )
@@ -2388,12 +2441,13 @@ function AiClassifyLabelsEditor({
   labels: string[]
   onChange: (labels: string[]) => void
 }) {
+  const { t } = useLanguage()
   return (
     <div className="space-y-2">
       {labels.map((label, i) => (
         <div key={i} className="flex items-center gap-1.5">
           <Input
-            placeholder={`Label ${i + 1} (e.g. hot)`}
+            placeholder={t("automations.classifyLabelPlaceholder", i + 1)}
             value={label}
             onChange={(e) => {
               const next = [...labels]
@@ -2416,7 +2470,7 @@ function AiClassifyLabelsEditor({
         size="sm"
         onClick={() => onChange([...labels, ""])}
       >
-        <Plus className="h-3.5 w-3.5" /> Add label
+        <Plus className="h-3.5 w-3.5" /> {t("automations.addLabel")}
       </Button>
     </div>
   )
@@ -2429,13 +2483,14 @@ function AiExtractFieldsEditor({
   fields: { key: string; description: string }[]
   onChange: (fields: { key: string; description: string }[]) => void
 }) {
+  const { t } = useLanguage()
   return (
     <div className="space-y-2">
       {fields.map((f, i) => (
         <div key={i} className="flex items-start gap-1.5">
           <div className="flex-1 space-y-1">
             <Input
-              placeholder="Key (e.g. nome)"
+              placeholder={t("automations.keyPlaceholder")}
               value={f.key}
               onChange={(e) => {
                 const next = [...fields]
@@ -2445,7 +2500,7 @@ function AiExtractFieldsEditor({
               className="bg-muted text-foreground text-xs"
             />
             <Input
-              placeholder="Description (e.g. Nome do cliente)"
+              placeholder={t("automations.descriptionPlaceholder")}
               value={f.description}
               onChange={(e) => {
                 const next = [...fields]
@@ -2472,7 +2527,7 @@ function AiExtractFieldsEditor({
         onClick={() => onChange([...fields, { key: "", description: "" }])}
       >
         <PlusCircle className="mr-1 h-3 w-3" />
-        Add field
+        {t("automations.addField")}
       </Button>
     </div>
   )
@@ -2493,30 +2548,48 @@ function FieldBlock({
   )
 }
 
-function previewFor(step: BuilderStep): string {
+type Translator = ReturnType<typeof useLanguage>["t"]
+
+function previewFor(step: BuilderStep, t: Translator): string {
   switch (step.step_type) {
     case "send_message":
-      return (step.step_config.text as string) || "no text yet"
+      return (step.step_config.text as string) || t("automations.previewNoText")
     case "send_template":
-      return (step.step_config.template_name as string) || "pick a template"
+      return (step.step_config.template_name as string) || t("automations.previewPickTemplate")
     case "send_button":
       const btnCount = Array.isArray(step.step_config.buttons) ? (step.step_config.buttons as unknown[]).length : 0
-      return btnCount > 0 ? `${btnCount} button(s)` : "no buttons yet"
-    case "wait":
-      return `${step.step_config.amount ?? "?"} ${step.step_config.unit ?? ""}`
-    case "condition":
-      return `when ${step.step_config.subject ?? "?"}`
+      return btnCount > 0 ? t("automations.previewButtonsCount", btnCount) : t("automations.previewNoButtons")
+    case "wait": {
+      const unitKeys: Record<string, string> = {
+        minutes: "automations.unitMinutes",
+        hours: "automations.unitHours",
+        days: "automations.unitDays",
+      }
+      const unitKey = unitKeys[step.step_config.unit as string]
+      return `${step.step_config.amount ?? "?"} ${unitKey ? t(unitKey) : (step.step_config.unit ?? "")}`
+    }
+    case "condition": {
+      const subjectKeys: Record<string, string> = {
+        tag_presence: "automations.condTagPresence",
+        contact_field: "automations.condContactField",
+        message_content: "automations.condMessageContent",
+        time_of_day: "automations.condTimeOfDay",
+        var_equals: "automations.condVarEquals",
+      }
+      const subjectKey = subjectKeys[step.step_config.subject as string]
+      return `${t("automations.previewWhen")} ${subjectKey ? t(subjectKey) : (step.step_config.subject ?? "?")}`
+    }
     case "send_webhook":
-      return (step.step_config.url as string) || "no url"
+      return (step.step_config.url as string) || t("automations.previewNoUrl")
     case "ai_condition":
-      return (step.step_config.prompt as string) || "no prompt"
+      return (step.step_config.prompt as string) || t("automations.previewNoPrompt")
     case "ai_reply":
-      return (step.step_config.prompt as string) || "no prompt"
+      return (step.step_config.prompt as string) || t("automations.previewNoPrompt")
     case "ai_extract":
       const f = step.step_config.fields as { key: string }[] | undefined
       return f && f.length > 0
-        ? `${f.length} field(s)`
-        : "no fields"
+        ? t("automations.previewFieldsCount", f.length)
+        : t("automations.previewNoFields")
     default:
       return ""
   }

@@ -39,10 +39,31 @@ import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import {
   API_SCOPES,
-  SCOPE_DESCRIPTIONS,
   type ApiScope,
 } from '@/lib/api-keys/scopes';
 import { SettingsPanelHead } from './settings-panel-head';
+
+// Descriptions live in the dictionaries as `apiKeys.scope.<scope>`
+// (':' → '_'); SCOPE_DESCRIPTIONS stays server-side in the lib.
+const SCOPE_DESCRIPTION_KEYS: Record<ApiScope, string> = {
+  'messages:send': 'apiKeys.scope.messages_send',
+  'messages:read': 'apiKeys.scope.messages_read',
+  'contacts:read': 'apiKeys.scope.contacts_read',
+  'contacts:write': 'apiKeys.scope.contacts_write',
+  'conversations:read': 'apiKeys.scope.conversations_read',
+  'conversations:write': 'apiKeys.scope.conversations_write',
+  'broadcasts:send': 'apiKeys.scope.broadcasts_send',
+  'webhooks:manage': 'apiKeys.scope.webhooks_manage',
+  'pipelines:read': 'apiKeys.scope.pipelines_read',
+  'pipelines:write': 'apiKeys.scope.pipelines_write',
+  'deals:read': 'apiKeys.scope.deals_read',
+  'deals:write': 'apiKeys.scope.deals_write',
+  'members:read': 'apiKeys.scope.members_read',
+  'media:read': 'apiKeys.scope.media_read',
+  'media:write': 'apiKeys.scope.media_write',
+  'calendar:read': 'apiKeys.scope.calendar_read',
+  'calendar:write': 'apiKeys.scope.calendar_write',
+};
 
 interface ApiKey {
   id: string;
@@ -453,7 +474,7 @@ function CreateKeyDialog({
                           {scope}
                         </span>
                         <span className="text-muted-foreground block text-xs">
-                          {SCOPE_DESCRIPTIONS[scope]}
+                          {t(SCOPE_DESCRIPTION_KEYS[scope])}
                         </span>
                       </span>
                     </label>

@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, X, Video, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { ApiMediaAsset, ApiMediaTag } from "@/lib/api/v1/media-library";
 
 export interface MediaPickerProps {
@@ -19,6 +20,7 @@ export interface MediaPickerProps {
 }
 
 export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) {
+  const { t } = useLanguage();
   const [assets, setAssets] = useState<ApiMediaAsset[]>([]);
   const [tags, setTags] = useState<ApiMediaTag[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,7 +57,7 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover text-popover-foreground border-border sm:max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Media Library</DialogTitle>
+          <DialogTitle>{t("mediaLibrary.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -64,7 +66,7 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
+              placeholder={t("mediaLibrary.searchPlaceholder")}
               className="pl-9 bg-muted border-border h-9"
             />
             {search && (
@@ -82,7 +84,7 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
                 !tagFilter ? "bg-primary/20 text-primary ring-1 ring-primary/40" : "bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
-              All
+              {t("mediaLibrary.all")}
             </button>
             {tags.map((tag) => (
               <button
@@ -115,8 +117,8 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
               <FileText className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">
                 {search || tagFilter
-                  ? "No media match your filters."
-                  : "No media in library yet. Upload from the Media Library page."}
+                  ? t("mediaLibrary.noMatch")
+                  : t("mediaLibrary.emptyPicker")}
               </p>
             </div>
           ) : (
@@ -146,12 +148,12 @@ export function MediaPicker({ open, onOpenChange, onSelect }: MediaPickerProps) 
                     ) : asset.media_type === "video" ? (
                       <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
                         <Video className="h-8 w-8" />
-                        <span className="text-[10px]">Video</span>
+                        <span className="text-[10px]">{t("flows.mediaType.video")}</span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
                         <FileText className="h-8 w-8" />
-                        <span className="text-[10px]">Document</span>
+                        <span className="text-[10px]">{t("flows.mediaType.document")}</span>
                       </div>
                     )}
                   </div>

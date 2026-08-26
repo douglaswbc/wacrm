@@ -23,6 +23,64 @@ import { useLanguage } from "@/hooks/use-language";
 import type { ValidationIssue } from "@/lib/flows/validate";
 import { useFlowEditor } from "./flow-editor-state";
 
+// Maps each stable validation code to its translation key. Issues
+// whose code has no entry (or whose key isn't in the dictionaries
+// yet) fall back to the raw server-side message.
+const ISSUE_CODE_KEYS: Record<string, string> = {
+  missing_name: "flows.validation.missing_name",
+  missing_keywords: "flows.validation.missing_keywords",
+  blank_keywords: "flows.validation.blank_keywords",
+  missing_entry_node: "flows.validation.missing_entry_node",
+  no_nodes: "flows.validation.no_nodes",
+  entry_node_not_found: "flows.validation.entry_node_not_found",
+  duplicate_node_key: "flows.validation.duplicate_node_key",
+  unreachable_node: "flows.validation.unreachable_node",
+  missing_text: "flows.validation.missing_text",
+  missing_prompt: "flows.validation.missing_prompt",
+  missing_media_url: "flows.validation.missing_media_url",
+  invalid_media_type: "flows.validation.invalid_media_type",
+  caption_too_long: "flows.validation.caption_too_long",
+  missing_button_label: "flows.validation.missing_button_label",
+  missing_buttons: "flows.validation.missing_buttons",
+  too_many_buttons: "flows.validation.too_many_buttons",
+  missing_reply_id: "flows.validation.missing_reply_id",
+  duplicate_reply_id: "flows.validation.duplicate_reply_id",
+  missing_title: "flows.validation.missing_title",
+  button_title_too_long: "flows.validation.button_title_too_long",
+  row_title_too_long: "flows.validation.row_title_too_long",
+  row_description_too_long: "flows.validation.row_description_too_long",
+  no_rows: "flows.validation.no_rows",
+  too_many_rows: "flows.validation.too_many_rows",
+  missing_next: "flows.validation.missing_next",
+  invalid_next: "flows.validation.invalid_next",
+  missing_var_key: "flows.validation.missing_var_key",
+  invalid_var_key: "flows.validation.invalid_var_key",
+  missing_extract_prompt: "flows.validation.missing_extract_prompt",
+  missing_fields: "flows.validation.missing_fields",
+  field_missing_name: "flows.validation.field_missing_name",
+  field_missing_var_key: "flows.validation.field_missing_var_key",
+  missing_subject: "flows.validation.missing_subject",
+  missing_subject_key: "flows.validation.missing_subject_key",
+  missing_operator: "flows.validation.missing_operator",
+  empty_value: "flows.validation.empty_value",
+  missing_true_branch: "flows.validation.missing_true_branch",
+  missing_false_branch: "flows.validation.missing_false_branch",
+  invalid_true_branch: "flows.validation.invalid_true_branch",
+  invalid_false_branch: "flows.validation.invalid_false_branch",
+  missing_mode: "flows.validation.missing_mode",
+  missing_tag: "flows.validation.missing_tag",
+  missing_ai_prompt: "flows.validation.missing_ai_prompt",
+  unknown_node_type: "flows.validation.unknown_node_type",
+};
+
+function issueText(issue: ValidationIssue, t: (key: string) => string): string {
+  const key = issue.code ? ISSUE_CODE_KEYS[issue.code] : undefined;
+  if (!key) return issue.message;
+  const translated = t(key);
+  // t() echoes the key back when it's missing from the dictionaries.
+  return translated !== key ? translated : issue.message;
+}
+
 export function ValidationPanel() {
   const { t } = useLanguage();
   const { issues, requestFlash } = useFlowEditor();
@@ -100,7 +158,7 @@ export function IssueLine({
             {issue.node_key}
           </code>
         )}
-        {issue.message}
+        {issueText(issue, t)}
       </span>
     </>
   );

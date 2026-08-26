@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/hooks/use-language";
 import { WORKSPACE_FEATURE_META, type WorkspaceFeature } from "@/lib/features";
 
 interface Owner {
@@ -59,6 +60,7 @@ function fmtDate(iso: string): string {
 
 export default function AdminPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -73,17 +75,17 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/accounts", { cache: "no-store" });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || "Failed to load accounts");
+        toast.error(payload.error || t("admin.toastLoadFailed"));
         return;
       }
       const data = (await res.json()) as { accounts: Account[] };
       setAccounts(data.accounts);
     } catch {
-      toast.error("Could not reach the server");
+      toast.error(t("admin.serverUnreachable"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadAccounts();
@@ -100,11 +102,18 @@ export default function AdminPage() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || `Failed to ${action} account`);
+        toast.error(
+          payload.error ||
+            (action === "disable"
+              ? t("admin.toastDisableFailed")
+              : t("admin.toastEnableFailed")),
+        );
         return;
       }
       toast.success(
-        `Account ${action === "disable" ? "disabled" : "enabled"}`,
+        action === "disable"
+          ? t("admin.toastDisabled")
+          : t("admin.toastEnabled"),
       );
       setAccounts((prev) =>
         prev.map((a) =>
@@ -122,7 +131,7 @@ export default function AdminPage() {
         ),
       );
     } catch {
-      toast.error("Could not reach the server");
+      toast.error(t("admin.serverUnreachable"));
     } finally {
       setPendingAction(null);
     }
@@ -134,14 +143,14 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/accounts/${account.id}/features`);
       if (!res.ok) {
-        toast.error("Failed to load features");
+        toast.error(t("admin.toastLoadFeaturesFailed"));
         setFeatureList([]);
         return;
       }
       const data = (await res.json()) as { features: string[] };
       setFeatureList(data.features);
     } catch {
-      toast.error("Could not reach the server");
+      toast.error(t("admin.serverUnreachable"));
       setFeatureList([]);
     }
   }
@@ -168,13 +177,13 @@ export default function AdminPage() {
       );
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || "Failed to save features");
+        toast.error(payload.error || t("admin.toastSaveFeaturesFailed"));
         return;
       }
-      toast.success(`Features updated for ${featureAccount.name}`);
+      toast.success(`${t("admin.featuresUpdatedFor")} ${featureAccount.name}`);
       setFeatureAccount(null);
     } catch {
-      toast.error("Could not reach the server");
+      toast.error(t("admin.serverUnreachable"));
     } finally {
       setFeatureSaving(false);
     }
@@ -189,14 +198,16 @@ export default function AdminPage() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || "Failed to delete account");
+        toast.error(payload.error || t("admin.toastDeleteFailed"));
         return;
       }
-      toast.success(`Account "${deleting.name}" deleted`);
+      toast.success(
+        `${t("admin.account")} "${deleting.name}" ${t("admin.deleted")}`,
+      );
       setAccounts((prev) => prev.filter((a) => a.id !== deleting.id));
       setDeleting(null);
     } catch {
-      toast.error("Could not reach the server");
+      toast.error(t("admin.serverUnreachable"));
     } finally {
       setPendingAction(null);
     }
@@ -225,21 +236,23 @@ export default function AdminPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Admin
+            {t("admin.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage accounts and owners across the system.
+            {t("admin.subtitle")}
           </p>
         </div>
         <Badge className="bg-muted text-muted-foreground border-border shrink-0">
-          {accounts.length} account{accounts.length !== 1 ? "s" : ""}
+          {accounts.length === 1
+            ? t("admin.accountOne", accounts.length)
+            : t("admin.accountsMany", accounts.length)}
         </Badge>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search by account name, owner name or email..."
+          placeholder={t("admin.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="bg-muted border-border text-foreground placeholder:text-muted-foreground pl-9"
@@ -252,7 +265,7 @@ export default function AdminPage() {
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="size-8 text-muted-foreground" />
               <p className="mt-2 text-sm text-muted-foreground">
-                {search ? "No accounts match your search." : "No accounts found."}
+                {search ? t("admin.noMatch") : t("admin.empty")}
               </p>
             </div>
           ) : (
@@ -260,12 +273,12 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3 font-medium">Account</th>
-                    <th className="px-4 py-3 font-medium">Owner</th>
-                    <th className="px-4 py-3 font-medium">Members</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.account")}</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.owner")}</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.members")}</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.status")}</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.created")}</th>
+                    <th className="px-4 py-3 font-medium text-right">{t("admin.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -291,7 +304,7 @@ export default function AdminPage() {
                           </Avatar>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-foreground">
-                              {account.owner.full_name || "Unnamed"}
+                              {account.owner.full_name || t("contacts.unnamed")}
                             </p>
                             {account.owner.email && (
                               <p className="truncate text-xs text-muted-foreground">
@@ -308,12 +321,12 @@ export default function AdminPage() {
                         {account.disabled_at ? (
                           <Badge className="bg-red-500/10 text-red-400 border-red-500/40">
                             <ShieldOff className="size-3 mr-1" />
-                            Disabled
+                            {t("admin.disabled")}
                           </Badge>
                         ) : (
                           <Badge className="bg-green-500/10 text-green-400 border-green-500/40">
                             <Shield className="size-3 mr-1" />
-                            Active
+                            {t("admin.active")}
                           </Badge>
                         )}
                       </td>
@@ -323,7 +336,7 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-right">
                         {account.owner.user_id === user?.id ? (
                           <span className="text-xs text-muted-foreground">
-                            Your account
+                            {t("admin.yourAccount")}
                           </span>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
@@ -353,7 +366,7 @@ export default function AdminPage() {
                               ) : (
                                 <XCircle className="size-3.5" />
                               )}
-                              {account.disabled_at ? "Enable" : "Disable"}
+                              {account.disabled_at ? t("admin.enable") : t("admin.disable")}
                             </Button>
                             <Button
                               variant="outline"
@@ -386,25 +399,21 @@ export default function AdminPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-popover-foreground">
               <AlertTriangle className="size-4 text-red-400" />
-              Delete account permanently
+              {t("admin.deleteTitle")}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              This will permanently delete{" "}
+              {t("admin.deleteDescPre")}{" "}
               <span className="font-medium text-foreground">
                 {deleting?.name}
               </span>{" "}
-              and all associated data (contacts, conversations, messages,
-              deals, pipelines, automations, flows). The owners and all
-              members will lose access to their accounts and will not be
-              able to log in again.
+              {t("admin.deleteDescPost")}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
             <strong className="font-semibold text-red-200">
-              This action is irreversible.
+              {t("admin.deleteIrreversible")}
             </strong>{" "}
-            All data will be lost. If you only want to prevent access, use
-            &quot;Disable&quot; instead.
+            {t("admin.deleteIrreversibleRest")}
           </div>
           <DialogFooter className="bg-popover border-border">
             <Button
@@ -412,7 +421,7 @@ export default function AdminPage() {
               onClick={() => setDeleting(null)}
               className="border-border text-muted-foreground hover:bg-muted"
             >
-              Cancel
+              {t("admin.cancel")}
             </Button>
             <Button
               onClick={handleDelete}
@@ -422,10 +431,10 @@ export default function AdminPage() {
               {pendingAction ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Deleting...
+                  {t("admin.deleting")}
                 </>
               ) : (
-                "Delete account"
+                t("admin.deleteAccount")
               )}
             </Button>
           </DialogFooter>
@@ -442,11 +451,10 @@ export default function AdminPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-popover-foreground">
               <Settings2 className="size-4 text-primary" />
-              Workspace features — {featureAccount?.name}
+              {t("admin.featuresTitle")} {featureAccount?.name}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Select which Settings → Workspace sections are visible to this account.
-              Unchecked sections will be hidden from the settings sidebar.
+              {t("admin.featuresDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2 max-h-[60vh] overflow-y-auto pr-1">
@@ -484,7 +492,7 @@ export default function AdminPage() {
               onClick={() => setFeatureAccount(null)}
               className="border-border text-muted-foreground hover:bg-muted"
             >
-              Cancel
+              {t("admin.cancel")}
             </Button>
             <Button
               onClick={handleSaveFeatures}
@@ -494,10 +502,10 @@ export default function AdminPage() {
               {featureSaving ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Saving...
+                  {t("admin.saving")}
                 </>
               ) : (
-                "Save features"
+                t("admin.saveFeatures")
               )}
             </Button>
           </DialogFooter>

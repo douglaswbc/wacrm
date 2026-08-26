@@ -44,6 +44,7 @@ function ContactSearchDialog({
   const [query, setQuery] = useState("");
   const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([]);
   const [searching, setSearching] = useState(false);
+  const { t } = useLanguage();
   const supabase = createClient();
 
   // Reset search state when the dialog closes — adjusting state during
@@ -79,13 +80,13 @@ function ContactSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-popover text-popover-foreground border-border sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Send to Contact</DialogTitle>
+          <DialogTitle>{t("mediaLibrary.sendToContact")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 mt-2">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search contacts..."
+            placeholder={t("mediaLibrary.searchContacts")}
             className="bg-muted border-border"
             autoFocus
           />
@@ -95,7 +96,7 @@ function ContactSearchDialog({
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             ) : visibleContacts.length === 0 && query.trim() ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No contacts found</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("mediaLibrary.noContactsFound")}</p>
             ) : (
               visibleContacts.map((c) => (
                 <button
@@ -104,7 +105,7 @@ function ContactSearchDialog({
                   disabled={loading}
                   className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors"
                 >
-                  <p className="text-sm font-medium text-foreground">{c.name || "Unnamed"}</p>
+                  <p className="text-sm font-medium text-foreground">{c.name || t("contacts.unnamed")}</p>
                   <p className="text-xs text-muted-foreground">{c.phone}</p>
                 </button>
               ))
@@ -184,15 +185,15 @@ export default function MediaLibraryPage() {
       const res = await fetch("/api/media-library", { method: "POST", body: formData });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(json.error ?? "Upload failed");
+        toast.error(json.error ?? t("mediaLibrary.toastUploadFailed"));
         return;
       }
-      toast.success("Media added to library");
+      toast.success(t("mediaLibrary.toastUploaded"));
       setUploadOpen(false);
       setUploadForm({ name: "", caption: "", tag_ids: [], file: null });
       fetchAssets();
     } catch {
-      toast.error("Upload failed");
+      toast.error(t("mediaLibrary.toastUploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -202,13 +203,13 @@ export default function MediaLibraryPage() {
     try {
       const res = await fetch(`/api/media-library/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        toast.error("Failed to delete");
+        toast.error(t("mediaLibrary.toastDeleteFailed"));
         return;
       }
-      toast.success("Media deleted");
+      toast.success(t("mediaLibrary.toastDeleted"));
       fetchAssets();
     } catch {
-      toast.error("Failed to delete");
+      toast.error(t("mediaLibrary.toastDeleteFailed"));
     }
   }
 
@@ -222,15 +223,15 @@ export default function MediaLibraryPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        toast.error(json.error ?? "Failed to create tag");
+        toast.error(json.error ?? t("mediaLibrary.toastCreateTagFailed"));
         return;
       }
-      toast.success("Tag created");
+      toast.success(t("mediaLibrary.toastTagCreated"));
       setNewTagName("");
       setNewTagOpen(false);
       fetchTags();
     } catch {
-      toast.error("Failed to create tag");
+      toast.error(t("mediaLibrary.toastCreateTagFailed"));
     }
   }
 
@@ -240,7 +241,7 @@ export default function MediaLibraryPage() {
       fetchTags();
       if (tagFilter === id) setTagFilter("");
     } catch {
-      toast.error("Failed to delete tag");
+      toast.error(t("mediaLibrary.toastDeleteTagFailed"));
     }
   }
 
@@ -254,7 +255,7 @@ export default function MediaLibraryPage() {
 
     const max = MEDIA_MAX_BYTES_BY_KIND[kind];
     if (file.size > max) {
-      toast.error(`File is too large. ${kind} limit is ${Math.round(max / 1024 / 1024)} MB.`);
+      toast.error(`${t("mediaLibrary.fileTooLarge")} ${t("mediaLibrary.fileLimit", Math.round(max / 1024 / 1024))}`);
       return;
     }
 
@@ -291,14 +292,14 @@ export default function MediaLibraryPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        toast.error(json.error ?? "Failed to send");
+        toast.error(json.error ?? t("mediaLibrary.toastSendFailed"));
         return;
       }
-      toast.success("Media sent");
+      toast.success(t("mediaLibrary.toastSent"));
       setContactPickerOpen(false);
       setSelectedAssetForSend(null);
     } catch {
-      toast.error("Failed to send");
+      toast.error(t("mediaLibrary.toastSendFailed"));
     } finally {
       setSending(false);
     }
@@ -309,7 +310,7 @@ export default function MediaLibraryPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t("nav.mediaLibrary")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Store and reuse images, videos, and documents across conversations.
+            {t("mediaLibrary.subtitle")}
           </p>
         </div>
         <Button
@@ -317,12 +318,12 @@ export default function MediaLibraryPage() {
           className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <Upload className="h-4 w-4 mr-2" />
-          Upload
+          {t("mediaLibrary.upload")}
         </Button>
         <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
           <DialogContent className="bg-popover text-popover-foreground border-border sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Upload Media</DialogTitle>
+              <DialogTitle>{t("mediaLibrary.uploadMedia")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <div
@@ -338,7 +339,7 @@ export default function MediaLibraryPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={URL.createObjectURL(uploadForm.file)}
-                        alt="Preview"
+                        alt={t("mediaLibrary.preview")}
                         className="max-h-32 mx-auto rounded-lg object-cover"
                       />
                     )}
@@ -351,7 +352,7 @@ export default function MediaLibraryPage() {
                   <div className="space-y-2">
                     <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
-                      Click to select a file or drag & drop
+                      {t("mediaLibrary.clickToSelectFile")}
                     </p>
                   </div>
                 )}
@@ -361,35 +362,35 @@ export default function MediaLibraryPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Name</label>
+                <label className="text-xs text-muted-foreground">{t("mediaLibrary.name")}</label>
                 <Input
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="e.g. Client testimonial - before and after"
+                  placeholder={t("mediaLibrary.namePlaceholder")}
                   className="bg-muted border-border"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Caption (sent with the media)</label>
+                <label className="text-xs text-muted-foreground">{t("mediaLibrary.caption")}</label>
                 <Input
                   value={uploadForm.caption}
                   onChange={(e) => setUploadForm((p) => ({ ...p, caption: e.target.value }))}
-                  placeholder="e.g. Check out these results!"
+                  placeholder={t("mediaLibrary.captionPlaceholder")}
                   className="bg-muted border-border"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground">Tags</label>
+                  <label className="text-xs text-muted-foreground">{t("mediaLibrary.tags")}</label>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-6 text-xs"
                     onClick={() => setNewTagOpen(true)}
                   >
-                    <Plus className="h-3 w-3 mr-1" /> New tag
+                    <Plus className="h-3 w-3 mr-1" /> {t("mediaLibrary.newTag")}
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -415,7 +416,7 @@ export default function MediaLibraryPage() {
                     );
                   })}
                   {tags.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No tags yet. Create one above.</p>
+                    <p className="text-xs text-muted-foreground">{t("mediaLibrary.noTagsYet")}</p>
                   )}
                 </div>
               </div>
@@ -426,7 +427,7 @@ export default function MediaLibraryPage() {
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                Upload to Library
+                {t("mediaLibrary.uploadToLibrary")}
               </Button>
             </div>
           </DialogContent>
@@ -437,21 +438,21 @@ export default function MediaLibraryPage() {
       <Dialog open={newTagOpen} onOpenChange={setNewTagOpen}>
         <DialogContent className="bg-popover text-popover-foreground border-border sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>New Tag</DialogTitle>
+            <DialogTitle>{t("mediaLibrary.newTagTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Name</label>
+              <label className="text-xs text-muted-foreground">{t("mediaLibrary.name")}</label>
               <Input
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="e.g. Social Proof"
+                placeholder={t("mediaLibrary.tagNamePlaceholder")}
                 className="bg-muted border-border"
                 onKeyDown={(e) => { if (e.key === "Enter") handleCreateTag(); }}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Color</label>
+              <label className="text-xs text-muted-foreground">{t("mediaLibrary.color")}</label>
               <div className="flex gap-2">
                 {["#6366f1", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4"].map((c) => (
                   <button
@@ -467,7 +468,7 @@ export default function MediaLibraryPage() {
               </div>
             </div>
             <Button onClick={handleCreateTag} disabled={!newTagName.trim()} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-              Create Tag
+              {t("mediaLibrary.createTag")}
             </Button>
           </div>
         </DialogContent>
@@ -480,7 +481,7 @@ export default function MediaLibraryPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search media..."
+            placeholder={t("mediaLibrary.searchMediaPlaceholder")}
             className="pl-9 bg-muted border-border"
           />
           {search && (
@@ -495,10 +496,10 @@ export default function MediaLibraryPage() {
           onChange={(e) => setTypeFilter(e.target.value)}
           className="bg-muted border border-border text-foreground text-sm rounded-lg px-3 py-2"
         >
-          <option value="">All types</option>
-          <option value="image">Images</option>
-          <option value="video">Videos</option>
-          <option value="document">Documents</option>
+          <option value="">{t("mediaLibrary.allTypes")}</option>
+          <option value="image">{t("mediaLibrary.images")}</option>
+          <option value="video">{t("mediaLibrary.videos")}</option>
+          <option value="document">{t("mediaLibrary.documents")}</option>
         </select>
 
         <div className="flex flex-wrap gap-1.5">
@@ -535,12 +536,12 @@ export default function MediaLibraryPage() {
       ) : assets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium text-foreground">No media yet</h3>
+          <h3 className="text-lg font-medium text-foreground">{t("mediaLibrary.emptyTitle")}</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Upload images, videos, or documents to your library.
+            {t("mediaLibrary.emptyDesc")}
           </p>
           <Button onClick={() => setUploadOpen(true)} className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Upload className="h-4 w-4 mr-2" /> Upload your first media
+            <Upload className="h-4 w-4 mr-2" /> {t("mediaLibrary.uploadFirst")}
           </Button>
         </div>
       ) : (
@@ -561,12 +562,12 @@ export default function MediaLibraryPage() {
                 ) : asset.media_type === "video" ? (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Video className="h-10 w-10" />
-                    <span className="text-xs">Video</span>
+                    <span className="text-xs">{t("flows.mediaType.video")}</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <FileText className="h-10 w-10" />
-                    <span className="text-xs">Document</span>
+                    <span className="text-xs">{t("flows.mediaType.document")}</span>
                   </div>
                 )}
               </div>
@@ -603,7 +604,7 @@ export default function MediaLibraryPage() {
                       setContactPickerOpen(true);
                     }}
                   >
-                    <Send className="h-3 w-3 mr-1" /> Send
+                    <Send className="h-3 w-3 mr-1" /> {t("mediaLibrary.send")}
                   </Button>
                   <Button
                     variant="ghost"
