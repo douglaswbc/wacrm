@@ -74,8 +74,9 @@ async function handleSearchMedia(
     // Resolve the tag first, then restrict to assets linked to it.
     const { data: tagged, error: tagError } = await db
       .from('media_asset_tags')
-      .select('media_asset_id, media_tags!inner(name)')
+      .select('media_asset_id, media_tags!inner(name, account_id)')
       .eq('media_tags.name', tag)
+      .eq('media_tags.account_id', accountId)
     if (tagError) return json({ error: `Media search failed: ${tagError.message}` })
     const ids = [...new Set((tagged ?? []).map((row) => row.media_asset_id))]
     if (ids.length === 0) {
