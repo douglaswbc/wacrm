@@ -28,6 +28,12 @@ export async function autoCreateDealForContact(
 
     if (!firstStage) return;
 
+    const { data: account } = await db
+      .from('accounts')
+      .select('default_currency')
+      .eq('id', accountId)
+      .maybeSingle();
+
     const title = contactName?.trim() || 'New Lead';
 
     await db.from('deals').insert({
@@ -38,6 +44,7 @@ export async function autoCreateDealForContact(
       contact_id: contactId,
       title,
       value: 0,
+      currency: account?.default_currency ?? 'USD',
       status: 'open',
     });
   } catch (err) {

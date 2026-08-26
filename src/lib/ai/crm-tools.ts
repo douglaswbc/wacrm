@@ -29,7 +29,7 @@ export const CRM_TOOLS: AiToolDefinition[] = [
   {
     name: 'create_contact_deal',
     description:
-      'Create a pipeline deal for the customer in this conversation (status starts as open). Prefer checking list_pipelines first; if there is already an open deal for this customer in the pipeline, that deal is returned instead of creating a duplicate.',
+      'Create a pipeline deal for the customer in this conversation (status starts as open). Use after the lead is qualified (e.g. after adding tags). If there is already an open deal for this customer in the pipeline, that deal is returned instead of creating a duplicate.',
     parameters: [
       { name: 'title', type: 'string', description: 'Deal title, e.g. "Curso Intensivo Enfermagem — Maria Silva".', required: true },
       { name: 'value', type: 'number', description: 'Deal value in the account default currency (default 0).', required: false },
@@ -41,7 +41,7 @@ export const CRM_TOOLS: AiToolDefinition[] = [
   {
     name: 'update_contact_deal',
     description:
-      'Move the customer\'s deal to another stage or close it (won/lost), optionally updating value/notes. Without deal_id, uses the customer\'s most recent open deal.',
+      'Move the customer\'s deal to another stage or close it (won/lost), optionally updating value/notes. Without deal_id, uses the customer\'s most recent open deal. Use to track qualification progress: e.g. move to "Link Enviado" after sending the group link, or "Convertido" when the lead confirms interest.',
     parameters: [
       { name: 'deal_id', type: 'string', description: 'Deal id from create/list tools. Omit to use the latest open deal of this customer.', required: false },
       { name: 'stage_name', type: 'string', description: 'Target stage name (must belong to the deal\'s pipeline).', required: false },
