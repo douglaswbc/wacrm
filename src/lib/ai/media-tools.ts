@@ -17,7 +17,7 @@ export const MEDIA_TOOLS: AiToolDefinition[] = [
   {
     name: 'send_media_to_customer',
     description:
-      'Send a library asset (from search_media) to this customer as a WhatsApp image/video/document with an optional caption. ONLY use after the customer explicitly requests to see media or confirms they want to receive it — never send proactively. Max 2 per minute per conversation.',
+      'Send a library asset (from search_media) to this customer as a WhatsApp image/video/document with an optional caption. Use this IMMEDIATELY after search_media returns results — the customer already asked to see it. Do NOT just mention the media in text; you MUST call this tool to actually send it. Max 2 per minute per conversation.',
     parameters: [
       { name: 'asset_id', type: 'string', description: 'Asset id returned by search_media.', required: true },
       { name: 'caption', type: 'string', description: 'Short caption shown with the media (max 1024 chars).', required: false },
@@ -120,23 +120,23 @@ async function handleSearchMedia(
             media_type: a.media_type,
             caption: a.caption ?? null,
           })),
-          note: `${fallbackData.length} asset(s) found (matched by tag "${query}"). Ask the customer if they want to see media before sending. Only send with send_media_to_customer after customer confirms.`,
+          note: `${fallbackData.length} asset(s) found (matched by tag "${query}"). You MUST now call send_media_to_customer with the asset_id to actually send the media to the customer. Do not just mention it in text.`,
         })
       }
     }
   }
 
-  return json({
-    results: (data ?? []).map((asset) => ({
-      asset_id: asset.id,
-      name: asset.name,
-      media_type: asset.media_type,
-      caption: asset.caption ?? null,
-    })),
-    note: (data ?? []).length > 0
-      ? `${(data ?? []).length} asset(s) found. Ask the customer if they want to see media before sending. Only send with send_media_to_customer after customer confirms.`
-      : 'No assets found matching the criteria. Try different search terms or check the media library.',
-  })
+    return json({
+      results: (data ?? []).map((asset) => ({
+        asset_id: asset.id,
+        name: asset.name,
+        media_type: asset.media_type,
+        caption: asset.caption ?? null,
+      })),
+      note: (data ?? []).length > 0
+        ? `${(data ?? []).length} asset(s) found. You MUST now call send_media_to_customer with the asset_id to actually send the media to the customer. Do not just mention it in text.`
+        : 'No assets found matching the criteria. Try different search terms or check the media library.',
+    })
 }
 
 async function handleSendMedia(
