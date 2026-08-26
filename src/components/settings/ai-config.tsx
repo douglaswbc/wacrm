@@ -72,7 +72,7 @@ export function AiConfig() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
-  const [maxPerConversation, setMaxPerConversation] = useState(3);
+  const [maxPerConversation, setMaxPerConversation] = useState(12);
   const [pauseMode, setPauseMode] = useState<'manual' | 'timed'>('manual');
   const [pauseMinutes, setPauseMinutes] = useState(60);
   const [transcriptionEnabled, setTranscriptionEnabled] = useState(false);
@@ -109,7 +109,7 @@ export function AiConfig() {
         setSystemPrompt(data.system_prompt ?? '');
         setIsActive(data.is_active);
         setAutoReplyEnabled(data.auto_reply_enabled);
-        setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
+        setMaxPerConversation(data.auto_reply_max_per_conversation ?? 12);
         setPauseMode(data.auto_reply_pause_mode ?? 'manual');
         setPauseMinutes(data.auto_reply_pause_minutes ?? 60);
         setTranscriptionEnabled(data.transcription_enabled ?? false);

@@ -109,11 +109,11 @@ export async function dispatchInboundToAiReply(
       executeTool: async (name, toolArgs) => {
         let result: string
         try {
-          result = (await executeNativeTool(db, accountId, contactId, name, toolArgs, {
+          const nativeResult = await executeNativeTool(db, accountId, contactId, name, toolArgs, {
             conversationId,
             mode: 'auto_reply',
           })
-            ?? executeExternalTool(db, accountId, name, toolArgs)) as string
+          result = (nativeResult ?? await executeExternalTool(db, accountId, name, toolArgs)) as string
         } catch (toolErr) {
           logAiActivity({
             accountId,

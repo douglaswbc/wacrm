@@ -876,7 +876,7 @@ CREATE TABLE IF NOT EXISTS ai_configs (
   system_prompt                   TEXT,
   is_active                       BOOLEAN NOT NULL DEFAULT false,
   auto_reply_enabled              BOOLEAN NOT NULL DEFAULT false,
-  auto_reply_max_per_conversation INTEGER NOT NULL DEFAULT 3 CHECK (auto_reply_max_per_conversation BETWEEN 1 AND 20),
+  auto_reply_max_per_conversation INTEGER NOT NULL DEFAULT 12 CHECK (auto_reply_max_per_conversation BETWEEN 1 AND 20),
   auto_reply_pause_mode           TEXT NOT NULL DEFAULT 'manual' CHECK (auto_reply_pause_mode IN ('manual', 'timed')),
   auto_reply_pause_minutes        INTEGER NOT NULL DEFAULT 60 CHECK (auto_reply_pause_minutes BETWEEN 1 AND 10080),
   created_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),

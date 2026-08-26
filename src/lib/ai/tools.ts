@@ -136,11 +136,11 @@ export async function executeNativeTool(
   context: NativeToolContext = {},
 ): Promise<string | null> {
   if (!NATIVE_TOOL_NAMES.has(name)) {
-    return (
-      executeCrmTool(db, accountId, contactId, name, args)
-      ?? executeMediaTool(accountId, contactId, name, args, context)
-      ?? executeCalendarTool(db, accountId, contactId, name, args)
-    )
+    const crmResult = await executeCrmTool(db, accountId, contactId, name, args)
+    if (crmResult) return crmResult
+    const mediaResult = await executeMediaTool(accountId, contactId, name, args, context)
+    if (mediaResult) return mediaResult
+    return await executeCalendarTool(db, accountId, contactId, name, args)
   }
 
   if (Object.keys(args).length > 0) {

@@ -15,7 +15,7 @@ import type {
   ConversationStatus,
   Tag,
 } from "@/types";
-import { Search, ChevronDown, X } from "lucide-react";
+import { Search, ChevronDown, X, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/hooks/use-language";
 import { Input } from "@/components/ui/input";
@@ -684,6 +684,9 @@ function ConversationItem({
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                 {conversation.unread_count}
               </span>
+            )}
+            {conversation.ai_autoreply_disabled && (
+              <Sparkles className="h-3 w-3 text-amber-500" title={t('inbox.aiPaused')} />
             )}
             <span
               className={cn(
