@@ -45,16 +45,23 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   }
 
   let result = await runProvider(systemPrompt, tools)
-  // External effects are executed only by our server.  The second model call
-  // has no tools, preventing a loop or repeated mutation in one reply.
-  if (result.toolCalls?.length && executeTool) {
-    const calls = result.toolCalls.slice(0, 3)
+
+  // Execute tool calls in a loop: the model can chain multiple rounds of
+  // tools (e.g. get_contact_tags → search_media → send_media_to_customer)
+  // before producing a final text reply.  A hard cap prevents infinite loops.
+  const MAX_TOOL_ROUNDS = 3
+  let toolContext = ''
+  for (let round = 0; round < MAX_TOOL_ROUNDS && result.toolCalls?.length && executeTool; round++) {
+    const calls = result.toolCalls.slice(0, 5)
     const results = await Promise.all(calls.map(async (call) => ({
       name: call.name,
       result: await executeTool(call.name, call.arguments),
     })))
-    const toolContext = results.map(({ name, result }) => `Tool ${name} result:\n${result}`).join('\n\n')
-    result = await runProvider(`${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${toolContext}`, undefined)
+    toolContext += results.map(({ name, result }) => `Tool ${name} result:\n${result}`).join('\n\n') + '\n\n'
+    result = await runProvider(
+      `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${toolContext}`,
+      tools,
+    )
   }
 
   const parsed = parseGeneration(result.text)
