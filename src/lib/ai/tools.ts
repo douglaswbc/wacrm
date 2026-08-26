@@ -7,6 +7,7 @@ import {
   executeCalendarTool,
   validateNativeToolArgs,
 } from './calendar-tools'
+import { CRM_TOOLS, executeCrmTool } from './crm-tools'
 
 export const TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,63}$/
 const MAX_RESPONSE_CHARS = 12_000
@@ -103,6 +104,9 @@ export async function listActiveTools(db: SupabaseClient, accountId: string): Pr
   }
   return [
     ...NATIVE_TOOLS,
+    // CRM write tools (deals + tags) are always available — they only
+    // touch this account's own data.
+    ...CRM_TOOLS,
     ...calendarTools,
     ...(data ?? []).map((row) => ({
     name: row.name,
@@ -121,7 +125,10 @@ export async function executeNativeTool(
   args: Record<string, unknown> = {},
 ): Promise<string | null> {
   if (!NATIVE_TOOL_NAMES.has(name)) {
-    return executeCalendarTool(db, accountId, contactId, name, args)
+    return (
+      executeCrmTool(db, accountId, contactId, name, args)
+      ?? executeCalendarTool(db, accountId, contactId, name, args)
+    )
   }
 
   if (Object.keys(args).length > 0) {
