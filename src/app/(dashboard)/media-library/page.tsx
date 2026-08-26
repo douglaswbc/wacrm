@@ -27,6 +27,8 @@ import {
   FileText,
   Loader2,
   Send,
+  Tags,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -137,6 +139,15 @@ export default function MediaLibraryPage() {
   const [selectedAssetForSend, setSelectedAssetForSend] = useState<ApiMediaAsset | null>(null);
   const [sending, setSending] = useState(false);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<ApiMediaAsset | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    caption: "",
+    tag_ids: [] as string[],
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadForm, setUploadForm] = useState({
     name: "",
@@ -210,6 +221,54 @@ export default function MediaLibraryPage() {
       fetchAssets();
     } catch {
       toast.error(t("mediaLibrary.toastDeleteFailed"));
+    }
+  }
+
+  function openEditAsset(asset: ApiMediaAsset) {
+    setEditingAsset(asset);
+    setEditForm({
+      name: asset.name,
+      caption: asset.caption || "",
+      tag_ids: asset.tags.map((tag) => tag.id),
+    });
+    setEditOpen(true);
+  }
+
+  function toggleEditTag(tagId: string) {
+    setEditForm((prev) => ({
+      ...prev,
+      tag_ids: prev.tag_ids.includes(tagId)
+        ? prev.tag_ids.filter((id) => id !== tagId)
+        : [...prev.tag_ids, tagId],
+    }));
+  }
+
+  async function handleSaveEdit() {
+    if (!editingAsset || !editForm.name.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/media-library/${editingAsset.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          caption: editForm.caption,
+          tag_ids: editForm.tag_ids,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error ?? t("mediaLibrary.toastUpdateFailed"));
+        return;
+      }
+      toast.success(t("mediaLibrary.toastUpdated"));
+      setEditOpen(false);
+      setEditingAsset(null);
+      fetchAssets();
+    } catch {
+      toast.error(t("mediaLibrary.toastUpdateFailed"));
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -609,6 +668,15 @@ export default function MediaLibraryPage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="h-7 text-xs"
+                    title={t("mediaLibrary.edit")}
+                    onClick={() => openEditAsset(asset)}
+                  >
+                    <Tags className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-7 text-xs text-red-400 hover:text-red-300"
                     onClick={() => handleDelete(asset.id)}
                   >
@@ -620,6 +688,75 @@ export default function MediaLibraryPage() {
           ))}
         </div>
       )}
+
+      {/* Edit asset (name/caption/tags) dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="bg-popover text-popover-foreground border-border sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("mediaLibrary.editMediaTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">{t("mediaLibrary.name")}</label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder={t("mediaLibrary.namePlaceholder")}
+                className="bg-muted border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">{t("mediaLibrary.caption")}</label>
+              <Input
+                value={editForm.caption}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, caption: e.target.value }))}
+                placeholder={t("mediaLibrary.captionPlaceholder")}
+                className="bg-muted border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">{t("mediaLibrary.tags")}</label>
+              {tags.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t("mediaLibrary.emptyDesc")}</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.map((tag) => {
+                    const selected = editForm.tag_ids.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleEditTag(tag.id)}
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer",
+                          selected
+                            ? "ring-2 ring-primary ring-offset-1 ring-offset-background"
+                            : "opacity-60 hover:opacity-100",
+                        )}
+                        style={{
+                          backgroundColor: (tag.color || "#6366f1") + "20",
+                          color: tag.color || "#6366f1",
+                        }}
+                      >
+                        {selected && <Check className="mr-1 h-3 w-3" />}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={editSaving || !editForm.name.trim()}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {editSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t("mediaLibrary.save")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ContactSearchDialog
         open={contactPickerOpen}
