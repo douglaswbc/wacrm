@@ -31,6 +31,8 @@ import {
   Tag as TagIcon,
   Wrench,
   AlertCircle,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -278,6 +280,25 @@ export function MessageThread({
     if (!aiActivityOpen || !conversation) return;
     fetchAiActivity();
   }, [aiActivityOpen, conversation, resyncToken, fetchAiActivity]);
+
+  const [copyLogsCopied, setCopyLogsCopied] = useState(false);
+  const handleCopyLogs = useCallback(() => {
+    const lines = aiActivity.map((e) => {
+      const time = format(new Date(e.created_at), "HH:mm:ss");
+      const label = e.tool_name ?? e.event;
+      const detail = e.detail ?? "";
+      return `${label}\n${time}\n${detail}`;
+    });
+    const header = conversation?.contact?.name ?? "AI Activity";
+    const text = `=== ${header} ===\n\n${lines.join("\n\n")}`;
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success(t("inbox.copiedLogs"));
+      setCopyLogsCopied(true);
+      setTimeout(() => setCopyLogsCopied(false), 1500);
+    }).catch(() => {
+      toast.error(t("inbox.copyFailed"));
+    });
+  }, [aiActivity, conversation, t]);
 
   // Profiles are bounded by RLS to rows the current user is allowed to
   // see — today that's just the current user, but the dropdown keeps the
@@ -1229,12 +1250,24 @@ export function MessageThread({
               <PopoverContent align="end" className="w-80 p-0">
                 <div className="border-border flex items-center justify-between border-b px-3 py-2">
                   <span className="text-xs font-semibold">{t("inbox.aiActivity")}</span>
-                  {(conversation.ai_reply_count ?? 0) > 0 && (
-                    <Badge variant="outline" className="gap-1 border-border text-[10px] text-muted-foreground">
-                      <Sparkles className="h-3 w-3" />
-                      {conversation.ai_reply_count}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {(conversation.ai_reply_count ?? 0) > 0 && (
+                      <Badge variant="outline" className="gap-1 border-border text-[10px] text-muted-foreground">
+                        <Sparkles className="h-3 w-3" />
+                        {conversation.ai_reply_count}
+                      </Badge>
+                    )}
+                    {aiActivity.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleCopyLogs}
+                        className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        title={t("inbox.copyLogs")}
+                      >
+                        {copyLogsCopied ? <CheckCheck className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <ScrollArea className="h-64">
                   <div className="space-y-1 p-2">
