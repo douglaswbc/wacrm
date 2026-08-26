@@ -134,6 +134,7 @@ const pt: TranslationDict = {
   'contacts.clear': 'Limpar',
   'contacts.deleteSelected': 'Excluir selecionados',
   'contacts.selectAll': 'Selecionar todos os contatos desta página',
+  'contacts.selectAllLabel': 'Todos',
   'contacts.name': 'Nome',
   'contacts.phone': 'Telefone',
   'contacts.email': 'E-mail',

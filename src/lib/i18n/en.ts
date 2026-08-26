@@ -141,6 +141,7 @@ const en: TranslationDict = {
   'contacts.clear': 'Clear',
   'contacts.deleteSelected': 'Delete selected',
   'contacts.selectAll': 'Select all contacts on this page',
+  'contacts.selectAllLabel': 'All',
   'contacts.name': 'Name',
   'contacts.phone': 'Phone',
   'contacts.email': 'Email',
