@@ -49,10 +49,18 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   // Execute tool calls in a loop: the model can chain multiple rounds of
   // tools (e.g. get_contact_tags → search_media → send_media_to_customer)
   // before producing a final text reply.  A hard cap prevents infinite loops.
-  const MAX_TOOL_ROUNDS = 3
+  const MAX_TOOL_ROUNDS = 4
   let toolContext = ''
   for (let round = 0; round < MAX_TOOL_ROUNDS && result.toolCalls?.length && executeTool; round++) {
-    const calls = result.toolCalls.slice(0, 5)
+    // Deduplicate tool calls by name+args to avoid wasting slots on repeats
+    const seen = new Set<string>()
+    const calls = result.toolCalls.filter((call) => {
+      const key = `${call.name}:${JSON.stringify(call.arguments)}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    }).slice(0, 5)
+
     const results = await Promise.all(calls.map(async (call) => ({
       name: call.name,
       result: await executeTool(call.name, call.arguments),
