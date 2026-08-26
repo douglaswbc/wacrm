@@ -535,8 +535,8 @@ async function evaluateConditionNode(
  * ("Thanks {{vars.name}}, what's your email?"). Missing vars render as
  * empty string — the same behavior as the automations engine.
  */
-function interpolateVars(template: string, vars: Record<string, unknown>): string {
-  if (!template) return "";
+function interpolateVars(template: unknown, vars: Record<string, unknown>): string {
+  if (typeof template !== 'string') return '';
   return template.replace(/\{\{vars\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
     const v = vars[key];
     return v === undefined || v === null ? "" : String(v);

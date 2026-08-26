@@ -198,7 +198,8 @@ export async function executeNativeTool(
   return JSON.stringify(data ?? [])
 }
 
-function interpolate(template: string, args: Record<string, unknown>): string {
+function interpolate(template: unknown, args: Record<string, unknown>): string {
+  if (typeof template !== 'string') return String(template ?? '')
   return template.replace(/{{\s*([a-z][a-z0-9_]*)\s*}}/g, (_match, key: string) => {
     const value = args[key]
     return value === undefined || value === null ? '' : String(value)
