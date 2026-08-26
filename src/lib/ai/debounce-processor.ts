@@ -23,14 +23,20 @@ export function scheduleDebounceFlush(conversationId: string): void {
   const timer = setTimeout(async () => {
     pendingTimers.delete(conversationId)
 
-    const messages = await flushDebounce(conversationId)
+    let messages: PendingMessage[]
+    try {
+      messages = await flushDebounce(conversationId)
+    } catch (err) {
+      console.error(`[ai debounce] flushDebounce failed for ${conversationId}:`, err)
+      return
+    }
+
     if (messages.length === 0) return
 
-    // All messages in the batch share the same conversation context
     const first = messages[0]
 
     console.log(
-      `[ai debounce] flushing ${messages.length} message(s) for conversation ${conversationId}`,
+      `[ai debounce] flushing ${messages.length} message(s) for conversation ${conversationId} (debounce ${ms}ms)`,
     )
 
     try {
@@ -40,8 +46,9 @@ export function scheduleDebounceFlush(conversationId: string): void {
         conversationId: first.conversationId,
         configOwnerUserId: first.configOwnerUserId,
       })
+      console.log(`[ai debounce] reply sent for conversation ${conversationId}`)
     } catch (err) {
-      console.error('[ai debounce] dispatch failed:', err)
+      console.error(`[ai debounce] dispatch failed for ${conversationId}:`, err)
     }
   }, ms)
 

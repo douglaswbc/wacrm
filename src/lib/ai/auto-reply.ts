@@ -93,7 +93,10 @@ export async function dispatchInboundToAiReply(
     if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
 
     const messages = await buildConversationContext(db, conversationId)
-    if (messages.length === 0) return
+    if (messages.length === 0) {
+      console.log(`[ai] no messages for conversation ${conversationId}, skipping`)
+      return
+    }
 
     const tools = await listActiveTools(db, accountId)
     const systemPrompt = buildSystemPrompt({
@@ -101,6 +104,7 @@ export async function dispatchInboundToAiReply(
       mode: 'auto_reply',
       tools,
     })
+    console.log(`[ai] generating reply for conversation ${conversationId} (${messages.length} messages, ${tools.length} tools)`)
     const { text, handoff, usage } = await generateReply({
       config,
       systemPrompt,
@@ -140,6 +144,8 @@ export async function dispatchInboundToAiReply(
         return result
       },
     })
+
+    console.log(`[ai] reply generated for conversation ${conversationId}: handoff=${handoff}, text=${text ? text.substring(0, 80) + '...' : '(empty)'}`)
 
     if (usage) {
       recordUsage({
