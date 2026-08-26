@@ -1090,7 +1090,7 @@ const pt: TranslationDict = {
   "section.social": "Contas sociais",
   "section.templates": "Modelos",
   "section.webhooks": "Webhooks",
-  "section.whatsapp": "WhatsApp (Legado)",
+  "section.whatsapp": "WhatsApp",
   "security.confirmNewPassword": "Confirme a nova senha",
   "security.currentIncorrect": "A senha atual está incorreta",
   "security.currentPassword": "Senha atual",

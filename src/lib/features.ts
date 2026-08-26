@@ -41,7 +41,7 @@ export interface WorkspaceFeatureMeta {
 }
 
 export const WORKSPACE_FEATURE_META: Record<WorkspaceFeature, WorkspaceFeatureMeta> = {
-  whatsapp: { key: 'whatsapp', label: 'WhatsApp (Legacy)', icon: PlugZap, description: 'Legacy WhatsApp Cloud API (migrate to Social Accounts)' },
+  whatsapp: { key: 'whatsapp', label: 'WhatsApp', icon: PlugZap, description: 'WhatsApp Cloud API (Meta) direct connection' },
   instagram: { key: 'instagram', label: 'Instagram (Legacy)', icon: Camera, description: 'Legacy Instagram API (migrate to Social Accounts)' },
   ryzeapi: { key: 'ryzeapi', label: 'RyzeAPI', icon: PlugZap, description: 'Self-hosted WhatsApp gateway' },
   evolution: { key: 'evolution', label: 'Evolution API', icon: PlugZap, description: 'Open-source Evolution API WhatsApp gateway' },

@@ -1097,7 +1097,7 @@ const en: TranslationDict = {
   "section.social": "Social Accounts",
   "section.templates": "Templates",
   "section.webhooks": "Webhooks",
-  "section.whatsapp": "WhatsApp (Legacy)",
+  "section.whatsapp": "WhatsApp",
   "security.confirmNewPassword": "Confirm new password",
   "security.currentIncorrect": "Current password is incorrect",
   "security.currentPassword": "Current password",
