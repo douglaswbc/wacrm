@@ -20,6 +20,8 @@ export function scheduleDebounceFlush(conversationId: string): void {
 
   const ms = debounceMs()
 
+  console.log(`[ai debounce] scheduling flush for ${conversationId} in ${ms}ms`)
+
   const timer = setTimeout(async () => {
     pendingTimers.delete(conversationId)
 

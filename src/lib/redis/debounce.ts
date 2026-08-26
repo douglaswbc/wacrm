@@ -35,7 +35,10 @@ export async function addToDebounce(
     const isFirst = (await redis.exists(key)) === 0
 
     await redis.rpush(key, JSON.stringify(msg))
-    await redis.pexpire(key, debounceMs)
+    // Use a buffer beyond the debounce window so the key outlives the
+    // setTimeout that will flush it (the timer starts slightly later than
+    // pexpire due to the async gap between addToDebounce → scheduleDebounceFlush).
+    await redis.pexpire(key, debounceMs + 10_000)
 
     return isFirst
   } catch (err) {
