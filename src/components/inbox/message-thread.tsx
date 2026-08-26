@@ -1215,14 +1215,16 @@ export function MessageThread({
 
           {conversation && ((conversation.ai_reply_count ?? 0) > 0 || conversation.ai_autoreply_disabled) && (
             <Popover open={aiActivityOpen} onOpenChange={setAiActivityOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  title={t("inbox.aiActivity")}
-                  className="inline-flex h-7 items-center gap-1 px-2 text-xs rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                >
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    title={t("inbox.aiActivity")}
+                    className="inline-flex h-7 items-center gap-1 px-2 text-xs rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  />
+                }
+              >
                   <Sparkles className="h-3 w-3" />
-                </button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80 p-0">
                 <div className="border-border flex items-center justify-between border-b px-3 py-2">

@@ -53,7 +53,7 @@ export async function PATCH(
     let updatedTagIds: string[] | null = null;
     if (Array.isArray(body.tag_ids)) {
       const requested = [...new Set(
-        body.tag_ids.filter((tagId): tagId is string => typeof tagId === 'string' && tagId),
+        body.tag_ids.filter((tagId) => typeof tagId === 'string' && !!tagId),
       )];
 
       // Only allow tags that belong to this account.
