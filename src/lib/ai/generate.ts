@@ -51,6 +51,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   // before producing a final text reply.  A hard cap prevents infinite loops.
   const MAX_TOOL_ROUNDS = 4
   let previousContext = ''
+  let mediaSent = false
   for (let round = 0; round < MAX_TOOL_ROUNDS && result.toolCalls?.length && executeTool; round++) {
     // Deduplicate tool calls by name+args to avoid wasting slots on repeats
     const seen = new Set<string>()
@@ -65,6 +66,12 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       name: call.name,
       result: await executeTool(call.name, call.arguments),
     })))
+
+    // Track if media was sent — after that, force text-only reply
+    if (results.some((r) => r.name === 'send_media_to_customer' && /"sent"\s*:\s*true/.test(r.result))) {
+      mediaSent = true
+    }
+
     // Only keep the last 2 rounds of tool context to prevent prompt bloat
     const roundContext = results.map(({ name, result }) => `Tool ${name} result:\n${result}`).join('\n\n')
     previousContext = (previousContext ? previousContext + '\n\n' : '') + roundContext
@@ -73,9 +80,13 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     if (parts.length > 6) { // ~3 tool results per round, keep last 2 rounds
       previousContext = 'Tool ' + parts.slice(-6).join('\n\nTool ')
     }
+
+    // After media is sent, strip tools so the model generates a text reply
+    // instead of calling more tools (which often leads to empty replies).
+    const nextTools = mediaSent ? undefined : tools
     result = await runProvider(
       `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${previousContext}`,
-      tools,
+      nextTools,
     )
   }
 
