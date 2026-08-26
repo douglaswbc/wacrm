@@ -4,7 +4,8 @@ import crypto from 'crypto';
 import { normalizeZernioPayload } from '@/lib/zernio/normalize';
 import { runAutomationsForTrigger } from '@/lib/automations/engine';
 import { dispatchInboundToFlows } from '@/lib/flows/engine';
-import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply';
+import { addToDebounce } from '@/lib/redis/debounce';
+import { scheduleDebounceFlush } from '@/lib/ai/debounce-processor';
 import { transcribeInboundMedia } from '@/lib/ai/transcribe-webhook';
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver';
 import { toProxyUrl } from '@/lib/zernio/media';
@@ -569,12 +570,17 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       })
     }
 
-    await dispatchInboundToAiReply({
+    const isFirst = await addToDebounce({
       accountId,
       conversationId: convOutcome.id,
       contactId: contactOutcome.id,
       configOwnerUserId: userId,
+      text: msg.text ?? '',
+      timestamp: msg.sentAt || new Date().toISOString(),
     });
+    if (isFirst) {
+      scheduleDebounceFlush(convOutcome.id);
+    }
   }
 
   await dispatchWebhookEvent(db, accountId, 'message.received', {

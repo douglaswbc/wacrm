@@ -7,7 +7,8 @@ import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
-import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { addToDebounce } from '@/lib/redis/debounce'
+import { scheduleDebounceFlush } from '@/lib/ai/debounce-processor'
 import { transcribeInboundMedia } from '@/lib/ai/transcribe-webhook'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import {
@@ -827,9 +828,8 @@ async function processMessage(
 
   // AI auto-reply. Runs only for plain-text inbound the deterministic
   // flow runner did NOT consume (flows win over the LLM), and only when
-  // the account has enabled it. Awaited inside `after()` (same reason as
-  // the webhook dispatch below); `dispatchInboundToAiReply` owns its
-  // eligibility gates + try/catch and never throws.
+  // the account has enabled it. Messages are added to a Redis debounce
+  // buffer; the first message in a window schedules a delayed flush.
   const isMediaType = contentType === 'audio' || contentType === 'image' || contentType === 'video' || contentType === 'document'
   if (!flowConsumed && !interactiveReplyId && (inboundText.trim() || isMediaType)) {
     if (isMediaType) {
@@ -842,12 +842,17 @@ async function processMessage(
       })
     }
 
-    await dispatchInboundToAiReply({
+    const isFirst = await addToDebounce({
       accountId,
       conversationId: conversation.id,
       contactId: contactRecord.id,
       configOwnerUserId,
+      text: inboundText,
+      timestamp: new Date(parseInt(message.timestamp) * 1000).toISOString(),
     })
+    if (isFirst) {
+      scheduleDebounceFlush(conversation.id)
+    }
   }
 
   // message.received webhook (public API). Awaited — not fire-and-forget

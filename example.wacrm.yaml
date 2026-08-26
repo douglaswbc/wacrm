@@ -58,6 +58,13 @@ services:
       - GOOGLE_CALENDAR_CLIENT_ID=your-client-id.apps.googleusercontent.com
       - GOOGLE_CALENDAR_CLIENT_SECRET=GOCSPX-your-client-secret
       - GOOGLE_CALENDAR_REDIRECT_URI=https://app.autofunil.com.br/api/calendar/callback
+      
+      # Redis — message debounce 
+      - REDIS_URL=redis://redis:6379
+      - AI_DEBOUNCE_MS=8000
+
+      # AI context — quantas mensagens recentes enviar ao modelo
+      - AI_CONTEXT_MESSAGE_LIMIT=20
 
       # RyzeAPI (OPCIONAL — WhatsApp self-hosted alternativo)
       - RYZEAPI_API_URL=https://ryzeapi.cloud

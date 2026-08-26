@@ -21,7 +21,8 @@ import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
-import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { addToDebounce } from '@/lib/redis/debounce'
+import { scheduleDebounceFlush } from '@/lib/ai/debounce-processor'
 import { getIgUserProfile } from '@/lib/instagram/meta-api'
 import { fireCapiEvent, getCapiConfig } from '@/lib/meta/capi-store'
 import { autoCreateDealForContact } from '@/lib/deals/auto-create'
@@ -594,12 +595,17 @@ async function processMessage(
   // AI auto-reply (mirrors WhatsApp pattern).
   // ============================================================
   if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
-    await dispatchInboundToAiReply({
+    const isFirst = await addToDebounce({
       accountId,
       conversationId,
       contactId,
       configOwnerUserId: configUserId,
+      text: inboundText,
+      timestamp: new Date(item.timestamp).toISOString(),
     })
+    if (isFirst) {
+      scheduleDebounceFlush(conversationId)
+    }
   }
 
   // ============================================================
@@ -945,12 +951,17 @@ async function processComment(
 
   // AI auto-reply for comment text.
   if (!flowConsumed && inboundText.trim()) {
-    await dispatchInboundToAiReply({
+    const isFirst = await addToDebounce({
       accountId,
       conversationId,
       contactId,
       configOwnerUserId: configUserId,
+      text: inboundText,
+      timestamp: new Date().toISOString(),
     })
+    if (isFirst) {
+      scheduleDebounceFlush(conversationId)
+    }
   }
 }
 

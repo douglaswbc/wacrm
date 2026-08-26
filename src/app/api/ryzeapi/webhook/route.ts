@@ -4,7 +4,8 @@ import { normalizePhone, isValidE164 } from '@/lib/whatsapp/phone-utils'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
-import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { addToDebounce } from '@/lib/redis/debounce'
+import { scheduleDebounceFlush } from '@/lib/ai/debounce-processor'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { autoCreateDealForContact } from '@/lib/deals/auto-create'
 import type { ParsedInbound } from '@/lib/flows/types'
@@ -529,12 +530,17 @@ async function processInboundMessage(
 
   // 8. AI auto-reply (only if flow did not consume the message).
   if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
-    await dispatchInboundToAiReply({
+    const isFirst = await addToDebounce({
       accountId,
-      contactId,
       conversationId,
+      contactId,
       configOwnerUserId,
-    }).catch((err) => console.error('[ai] dispatch failed:', err))
+      text: inboundText,
+      timestamp: timestamp.toISOString(),
+    })
+    if (isFirst) {
+      scheduleDebounceFlush(conversationId)
+    }
   }
 
   // 9. Webhook delivery.
