@@ -4,7 +4,6 @@ import { normalizePhone, isValidE164 } from '@/lib/whatsapp/phone-utils'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
-import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { addToDebounce } from '@/lib/redis/debounce'
 import { scheduleDebounceFlush } from '@/lib/ai/debounce-processor'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
@@ -31,12 +30,27 @@ function supabaseAdmin() {
 
 type EvolutionPayload = {
   event?: string
+  instance?: string
   instanceName?: string
   instanceId?: string
   instanceToken?: string
   data?: {
     event?: string
+    instance?: string
     instanceName?: string
+    key?: {
+      remoteJid?: string
+      fromMe?: boolean
+      id?: string
+      participant?: string
+    }
+    pushName?: string
+    sender?: string
+    participant?: string
+    message?: Record<string, unknown>
+    Message?: Record<string, unknown>
+    messageTimestamp?: number | string
+    timestamp?: number | string
     Info?: {
       Chat?: string
       ID?: string
@@ -48,7 +62,6 @@ type EvolutionPayload = {
       Timestamp?: string
       Type?: string
     }
-    Message?: Record<string, unknown>
   }
 }
 
@@ -77,7 +90,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  for (const item of items) {
+for (const item of items) {
     // Evolution API wraps the payload differently depending on config.
     // Try body.data first, then item directly, then item.data.
     const bodyWrapper = (item as WebhookBody).body
@@ -87,116 +100,58 @@ export async function POST(request: Request) {
 
     const data = payload.data ?? {}
     const event = payload.event ?? data.event ?? 'Message'
-    const instanceName = payload.instanceName ?? data.instanceName ?? ''
-    const info = data.Info
+    const instanceName =
+      payload.instance ??
+      payload.instanceName ??
+      data.instanceName ??
+      data.instance ??
+      ''
+    const info = (data.Info ?? null) as Record<string, unknown> | null
 
     console.log('[evolution webhook] event:', event, 'instance:', instanceName || '(empty)')
 
-    // Whatsmeow delivers interactive replies (button/list clicks) as
-    // DEDICATED events — not embedded in "Message" — so they must be
-    // accepted here or every automation reacting to buttons is dead.
+    // Whatsmeow/Evolution delivers inbound and outbound messages as
+    // "messages.upsert" (and interactive button/list clicks as dedicated
+    // events). Status-only "messages.update" payloads carry no message and
+    // are skipped here.
     const INTERACTIVE_EVENTS = new Set(['ButtonClick', 'ListClick'])
-    if (event !== 'Message' && !INTERACTIVE_EVENTS.has(event)) continue
-    if (!info || !instanceName) continue
+    const isMessageEvent = event === 'messages.upsert' || event === 'Message'
+    if (!isMessageEvent && !INTERACTIVE_EVENTS.has(event)) continue
+    if (!instanceName) continue
 
-    const chat = info.Chat ?? ''
-    const isFromMe = info.IsFromMe ?? false
-    const isGroup = info.IsGroup ?? false
-    const pushName = info.PushName ?? null
-    const messageId = info.ID ?? ''
-    const type = info.Type ?? 'text'
+    // ── Extract fields (Evolution Go shape: data.key / data.message) ──
+    // Legacy whatsapp-web.js shape (data.Info / data.Message) kept as a
+    // fallback for older deployments.
+    const key = (data.key ?? {}) as Record<string, unknown>
+    const chat = String(key.remoteJid ?? info?.Chat ?? '')
+    const isFromMe = Boolean(key.fromMe ?? info?.IsFromMe ?? false)
+    const isGroup =
+      chat.endsWith('@g.us') ||
+      Boolean(key.participant || data.participant) ||
+      Boolean(info?.IsGroup)
+    const pushName =
+      (typeof data.pushName === 'string' ? data.pushName : null) ??
+      (info?.PushName as string | null) ??
+      null
+    const messageId = String(key.id ?? info?.ID ?? '')
+    const messageTimestamp = data.messageTimestamp ?? data.timestamp ?? info?.Timestamp
 
     if (!chat || isGroup) continue
 
-    const fromRaw = info.Sender ?? chat
+    const fromRaw = String(key.participant ?? data.sender ?? info?.Sender ?? chat)
     const fromPhone = fromRaw.replace(/@.*$/, '')
     const normalizedPhone = normalizePhone(fromPhone)
     if (!isValidE164(normalizedPhone)) continue
 
-    // Parse message content.
-    let messageType = 'text'
-    let contentText: string | null = null
-
-    const msg = data.Message ?? {}
-
-    // Interactive replies (button / list clicks from messages WE sent).
-    // Whatsmeow surfaces them as buttonsResponseMessage (reply buttons)
-    // or listResponseMessage (list rows). Evolution Go's real shape:
-    //   buttonsResponseMessage: {
-    //     selectedButtonID: "Tenho interesse",
-    //     Response: { SelectedDisplayText: "Tenho interesse" }
-    //   }
-    let interactiveReplyId: string | null = null
-    let interactiveReplyTitle: string | null = null
-    const firstNonEmpty = (...vals: unknown[]): string | null => {
-      for (const v of vals) {
-        const s = v == null ? '' : String(v)
-        if (s.trim()) return s
-      }
-      return null
-    }
-    const buttonsResp = msg.buttonsResponseMessage as Record<string, unknown> | null
-    if (buttonsResp && typeof buttonsResp === 'object') {
-      const resp = buttonsResp.Response as Record<string, unknown> | null
-      interactiveReplyId = firstNonEmpty(
-        buttonsResp.selectedButtonID,
-        buttonsResp.selectedId,
-        resp?.SelectedDisplayText,
-        resp?.selectedId,
-      )
-      interactiveReplyTitle = firstNonEmpty(
-        buttonsResp.selectedDisplayText,
-        resp?.SelectedDisplayText,
-        interactiveReplyId,
-      )
-    }
-    if (!interactiveReplyId) {
-      const listResp = msg.listResponseMessage as Record<string, unknown> | null
-      if (listResp && typeof listResp === 'object') {
-        const ssr = listResp.singleSelectReply as Record<string, unknown> | null
-        interactiveReplyId = ssr?.selectedRowId ? String(ssr.selectedRowId) : null
-        interactiveReplyTitle = listResp.title ? String(listResp.title) : interactiveReplyId
-      }
-    }
-    // Surface the clicked label as the message text so keyword_match,
-    // message_content conditions and AI steps can act on the choice.
-    if (!contentText && interactiveReplyTitle) {
-      contentText = interactiveReplyTitle
-    }
+    // Parse message content from the Whatsmeow message object.
+    const msg = (data.message ?? data.Message ?? {}) as Record<string, unknown>
+    const parsed = parseEvolutionMessage(msg)
+    const { messageType, contentText, interactiveReplyId, interactiveReplyTitle } = parsed
 
     // Raw WhatsApp media message object — needed for /message/downloadmedia.
     const mediaMessage = extractMediaMessage(msg)
 
-    if (type === 'text' || !type) {
-      messageType = 'text'
-      contentText = typeof msg.conversation === 'string'
-        ? msg.conversation
-        : typeof msg.extendedTextMessage === 'object' && msg.extendedTextMessage
-          ? String((msg.extendedTextMessage as Record<string, unknown>).text ?? '')
-          : null
-    } else if (type === 'media') {
-      const mediaType = (info.MediaType ?? '').toLowerCase()
-      if (mediaType === 'image') {
-        messageType = 'image'
-        const imgMsg = msg.imageMessage as Record<string, unknown> | null
-        contentText = imgMsg?.caption ? String(imgMsg.caption) : null
-      } else if (mediaType === 'video') {
-        messageType = 'video'
-        const vidMsg = msg.videoMessage as Record<string, unknown> | null
-        contentText = vidMsg?.caption ? String(vidMsg.caption) : null
-      } else if (mediaType === 'ptt' || mediaType === 'audio') {
-        messageType = 'audio'
-      } else if (mediaType === 'document') {
-        messageType = 'document'
-        const docMsg = msg.documentMessage as Record<string, unknown> | null
-        contentText = docMsg?.caption ? String(docMsg.caption) : null
-      } else if (mediaType === 'sticker') {
-        messageType = 'sticker'
-      } else {
-        // Unknown media — try to extract text.
-        contentText = typeof msg.conversation === 'string' ? msg.conversation : null
-      }
-    }
+const timestamp = toMessageDate(messageTimestamp)
 
     // Find config.
     const { data: config } = await db
@@ -219,8 +174,6 @@ export async function POST(request: Request) {
       .eq('account_id', accountId)
       .maybeSingle()
     const configOwnerUserId = (configRow?.user_id as string) || ''
-
-    const timestamp = info.Timestamp ? new Date(info.Timestamp) : new Date()
 
     // Process in after().
     after(async () => {
@@ -669,6 +622,121 @@ const MEDIA_MESSAGE_KEYS = [
   'documentMessage',
   'stickerMessage',
 ] as const
+
+/**
+ * Parse a Whatsmeow message object into WACRM's message model.
+ *
+ * Evolution Go delivers the raw Whatsmeow message under `data.message`,
+ * e.g. `{ conversation: "oi" }`, `{ imageMessage: { caption } }`, or
+ * `{ buttonsResponseMessage: {...} }` for interactive replies.
+ */
+function parseEvolutionMessage(msg: Record<string, unknown>): {
+  messageType: string
+  contentText: string | null
+  interactiveReplyId: string | null
+  interactiveReplyTitle: string | null
+} {
+  let messageType = 'text'
+  let contentText: string | null = null
+  let interactiveReplyId: string | null = null
+  let interactiveReplyTitle: string | null = null
+
+  const firstNonEmpty = (...vals: unknown[]): string | null => {
+    for (const v of vals) {
+      const s = v == null ? '' : String(v)
+      if (s.trim()) return s
+    }
+    return null
+  }
+
+  // Interactive replies (button / list clicks from messages WE sent).
+  // Whatsmeow surfaces them as buttonsResponseMessage (reply buttons)
+  // or listResponseMessage (list rows). Evolution Go's real shape:
+  //   buttonsResponseMessage: {
+  //     selectedButtonID: "Tenho interesse",
+  //     Response: { SelectedDisplayText: "Tenho interesse" }
+  //   }
+  const buttonsResp = msg.buttonsResponseMessage as Record<string, unknown> | null
+  if (buttonsResp && typeof buttonsResp === 'object') {
+    const resp = buttonsResp.Response as Record<string, unknown> | null
+    interactiveReplyId = firstNonEmpty(
+      buttonsResp.selectedButtonID,
+      buttonsResp.selectedId,
+      resp?.SelectedDisplayText,
+      resp?.selectedId,
+    )
+    interactiveReplyTitle = firstNonEmpty(
+      buttonsResp.selectedDisplayText,
+      resp?.SelectedDisplayText,
+      interactiveReplyId,
+    )
+  }
+  if (!interactiveReplyId) {
+    const listResp = msg.listResponseMessage as Record<string, unknown> | null
+    if (listResp && typeof listResp === 'object') {
+      const ssr = listResp.singleSelectReply as Record<string, unknown> | null
+      interactiveReplyId = ssr?.selectedRowId ? String(ssr.selectedRowId) : null
+      interactiveReplyTitle = listResp.title ? String(listResp.title) : interactiveReplyId
+    }
+  }
+  // Surface the clicked label as the message text so keyword_match,
+  // message_content conditions and AI steps can act on the choice.
+  if (!contentText && interactiveReplyTitle) {
+    contentText = interactiveReplyTitle
+  }
+
+  if (typeof msg.conversation === 'string' && msg.conversation) {
+    messageType = 'text'
+    contentText = msg.conversation
+  } else if (msg.extendedTextMessage && typeof msg.extendedTextMessage === 'object') {
+    messageType = 'text'
+    contentText =
+      String((msg.extendedTextMessage as Record<string, unknown>).text ?? '') || null
+  } else if (msg.imageMessage && typeof msg.imageMessage === 'object') {
+    messageType = 'image'
+    const caption = (msg.imageMessage as Record<string, unknown>).caption
+    contentText = caption != null && caption !== '' ? String(caption) : null
+  } else if (msg.videoMessage && typeof msg.videoMessage === 'object') {
+    messageType = 'video'
+    const caption = (msg.videoMessage as Record<string, unknown>).caption
+    contentText = caption != null && caption !== '' ? String(caption) : null
+  } else if (msg.audioMessage && typeof msg.audioMessage === 'object') {
+    messageType = 'audio'
+  } else if (msg.pttMessage && typeof msg.pttMessage === 'object') {
+    messageType = 'audio'
+  } else if (msg.documentMessage && typeof msg.documentMessage === 'object') {
+    messageType = 'document'
+    const caption = (msg.documentMessage as Record<string, unknown>).caption
+    contentText = caption != null && caption !== '' ? String(caption) : null
+  } else if (msg.stickerMessage && typeof msg.stickerMessage === 'object') {
+    messageType = 'sticker'
+  } else if (msg.locationMessage && typeof msg.locationMessage === 'object') {
+    messageType = 'location'
+  } else {
+    messageType = 'text'
+    contentText = typeof msg.conversation === 'string' ? msg.conversation : null
+  }
+
+  return { messageType, contentText, interactiveReplyId, interactiveReplyTitle }
+}
+
+/**
+ * Normalize an Evolution/Whatsmeow timestamp into a Date. Evolution sends
+ * messageTimestamp as Unix seconds; legacy payloads may use ISO strings or
+ * milliseconds.
+ */
+function toMessageDate(raw: unknown): Date {
+  if (typeof raw === 'number') {
+    return new Date(raw < 1e12 ? raw * 1000 : raw)
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const n = Number(raw)
+    if (!Number.isNaN(n)) return toMessageDate(n)
+    const d = new Date(raw)
+    if (!Number.isNaN(d.getTime())) return d
+  }
+  return new Date()
+}
 
 function extractMediaMessage(
   msg: Record<string, unknown>,

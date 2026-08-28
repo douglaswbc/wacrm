@@ -11,6 +11,8 @@ import {
   Unplug,
   Zap,
   AlertTriangle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
@@ -56,13 +58,32 @@ export function EvolutionApiConfig() {
   const [relayUrl, setRelayUrl] = useState('');
   const [qrExpiry, setQrExpiry] = useState<string | null>(null);
   const [pollTimer, setPollTimer] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const fetchedAccountRef = useRef<string | null>(null);
 
+  const siteBase = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, '') ?? '';
   const webhookUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/api/evolution/webhook`
-      : '';
+      ? `${siteBase || window.location.origin}/api/evolution/webhook`
+      : siteBase
+        ? `${siteBase}/api/evolution/webhook`
+        : '';
+
+  const displayWebhookUrl = config?.instance_name
+    ? `${webhookUrl}?instance=${encodeURIComponent(config.instance_name)}`
+    : webhookUrl;
+
+  const copyWebhook = useCallback(async () => {
+    if (!displayWebhookUrl) return;
+    try {
+      await navigator.clipboard.writeText(displayWebhookUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API blocked — nothing to do.
+    }
+  }, [displayWebhookUrl]);
 
   const fetchConfig = useCallback(async () => {
     if (!accountId) return;
@@ -378,6 +399,23 @@ export function EvolutionApiConfig() {
         </Card>
       )}
 
+{/* Webhook URL */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t('evolution.webhookUrlTitle')}</CardTitle>
+          <CardDescription>{t('evolution.webhookUrlDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2">
+          <code className="flex-1 truncate rounded-md border bg-muted px-3 py-2 text-xs text-muted-foreground">
+            {displayWebhookUrl || t('evolution.unconfigured')}
+          </code>
+          <Button variant="outline" size="sm" onClick={copyWebhook} disabled={!displayWebhookUrl}>
+            {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
+            {copied ? t('evolution.webhookCopied') : t('evolution.webhookCopy')}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Connected / disconnected actions */}
       {config && status !== 'pending_qr' && (
         <Card>
@@ -385,12 +423,10 @@ export function EvolutionApiConfig() {
             <CardTitle className="text-base">{t('evolution.instance')}: {config.instance_name || '—'}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            {status === 'disconnected' && (
-              <Button variant="outline" onClick={handleReconnect} disabled={saving}>
-                {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
-                {t('evolution.reconnect')}
-              </Button>
-            )}
+            <Button variant="outline" onClick={handleReconnect} disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
+              {t('evolution.reconnect')}
+            </Button>
             {status === 'connected' && (
               <Button variant="outline" onClick={handleRegenerateQr} disabled={saving}>
                 <QrCode className="size-4 mr-2" />

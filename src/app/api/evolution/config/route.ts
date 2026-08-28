@@ -7,6 +7,19 @@ import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 function stripQrPrefix(raw: string): string {
   return raw.replace(/^data:image\/[^;]+;base64,/, '')
 }
+
+/**
+ * Canonical public base for the Evolution webhook. Prefers the deployed
+ * site URL (NEXT_PUBLIC_SITE_URL, baked at build) so the URL registered on
+ * the Evolution server is always reachable even when the instance was
+ * created from a local/private host. Falls back to the caller-provided URL.
+ */
+function resolveWebhookBase(provided: string): string {
+  const trimmed = String(provided ?? '').trim().replace(/\/+$/, '')
+  if (trimmed) return trimmed
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? '').trim().replace(/\/+$/, '')
+  return site ? `${site}/api/evolution/webhook` : ''
+}
 import {
   createInstance,
   connectInstance,
@@ -14,6 +27,7 @@ import {
   disconnectInstance,
   getInstanceState,
   getQrCode,
+  setWebhook,
 } from '@/lib/evolution/client'
 
 async function resolveAccountId(
@@ -206,7 +220,7 @@ async function handleCreate(
   const apiUrl = (process.env.EVOLUTION_API_URL ?? '').trim()
   const adminKey = (process.env.EVOLUTION_API_KEY ?? '').trim()
   const instanceName = String(body.instance_name ?? '').trim()
-  const baseWebhookUrl = String(body.webhook_url ?? '').trim()
+  const baseWebhookUrl = resolveWebhookBase(String(body.webhook_url ?? ''))
   const webhookUrl = baseWebhookUrl
     ? `${baseWebhookUrl}?instance=${encodeURIComponent(instanceName)}`
     : ''
@@ -248,6 +262,22 @@ async function handleCreate(
       { error: `Evolution API instance creation failed: ${msg}` },
       { status: 400 },
     )
+  }
+
+  // 1b. Register the webhook. Some Evolution Go servers only persist the
+  // webhook through /instance/connect (or /webhook/set), so the create's
+  // `webhook` field alone may be ignored — force it here. Non-fatal.
+  if (webhookUrl) {
+    try {
+      await connectInstance({ apiUrl, instanceToken, webhookUrl })
+    } catch (err) {
+      console.warn('[evolution create] webhook via connect failed (non-fatal):', err)
+    }
+    try {
+      await setWebhook({ apiUrl, instanceToken, instanceName, webhookUrl })
+    } catch (err) {
+      console.warn('[evolution create] webhook via /webhook/set failed (non-fatal):', err)
+    }
   }
 
   // 2. Get QR code.
@@ -325,7 +355,7 @@ async function handleConnect(
   const instanceToken = decrypt(config.instance_token)
 
   // Reconfigure webhook via connect.
-  const baseUrl = String(body.webhook_url ?? '').trim()
+  const baseUrl = resolveWebhookBase(String(body.webhook_url ?? ''))
   try {
     await connectInstance({
       apiUrl: config.api_url,
@@ -434,7 +464,7 @@ async function handleReconnect(
   const instanceToken = decrypt(config.instance_token)
 
   // Reconfigure webhook via connect.
-  const baseUrl = String(body.webhook_url ?? '').trim()
+  const baseUrl = resolveWebhookBase(String(body.webhook_url ?? ''))
   try {
     await connectInstance({
       apiUrl: config.api_url,

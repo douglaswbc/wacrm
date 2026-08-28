@@ -178,6 +178,34 @@ export async function connectInstance(
   )
 }
 
+export interface SetWebhookArgs {
+  apiUrl: string
+  instanceToken: string
+  instanceName: string
+  webhookUrl: string
+}
+
+/**
+ * Force-register the instance webhook via the official
+ * POST /webhook/set/{instance} endpoint. Best-effort — some Evolution Go
+ * servers only persist webhooks through /instance/connect, so callers
+ * should treat failures as non-fatal.
+ */
+export async function setWebhook(
+  args: SetWebhookArgs,
+): Promise<{ enabled?: boolean; url?: string }> {
+  const body = {
+    enabled: true,
+    url: args.webhookUrl,
+    webhookByEvents: false,
+  }
+  return await restFetch(
+    args.apiUrl, args.instanceToken,
+    `/webhook/set/${encodeURIComponent(args.instanceName)}`,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
 export interface GetQrCodeArgs {
   apiUrl: string
   instanceToken: string
