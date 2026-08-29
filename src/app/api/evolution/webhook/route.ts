@@ -100,7 +100,11 @@ for (const item of items) {
 
     const data = payload.data ?? {}
     const event = payload.event ?? data.event ?? 'Message'
+    // The registered webhook URL carries `?instance=<name>`; prefer it so
+    // events are matched even when the payload body omits the field.
+    const queryInstance = new URL(request.url).searchParams.get('instance')
     const instanceName =
+      queryInstance ??
       payload.instance ??
       payload.instanceName ??
       data.instanceName ??
