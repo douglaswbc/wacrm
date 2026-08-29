@@ -6,7 +6,6 @@ import { buildConversationContext } from '@/lib/ai/context'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { AiError } from '@/lib/ai/types'
-import { executeExternalTool, executeNativeTool, listActiveTools } from '@/lib/ai/tools'
 
 /**
  * POST /api/ai/draft  (agent+)
@@ -86,20 +85,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const tools = await listActiveTools(supabase, accountId)
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'draft',
-      tools,
     })
     const { text } = await generateReply({
-      config, systemPrompt, messages, tools,
-      executeTool: async (name, args) =>
-        await executeNativeTool(supabase, accountId, conversation.contact_id, name, args, {
-          conversationId,
-          mode: 'draft',
-        })
-          ?? executeExternalTool(supabase, accountId, name, args),
+      config, systemPrompt, messages,
     })
     return NextResponse.json({ draft: text })
   } catch (err) {

@@ -77,6 +77,37 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     fetchContactData();
   }, [fetchContactData]);
 
+  // AI and webhook actions update deals, tags, and notes server-side. Keep
+  // the open contact panel synchronized without requiring a page refresh.
+  useEffect(() => {
+    if (!contact) return;
+
+    const supabase = createClient();
+    const filter = `contact_id=eq.${contact.id}`;
+    const channel = supabase
+      .channel(`contact-sidebar:${contact.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deals", filter },
+        () => { void fetchContactData(); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contact_tags", filter },
+        () => { void fetchContactData(); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contact_notes", filter },
+        () => { void fetchContactData(); },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [contact, fetchContactData]);
+
   const handleCopyPhone = useCallback(async () => {
     if (!contact?.phone) return;
     await navigator.clipboard.writeText(contact.phone);

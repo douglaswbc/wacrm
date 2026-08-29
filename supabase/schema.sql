@@ -2381,6 +2381,15 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'ryzeapi_config') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE ryzeapi_config;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'deals') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE deals;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'contact_tags') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE contact_tags;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'contact_notes') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE contact_notes;
+  END IF;
 END $$;
 
 -- ============================================================

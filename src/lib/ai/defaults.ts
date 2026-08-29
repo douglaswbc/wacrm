@@ -74,13 +74,21 @@ export function buildSystemPrompt(args: {
     )
   }
 
+  if (mode === 'draft') {
+    parts.push(
+      'You are creating an editable draft for a human agent. Tools are unavailable in draft mode and you must not attempt tool calls or internal CRM actions. Return one non-empty, customer-facing reply based only on the conversation and known business context.',
+    )
+  }
+
   if (userPrompt && userPrompt.trim()) {
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
     const prompt = userPrompt.trim().replace(/{{\s*tool\.([a-z][a-z0-9_]*)\s*}}/g, (token, name: string) => {
       const tool = byName.get(name)
       return tool
         ? `Use the ${tool.name} tool when its information is relevant. ${tool.description}`
-        : token
+        : mode === 'draft'
+          ? `The ${name} tool is unavailable while drafting. Write a customer-facing text reply without using it.`
+          : token
     })
     parts.push(`Business context and instructions:\n${prompt}`)
   }
