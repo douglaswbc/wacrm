@@ -10,8 +10,9 @@ import {
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
 
+interface OpenAiContentPart { type?: string; text?: string }
 interface OpenAiResponse {
-  choices?: { message?: { content?: string | null; tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[] } }[]
+  choices?: { finish_reason?: string | null; message?: { content?: string | OpenAiContentPart[] | null; refusal?: string | null; tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[] } }[]
   usage?: {
     prompt_tokens: number
     completion_tokens: number
@@ -59,11 +60,19 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
     if (!call.id || !call.function?.name || !call.function.arguments) return []
     try { return [{ id: call.id, name: call.function.name, arguments: JSON.parse(call.function.arguments) as Record<string, unknown> }] } catch { return [] }
   })
-  const text = message?.content
+  const text = typeof message?.content === 'string'
+    ? message.content
+    : Array.isArray(message?.content)
+      ? message.content.filter((part) => part.type === 'text' && typeof part.text === 'string').map((part) => part.text).join('')
+      : ''
   if ((!text || typeof text !== 'string' || !text.trim()) && !calls?.length) {
-    throw new AiError('OpenAI returned an empty response.', {
-      code: 'empty_response',
-    })
+    const reason = data?.choices?.[0]?.finish_reason
+    throw new AiError(
+      message?.refusal
+        ? `OpenAI refused the request: ${message.refusal}`
+        : `OpenAI returned an empty response${reason ? ` (finish_reason: ${reason})` : ''}.`,
+      { code: 'empty_response' },
+    )
   }
   return {
     text: typeof text === 'string' ? text : '', toolCalls: calls,

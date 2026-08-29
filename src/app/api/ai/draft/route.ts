@@ -89,9 +89,21 @@ export async function POST(request: Request) {
       userPrompt: config.systemPrompt,
       mode: 'draft',
     })
-    const { text } = await generateReply({
-      config, systemPrompt, messages,
-    })
+    let text: string
+    try {
+      ({ text } = await generateReply({ config, systemPrompt, messages }))
+    } catch (err) {
+      // Some provider/model combinations can return an empty completion for
+      // a long draft context. Retry once with a compact context and an
+      // explicit text-only instruction before surfacing the provider error.
+      if (!(err instanceof AiError) || err.code !== 'empty_response') throw err
+      console.warn('[ai/draft] empty completion; retrying with compact context')
+      ({ text } = await generateReply({
+        config,
+        systemPrompt: `${systemPrompt}\n\nReturn a concise, non-empty customer-facing draft now. Do not call tools.`,
+        messages: messages.slice(-8),
+      }))
+    }
     return NextResponse.json({ draft: text })
   } catch (err) {
     if (err instanceof AiError) {
