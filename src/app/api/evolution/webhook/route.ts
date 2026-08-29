@@ -425,17 +425,16 @@ async function processInboundMessage(
   }
 
   if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
-    const isFirst = await addToDebounce({
+    const pendingMessage = {
       accountId,
       conversationId,
       contactId,
       configOwnerUserId,
       text: inboundText,
       timestamp: timestamp.toISOString(),
-    })
-    if (isFirst) {
-      scheduleDebounceFlush(conversationId)
     }
+    const buffered = await addToDebounce(pendingMessage)
+    scheduleDebounceFlush(pendingMessage, buffered)
   }
 
   await dispatchWebhookEvent(db, accountId, 'message.received', {

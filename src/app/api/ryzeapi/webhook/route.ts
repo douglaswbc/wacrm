@@ -530,17 +530,16 @@ async function processInboundMessage(
 
   // 8. AI auto-reply (only if flow did not consume the message).
   if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
-    const isFirst = await addToDebounce({
+    const pendingMessage = {
       accountId,
       conversationId,
       contactId,
       configOwnerUserId,
       text: inboundText,
       timestamp: timestamp.toISOString(),
-    })
-    if (isFirst) {
-      scheduleDebounceFlush(conversationId)
     }
+    const buffered = await addToDebounce(pendingMessage)
+    scheduleDebounceFlush(pendingMessage, buffered)
   }
 
   // 9. Webhook delivery.

@@ -13,7 +13,17 @@ import { dispatchInboundToAiReply } from './auto-reply'
  */
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
-export function scheduleDebounceFlush(conversationId: string): void {
+export function scheduleDebounceFlush(message: PendingMessage, buffered: boolean): void {
+  const { conversationId } = message
+
+  // Redis is optional. Never schedule a flush that cannot read a buffer:
+  // doing so silently drops the AI reply when Redis is down or misconfigured.
+  if (!buffered) {
+    console.warn(`[ai debounce] Redis unavailable; dispatching immediately for ${conversationId}`)
+    void dispatchAiReply(message)
+    return
+  }
+
   // Clear any existing timer for this conversation (reset debounce)
   const existing = pendingTimers.get(conversationId)
   if (existing) clearTimeout(existing)
@@ -35,19 +45,12 @@ export function scheduleDebounceFlush(conversationId: string): void {
 
     if (messages.length === 0) return
 
-    const first = messages[0]
-
     console.log(
       `[ai debounce] flushing ${messages.length} message(s) for conversation ${conversationId} (debounce ${ms}ms)`,
     )
 
     try {
-      await dispatchInboundToAiReply({
-        accountId: first.accountId,
-        contactId: first.contactId,
-        conversationId: first.conversationId,
-        configOwnerUserId: first.configOwnerUserId,
-      })
+      await dispatchAiReply(messages[0])
       console.log(`[ai debounce] reply sent for conversation ${conversationId}`)
     } catch (err) {
       console.error(`[ai debounce] dispatch failed for ${conversationId}:`, err)
@@ -55,4 +58,17 @@ export function scheduleDebounceFlush(conversationId: string): void {
   }, ms)
 
   pendingTimers.set(conversationId, timer)
+}
+
+async function dispatchAiReply(message: PendingMessage): Promise<void> {
+  try {
+    await dispatchInboundToAiReply({
+      accountId: message.accountId,
+      contactId: message.contactId,
+      conversationId: message.conversationId,
+      configOwnerUserId: message.configOwnerUserId,
+    })
+  } catch (err) {
+    console.error(`[ai debounce] dispatch failed for ${message.conversationId}:`, err)
+  }
 }

@@ -595,17 +595,16 @@ async function processMessage(
   // AI auto-reply (mirrors WhatsApp pattern).
   // ============================================================
   if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
-    const isFirst = await addToDebounce({
+    const pendingMessage = {
       accountId,
       conversationId,
       contactId,
       configOwnerUserId: configUserId,
       text: inboundText,
       timestamp: new Date(item.timestamp).toISOString(),
-    })
-    if (isFirst) {
-      scheduleDebounceFlush(conversationId)
     }
+    const buffered = await addToDebounce(pendingMessage)
+    scheduleDebounceFlush(pendingMessage, buffered)
   }
 
   // ============================================================
@@ -951,17 +950,16 @@ async function processComment(
 
   // AI auto-reply for comment text.
   if (!flowConsumed && inboundText.trim()) {
-    const isFirst = await addToDebounce({
+    const pendingMessage = {
       accountId,
       conversationId,
       contactId,
       configOwnerUserId: configUserId,
       text: inboundText,
       timestamp: new Date().toISOString(),
-    })
-    if (isFirst) {
-      scheduleDebounceFlush(conversationId)
     }
+    const buffered = await addToDebounce(pendingMessage)
+    scheduleDebounceFlush(pendingMessage, buffered)
   }
 }
 

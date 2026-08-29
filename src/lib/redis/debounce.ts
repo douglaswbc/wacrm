@@ -15,13 +15,12 @@ export interface PendingMessage {
 /**
  * Adds a message to the debounce buffer for a conversation.
  *
- * Returns `true` when this is the **first** message in the buffer (caller
- * should schedule a flush after the debounce window).  Returns `false` for
- * subsequent messages within the same window (caller should do nothing —
- * the timer was already reset by the previous message).
+ * Returns `true` when the message was stored in Redis. Callers should reset
+ * their flush timer for every successfully buffered message, so the AI waits
+ * until the customer has stopped sending messages.
  *
- * If Redis is unavailable, always returns `true` so the caller can fall
- * back to immediate dispatch.
+ * Returns `false` when Redis is unavailable. The caller must then dispatch
+ * the AI reply immediately instead of scheduling a Redis flush.
  */
 export async function addToDebounce(
   msg: PendingMessage,
@@ -32,18 +31,16 @@ export async function addToDebounce(
 
   try {
     const key = `${DEBOUNCE_PREFIX}${msg.conversationId}`
-    const isFirst = (await redis.exists(key)) === 0
-
     await redis.rpush(key, JSON.stringify(msg))
     // Use a buffer beyond the debounce window so the key outlives the
     // setTimeout that will flush it (the timer starts slightly later than
     // pexpire due to the async gap between addToDebounce → scheduleDebounceFlush).
     await redis.pexpire(key, debounceMs + 10_000)
 
-    return isFirst
-  } catch (err) {
-    console.error('[debounce] addToDebounce failed, processing immediately:', err)
     return true
+  } catch (err) {
+    console.error('[debounce] addToDebounce failed; dispatching immediately:', err)
+    return false
   }
 }
 

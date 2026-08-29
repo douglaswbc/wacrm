@@ -570,17 +570,16 @@ async function handleInboundMessage(body: ZernioWebhookPayload) {
       })
     }
 
-    const isFirst = await addToDebounce({
+    const pendingMessage = {
       accountId,
       conversationId: convOutcome.id,
       contactId: contactOutcome.id,
       configOwnerUserId: userId,
       text: msg.text ?? '',
       timestamp: msg.sentAt || new Date().toISOString(),
-    });
-    if (isFirst) {
-      scheduleDebounceFlush(convOutcome.id);
-    }
+    };
+    const buffered = await addToDebounce(pendingMessage);
+    scheduleDebounceFlush(pendingMessage, buffered);
   }
 
   await dispatchWebhookEvent(db, accountId, 'message.received', {

@@ -842,17 +842,16 @@ async function processMessage(
       })
     }
 
-    const isFirst = await addToDebounce({
+    const pendingMessage = {
       accountId,
       conversationId: conversation.id,
       contactId: contactRecord.id,
       configOwnerUserId,
       text: inboundText,
       timestamp: new Date(parseInt(message.timestamp) * 1000).toISOString(),
-    })
-    if (isFirst) {
-      scheduleDebounceFlush(conversation.id)
     }
+    const buffered = await addToDebounce(pendingMessage)
+    scheduleDebounceFlush(pendingMessage, buffered)
   }
 
   // message.received webhook (public API). Awaited — not fire-and-forget
