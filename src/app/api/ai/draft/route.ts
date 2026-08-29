@@ -98,11 +98,12 @@ export async function POST(request: Request) {
       // explicit text-only instruction before surfacing the provider error.
       if (!(err instanceof AiError) || err.code !== 'empty_response') throw err
       console.error('[ai/draft] empty completion; retrying with compact context')
-      ({ text } = await generateReply({
+      const retry = await generateReply({
         config,
         systemPrompt: `${systemPrompt}\n\nReturn a concise, non-empty customer-facing draft now. Do not call tools.`,
         messages: messages.slice(-8),
-      }))
+      })
+      text = retry.text
     }
     return NextResponse.json({ draft: text })
   } catch (err) {
