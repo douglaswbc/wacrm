@@ -90,6 +90,18 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     )
   }
 
+  // A model can still request another tool after the last permitted round.
+  // Do one final, text-only pass with the results already collected instead
+  // of treating that unfinished tool chain as an empty reply / human handoff.
+  if (result.toolCalls?.length && executeTool) {
+    console.warn(`[ai] tool round limit (${MAX_TOOL_ROUNDS}) reached; forcing final text reply`)
+    result = await runProvider(
+      `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${previousContext}\n\n` +
+      'The tool lookup limit has been reached. Do not call any more tools. Reply to the customer now using the available information, or output [[HANDOFF]] only if a human is genuinely required.',
+      undefined,
+    )
+  }
+
   const parsed = parseGeneration(result.text)
   parsed.usage = result.usage
   return parsed

@@ -109,6 +109,38 @@ describe('generateReply — OpenAI', () => {
       }),
     ).rejects.toBeInstanceOf(AiError)
   })
+
+  it('forces a final text-only reply when the tool-round limit is reached', async () => {
+    const toolResponse = (id: string) => okResponse({
+      choices: [{ message: {
+        content: null,
+        tool_calls: [{ id, function: { name: 'lookup', arguments: '{}' } }],
+      } }],
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolResponse('call-1'))
+      .mockResolvedValueOnce(toolResponse('call-2'))
+      .mockResolvedValueOnce(toolResponse('call-3'))
+      .mockResolvedValueOnce(toolResponse('call-4'))
+      .mockResolvedValueOnce(toolResponse('call-5'))
+      .mockResolvedValueOnce(okResponse({ choices: [{ message: { content: 'Perfeito! Como posso ajudar?' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const executeTool = vi.fn().mockResolvedValue('{"found":true}')
+
+    const res = await generateReply({
+      config: config(),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+      tools: [{ name: 'lookup', description: 'Looks up information', parameters: [] }],
+      executeTool,
+    })
+
+    expect(res).toEqual({ text: 'Perfeito! Como posso ajudar?', handoff: false })
+    expect(executeTool).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    const finalRequest = JSON.parse(fetchMock.mock.calls[5][1].body)
+    expect(finalRequest.tools).toBeUndefined()
+  })
 })
 
 describe('generateReply — Anthropic', () => {
