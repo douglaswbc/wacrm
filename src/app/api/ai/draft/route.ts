@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       // a long draft context. Retry once with a compact context and an
       // explicit text-only instruction before surfacing the provider error.
       if (!(err instanceof AiError) || err.code !== 'empty_response') throw err
-      console.warn('[ai/draft] empty completion; retrying with compact context')
+      console.error('[ai/draft] empty completion; retrying with compact context')
       ({ text } = await generateReply({
         config,
         systemPrompt: `${systemPrompt}\n\nReturn a concise, non-empty customer-facing draft now. Do not call tools.`,
