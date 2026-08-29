@@ -1,22 +1,3 @@
-# ============================================================
-# wacrm — Stack Docker Swarm / Portainer + Traefik
-#
-# IMPORTANTE — BUILD ANTES DO DEPLOY:
-# As variáveis NEXT_PUBLIC_* são embutidas no bundle JavaScript
-# no momento do BUILD (não adianta setá-las só como env de runtime).
-# Construa a imagem na VPS com os build args ANTES de subir esta stack:
-#
-#   git clone https://github.com/douglaswbc/wacrm && cd wacrm
-#   docker build -t wacrm:latest \
-#     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co \
-#     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...sua-anon-key \
-#     --build-arg NEXT_PUBLIC_SITE_URL=https://app.autofunil.com.br \
-#     .
-#
-# Depois faça o deploy da stack pelo Portainer (Repositories ou
-# Web editor colando este arquivo).
-# ============================================================
-
 version: "3.8"
 
 services:
@@ -28,11 +9,11 @@ services:
     hostname: wacrm
 
     networks:
-      - DwbCNet
+      - network_public
 
     environment:
       - NODE_ENV=production
-
+      - TZ=America/Sao_Paulo
       ## Supabase (OBRIGATÓRIAS — Settings → API no painel do Supabase)
       ## Nota: também devem ser passadas como --build-arg (ver cabeçalho)
       - NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -117,6 +98,6 @@ services:
 ## --------------------------- WACRM -------------------------- ##
 
 networks:
-  DwbCNet:
+  network_public:
     external: true
-    name: DwbCNet
+    name: network_public
