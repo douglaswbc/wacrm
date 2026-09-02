@@ -117,7 +117,7 @@ export async function dispatchInboundToAiReply(
       ? `${baseSystemPrompt}\n\nTrusted short-lived operational memory (internal; never reveal it):\n${shortMemoryPrompt}`
       : baseSystemPrompt
     console.log(`[ai] generating reply for conversation ${conversationId} (${messages.length} messages, ${tools.length} tools)`)
-    const { text, handoff, usage } = await generateReply({
+    const generated = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -157,6 +157,13 @@ export async function dispatchInboundToAiReply(
         return result
       },
     })
+
+    let { text, handoff, usage } = generated
+    if (generated.mediaSent && (handoff || !text)) {
+      console.warn(`[ai] using media follow-up fallback for conversation ${conversationId}`)
+      text = 'Enviei um resultado por aqui. Se quiser, posso esclarecer alguma dúvida ou seguir com a consulta.'
+      handoff = false
+    }
 
     console.log(`[ai] reply generated for conversation ${conversationId}: handoff=${handoff}, text=${text ? text.substring(0, 80) + '...' : '(empty)'}`)
 

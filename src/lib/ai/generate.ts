@@ -10,100 +10,94 @@ export interface GenerateArgs {
   config: AiConfig
   systemPrompt: string
   messages: ChatMessage[]
-  /** Tools exposed to the model for this one response. */
   tools?: AiToolDefinition[]
-  /** Server-side executor; required whenever `tools` is provided. */
   executeTool?: (name: string, args: Record<string, unknown>) => Promise<string>
 }
 
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
   const { config, systemPrompt, messages, tools, executeTool } = args
-  const timeoutMs = aiRequestTimeoutMs()
   const providerArgs = {
     apiKey: config.apiKey,
     model: config.model,
     systemPrompt,
     messages,
-    timeoutMs, tools,
+    timeoutMs: aiRequestTimeoutMs(),
+    tools,
   }
-
   const runProvider = async (prompt: string, availableTools?: AiToolDefinition[]): Promise<ProviderResult> => {
     const request = { ...providerArgs, systemPrompt: prompt, tools: availableTools }
     switch (config.provider) {
-    case 'openai':
-      return generateOpenAi(request)
-    case 'anthropic':
-      return generateAnthropic(request)
-    case 'groq':
-      return generateGroq(request)
-    default:
-      throw new AiError(`Unsupported AI provider: ${config.provider}`, {
-        code: 'unsupported_provider',
-        status: 400,
-      })
+      case 'openai': return generateOpenAi(request)
+      case 'anthropic': return generateAnthropic(request)
+      case 'groq': return generateGroq(request)
+      default: throw new AiError(`Unsupported AI provider: ${config.provider}`, { code: 'unsupported_provider', status: 400 })
     }
   }
 
   let result = await runProvider(systemPrompt, tools)
-
-  // Execute tool calls in a loop: the model can chain multiple rounds of
-  // tools (e.g. get_contact_tags → search_media → send_media_to_customer)
-  // before producing a final text reply.  A hard cap prevents infinite loops.
   const MAX_TOOL_ROUNDS = 4
+  const MAX_MEDIA_SEARCHES = 2
   let previousContext = ''
   let mediaSent = false
-  for (let round = 0; round < MAX_TOOL_ROUNDS && result.toolCalls?.length && executeTool; round++) {
-    // Deduplicate tool calls by name+args to avoid wasting slots on repeats
-    const seen = new Set<string>()
+  let mediaSearches = 0
+  const executedCalls = new Set<string>()
+  const executedSideEffectTools = new Set<string>()
+  const onePerReplyTools = new Set([
+    'add_contact_tags',
+    'create_contact_deal',
+    'update_contact_deal',
+  ])
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS && result.toolCalls?.length && executeTool; round += 1) {
+    let sendSelected = false
     const calls = result.toolCalls.filter((call) => {
       const key = `${call.name}:${JSON.stringify(call.arguments)}`
-      if (seen.has(key)) return false
-      seen.add(key)
+      if (executedCalls.has(key)) return false
+      if (onePerReplyTools.has(call.name) && executedSideEffectTools.has(call.name)) return false
+      if (call.name === 'search_media' && mediaSearches >= MAX_MEDIA_SEARCHES) return false
+      if (call.name === 'send_media_to_customer' && (mediaSent || sendSelected)) return false
+      if (call.name === 'send_media_to_customer') sendSelected = true
+      executedCalls.add(key)
+      if (onePerReplyTools.has(call.name)) executedSideEffectTools.add(call.name)
       return true
     }).slice(0, 5)
+    if (calls.length === 0) break
 
-    const results = await Promise.all(calls.map(async (call) => ({
-      name: call.name,
-      result: await executeTool(call.name, call.arguments),
-    })))
-
-    // Track if media was sent — after that, force text-only reply
-    if (results.some((r) => r.name === 'send_media_to_customer' && /"sent"\s*:\s*true/.test(r.result))) {
-      mediaSent = true
+    // Sequential execution lets each result guide the next action. It also
+    // stops a successful media send from being followed by another send.
+    const results: { name: string; result: string }[] = []
+    for (const call of calls) {
+      const toolResult = await executeTool(call.name, call.arguments)
+      results.push({ name: call.name, result: toolResult })
+      if (call.name === 'search_media') mediaSearches += 1
+      if (call.name === 'send_media_to_customer' && /"sent"\s*:\s*true/.test(toolResult)) {
+        mediaSent = true
+        break
+      }
     }
 
-    // Only keep the last 2 rounds of tool context to prevent prompt bloat
-    const roundContext = results.map(({ name, result }) => `Tool ${name} result:\n${result}`).join('\n\n')
-    previousContext = (previousContext ? previousContext + '\n\n' : '') + roundContext
-    // Trim to last 2 rounds worth of context
+    const roundContext = results.map(({ name, result: toolResult }) => `Tool ${name} result:\n${toolResult}`).join('\n\n')
+    previousContext = (previousContext ? `${previousContext}\n\n` : '') + roundContext
     const parts = previousContext.split('\n\nTool ')
-    if (parts.length > 6) { // ~3 tool results per round, keep last 2 rounds
-      previousContext = 'Tool ' + parts.slice(-6).join('\n\nTool ')
-    }
+    if (parts.length > 6) previousContext = `Tool ${parts.slice(-6).join('\n\nTool ')}`
 
-    // After media is sent, strip tools so the model generates a text reply
-    // instead of calling more tools (which often leads to empty replies).
-    const nextTools = mediaSent ? undefined : tools
     result = await runProvider(
       `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${previousContext}`,
-      nextTools,
+      mediaSent ? undefined : tools,
     )
   }
 
-  // A model can still request another tool after the last permitted round.
-  // Do one final, text-only pass with the results already collected instead
-  // of treating that unfinished tool chain as an empty reply / human handoff.
   if (result.toolCalls?.length && executeTool) {
-    console.warn(`[ai] tool round limit (${MAX_TOOL_ROUNDS}) reached; forcing final text reply`)
+    console.warn('[ai] tool round or action limit reached; forcing final text reply')
     result = await runProvider(
-      `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${previousContext}\n\n` +
-      'The tool lookup limit has been reached. Do not call any more tools. Reply to the customer now using the available information, or output [[HANDOFF]] only if a human is genuinely required.',
+      `${systemPrompt}\n\nTrusted tool results (use these to answer the customer; do not claim data not present):\n${previousContext}\n\nThe tool lookup limit has been reached. Do not call any more tools. Reply to the customer now using the available information, or output [[HANDOFF]] only if a human is genuinely required.`,
       undefined,
     )
   }
 
   const parsed = parseGeneration(result.text)
   parsed.usage = result.usage
+  if (mediaSent) parsed.mediaSent = true
   return parsed
 }
 

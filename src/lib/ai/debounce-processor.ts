@@ -51,7 +51,7 @@ export function scheduleDebounceFlush(message: PendingMessage, buffered: boolean
 
     try {
       await dispatchAiReply(messages[0])
-      console.log(`[ai debounce] reply sent for conversation ${conversationId}`)
+      console.log(`[ai debounce] reply processing completed for conversation ${conversationId}`)
     } catch (err) {
       console.error(`[ai debounce] dispatch failed for ${conversationId}:`, err)
     }

@@ -45,6 +45,8 @@ export interface GenerateResult {
     input_tokens: number
     output_tokens: number
   }
+  /** True when a library media asset was delivered during this generation. */
+  mediaSent?: boolean
 }
 
 /**
