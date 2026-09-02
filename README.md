@@ -259,6 +259,36 @@ e dedup).
 - **Calendário** — Google Calendar API com OAuth2 para sincronização
   bidirecional de eventos.
 
+## Desenvolvimento local
+
+Requer Node.js 20 ou superior. Após configurar `.env.local` a partir de
+`.env.local.example`, inicie o ambiente com:
+
+```bash
+npm run dev
+```
+
+Para gerar a build de produção, use:
+
+```bash
+npm run build
+```
+
+## Estrutura do projeto
+
+- `src/app/` — páginas, layouts e endpoints API do App Router.
+- `src/components/` — componentes de interface organizados por domínio.
+- `src/lib/` — regras de negócio, acesso a dados e integrações.
+- `src/types/` — tipos compartilhados.
+- `supabase/` — schema do banco de dados.
+
+## Documentação
+
+- [Arquitetura](./docs/architecture.md)
+- [Banco de dados](./docs/database.md)
+- [Integrações](./docs/integrations.md)
+- [API pública](./docs/public-api.md)
+
 ## Contribuindo
 
 Relatos de bugs e problemas de segurança são bem-vindos. Veja

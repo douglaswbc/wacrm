@@ -36,8 +36,18 @@ yarn-error.log*
 !.env.local.example
 !.env.example
 
+# local deployment configuration (may contain credentials)
+wacrm.yaml
+
+# Supabase CLI local metadata
+supabase/.temp/
+supabase/.branches/
+
 # MCP
 opencode.json
+
+#examples
+examples
 
 # vercel
 .vercel
