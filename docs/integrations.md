@@ -163,12 +163,15 @@ Agrupa mensagens recebidas antes de acionar respostas automáticas de IA.
 
 ### Environment Variables
 
-`REDIS_URL` e `AI_DEBOUNCE_MS`.
+`REDIS_URL`, `AI_DEBOUNCE_MS` e `AI_SHORT_MEMORY_TTL_SECONDS`.
 
 ### Flow
 
-Quando configurado, Redis mantém o buffer de debounce; sem ele, o processamento
-de resposta de IA é imediato.
+Quando configurado, Redis mantém o buffer de debounce e uma memória operacional
+efêmera por conversa (por padrão, 72 horas). Essa memória guarda somente estado
+de execução, como mídia já enviada, última consulta de disponibilidade e evento
+criado; o histórico durável continua no Supabase. Sem Redis, o processamento de
+resposta de IA é imediato.
 
 ## Outgoing Webhooks
 

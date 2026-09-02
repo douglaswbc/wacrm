@@ -27,7 +27,7 @@ export async function addToDebounce(
   debounceMs: number = DEFAULT_DEBOUNCE_MS,
 ): Promise<boolean> {
   const redis = getRedis()
-  if (!redis) return true
+  if (!redis) return false
 
   try {
     const key = `${DEBOUNCE_PREFIX}${msg.conversationId}`

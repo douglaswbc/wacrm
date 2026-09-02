@@ -2,12 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AiToolDefinition } from './tools'
 import { engineSendMedia } from '@/lib/flows/meta-send'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
+import {
+  claimMediaAssetSend,
+  releaseMediaAssetSend,
+} from '@/lib/redis/conversation-memory'
 
 export const MEDIA_TOOLS: AiToolDefinition[] = [
   {
     name: 'search_media',
     description:
-      'Search the business media library for materials (images, videos, documents) by free-text query and/or tag. Use the lead\'s contact tags as the tag parameter to find relevant media. Returns candidate assets — ask the customer if they want to see media before sending.',
+      'Search the business media library for materials (images, videos, documents) by free-text query and/or a known media tag. Contact tags and media tags are different; do not use a contact tag as a media tag unless its exact media tag exists. Returns candidates only. Search only after the customer explicitly authorizes receiving media.',
     parameters: [
       { name: 'query', type: 'string', description: 'Free text to match against asset name/caption, e.g. "folder curso enfermagem". Optional if tag is given.', required: false },
       { name: 'tag', type: 'string', description: 'Exact media tag name to filter by, e.g. "curso-enfermagem".', required: false },
@@ -17,7 +21,7 @@ export const MEDIA_TOOLS: AiToolDefinition[] = [
   {
     name: 'send_media_to_customer',
     description:
-      'Send a library asset (from search_media) to this customer as a WhatsApp image/video/document with an optional caption. Use this IMMEDIATELY after search_media returns results — the customer already asked to see it. Do NOT just mention the media in text; you MUST call this tool to actually send it. Max 2 per minute per conversation.',
+      'Send one library asset returned by search_media as a WhatsApp image, video, or document after explicit customer authorization. Never send the same asset twice in a conversation; the server rejects duplicates. Do not send additional assets unless the customer asks or authorizes them. Max 2 per minute per conversation.',
     parameters: [
       { name: 'asset_id', type: 'string', description: 'Asset id returned by search_media.', required: true },
       { name: 'caption', type: 'string', description: 'Short caption shown with the media (max 1024 chars).', required: false },
@@ -155,13 +159,6 @@ async function handleSendMedia(
   if (!conversationId) {
     return json({ error: 'No active conversation to send media to.' })
   }
-  if (!canSend(conversationId)) {
-    return json({
-      error:
-        'Media send limit reached for this conversation right now (max 2 per minute). Offer to send more later instead.',
-    })
-  }
-
   const assetId = String(args.asset_id).trim()
   const { data: asset, error: fetchError } = await supabaseAdmin()
     .from('media_assets')
@@ -171,6 +168,18 @@ async function handleSendMedia(
     .maybeSingle()
   if (fetchError || !asset) {
     return json({ error: 'Asset not found in this account\'s media library.' })
+  }
+
+  const claimed = await claimMediaAssetSend(accountId, conversationId, asset.id)
+  if (!claimed) {
+    return json({ error: 'This media asset was already sent in this conversation. Choose a different result.' })
+  }
+  if (!canSend(conversationId)) {
+    await releaseMediaAssetSend(accountId, conversationId, asset.id)
+    return json({
+      error:
+        'Media send limit reached for this conversation right now (max 2 per minute). Offer to send more later instead.',
+    })
   }
 
   const captionRaw = typeof args.caption === 'string' ? args.caption : undefined
@@ -188,6 +197,7 @@ async function handleSendMedia(
       filename: asset.media_type === 'document' ? asset.name : undefined,
     })
   } catch (error) {
+    await releaseMediaAssetSend(accountId, conversationId, asset.id)
     return json({
       error: `Could not send media: ${
         error instanceof Error ? error.message : 'unknown error'

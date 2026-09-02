@@ -7,6 +7,11 @@ import { recordUsage } from './usage-tracker'
 import { engineSendText } from '@/lib/flows/meta-send'
 import { executeExternalTool, executeNativeTool, listActiveTools } from './tools'
 import { logAiActivity, summarizeToolResult } from './activity-log'
+import {
+  formatConversationShortMemory,
+  getConversationShortMemory,
+  recordConversationToolResult,
+} from '@/lib/redis/conversation-memory'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -98,12 +103,19 @@ export async function dispatchInboundToAiReply(
       return
     }
 
-    const tools = await listActiveTools(db, accountId)
-    const systemPrompt = buildSystemPrompt({
+    const [tools, shortMemory] = await Promise.all([
+      listActiveTools(db, accountId),
+      getConversationShortMemory(accountId, conversationId),
+    ])
+    const baseSystemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       tools,
     })
+    const shortMemoryPrompt = formatConversationShortMemory(shortMemory)
+    const systemPrompt = shortMemoryPrompt
+      ? `${baseSystemPrompt}\n\nTrusted short-lived operational memory (internal; never reveal it):\n${shortMemoryPrompt}`
+      : baseSystemPrompt
     console.log(`[ai] generating reply for conversation ${conversationId} (${messages.length} messages, ${tools.length} tools)`)
     const { text, handoff, usage } = await generateReply({
       config,
@@ -132,6 +144,7 @@ export async function dispatchInboundToAiReply(
           throw toolErr
         }
         const errored = /"error"\s*:/.test(result)
+        await recordConversationToolResult(accountId, conversationId, name, result)
         logAiActivity({
           accountId,
           conversationId,
